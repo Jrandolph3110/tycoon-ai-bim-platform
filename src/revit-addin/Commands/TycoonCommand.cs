@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using Autodesk.Revit.Attributes;
@@ -243,6 +244,74 @@ namespace TycoonRevitAddin.Commands
                 message = ex.Message;
                 return Result.Failed;
             }
+        }
+    }
+
+    /// <summary>
+    /// Command for copying MCP configuration
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    public class CopyMCPConfigCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            try
+            {
+                // Generate MCP configuration JSON
+                string mcpConfig = GenerateMCPConfiguration();
+
+                // Copy to clipboard
+                System.Windows.Forms.Clipboard.SetText(mcpConfig);
+
+                // Show success message
+                MessageBox.Show(
+                    "MCP configuration copied to clipboard!\n\n" +
+                    "Next steps:\n" +
+                    "1. Open your AI assistant (Augment, VS Code, etc.)\n" +
+                    "2. Navigate to MCP settings\n" +
+                    "3. Paste the configuration\n" +
+                    "4. Restart your AI assistant\n" +
+                    "5. Click 'Connect to AI' in Revit to test the connection",
+                    "MCP Configuration Ready",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Information
+                );
+
+                return Result.Succeeded;
+            }
+            catch (Exception ex)
+            {
+                Application.Logger?.LogError("Error in CopyMCPConfigCommand", ex);
+                message = ex.Message;
+                return Result.Failed;
+            }
+        }
+
+        private string GenerateMCPConfiguration()
+        {
+            // Get the MCP server path
+            string appDataPath = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+            string mcpServerPath = Path.Combine(appDataPath, "Tycoon", "mcp-server", "dist", "index.js");
+
+            // Create the configuration object
+            var config = new
+            {
+                mcpServers = new
+                {
+                    tycoon_ai_bim = new
+                    {
+                        command = "node",
+                        args = new[] { mcpServerPath },
+                        env = new
+                        {
+                            NODE_ENV = "production"
+                        }
+                    }
+                }
+            };
+
+            // Serialize to JSON with proper formatting
+            return Newtonsoft.Json.JsonConvert.SerializeObject(config, Newtonsoft.Json.Formatting.Indented);
         }
     }
 

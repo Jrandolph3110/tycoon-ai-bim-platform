@@ -92,6 +92,15 @@ namespace TycoonRevitAddin
             // Create main panel
             RibbonPanel mainPanel = application.CreateRibbonPanel(tabName, "AI Integration");
 
+            // Add Copy MCP Config button
+            PushButtonData copyConfigButtonData = new PushButtonData(
+                "TycoonCopyConfig",
+                "Copy MCP\nConfig",
+                Assembly.GetExecutingAssembly().Location,
+                "TycoonRevitAddin.Commands.CopyMCPConfigCommand"
+            );
+            copyConfigButtonData.ToolTip = "Copy MCP configuration JSON to clipboard for AI assistant setup";
+
             // Add Connect button
             PushButtonData connectButtonData = new PushButtonData(
                 "TycoonConnect",
@@ -114,6 +123,7 @@ namespace TycoonRevitAddin
                 // Icons not found, continue without them
             }
 
+            PushButton copyConfigButton = mainPanel.AddItem(copyConfigButtonData) as PushButton;
             PushButton connectButton = mainPanel.AddItem(connectButtonData) as PushButton;
 
             // Create FLC Steel Framing panel

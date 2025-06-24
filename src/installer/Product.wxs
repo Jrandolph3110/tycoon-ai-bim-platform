@@ -132,6 +132,25 @@
       </Directory>
     </Directory>
 
+    <!-- Custom Actions for MCP Download -->
+    <CustomAction Id="DownloadMCPServer"
+                  BinaryKey="DownloadHelper"
+                  ExeCommand=""
+                  Execute="deferred"
+                  Return="check"
+                  Impersonate="no" />
+
+    <CustomAction Id="SetMCPDownloadProperties"
+                  Property="DownloadMCPServer"
+                  Value="APPDATA=[APPDATA]"
+                  Execute="immediate" />
+
+    <!-- Installation Sequence -->
+    <InstallExecuteSequence>
+      <Custom Action="SetMCPDownloadProperties" After="CostFinalize">NOT Installed</Custom>
+      <Custom Action="DownloadMCPServer" After="InstallFiles">NOT Installed</Custom>
+    </InstallExecuteSequence>
+
     <!-- Features -->
     <Feature Id="RevitIntegration" Title="Tycoon AI-BIM Platform" Level="1"
              Description="Tycoon AI-BIM Platform Revit add-in">
@@ -144,6 +163,9 @@
 
     <!-- Custom UI -->
     <UIRef Id="TycoonUI" />
+
+    <!-- Binary for MCP Download Helper -->
+    <Binary Id="DownloadHelper" SourceFile="DownloadMCP.exe" />
 
     <!-- Icons removed for now -->
 

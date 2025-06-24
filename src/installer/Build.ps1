@@ -134,7 +134,33 @@ if (Test-Command "nuget") {
 
 Write-Host "Package restore completed" -ForegroundColor Green
 
-# Build Revit Add-in first
+# Build Download Helper first
+Write-Host "Building Download Helper..." -ForegroundColor Yellow
+
+$DownloadHelperProject = Join-Path $PSScriptRoot "DownloadMCP\DownloadMCP.csproj"
+
+# Restore packages for Download Helper
+Write-Host "Restoring packages for Download Helper..." -ForegroundColor Yellow
+& "$MSBuildPath" $DownloadHelperProject /t:Restore /verbosity:minimal
+if ($LASTEXITCODE -ne 0) {
+    Write-Error "Failed to restore packages for Download Helper"
+    exit 1
+}
+
+& "$MSBuildPath" $DownloadHelperProject /p:Configuration=$Configuration /p:Platform="AnyCPU" /verbosity:minimal
+
+if ($LASTEXITCODE -ne 0) {
+    Write-Error "Failed to build Download Helper"
+    exit 1
+}
+
+# Copy DownloadMCP.exe to installer directory for WiX
+$DownloadHelperExe = Join-Path $PSScriptRoot "DownloadMCP\bin\Release\net48\DownloadMCP.exe"
+Copy-Item $DownloadHelperExe $PSScriptRoot -Force
+
+Write-Host "Download Helper build completed" -ForegroundColor Green
+
+# Build Revit Add-in
 Write-Host "Building Revit Add-in..." -ForegroundColor Yellow
 
 & "$MSBuildPath" $RevitAddinProject /p:Configuration=$Configuration /p:Platform="AnyCPU" /verbosity:minimal
@@ -172,6 +198,19 @@ try {
     }
     
     Write-Host "MCP Server build completed" -ForegroundColor Green
+
+# Package MCP Server for GitHub release
+Write-Host "Packaging MCP Server for GitHub release..." -ForegroundColor Yellow
+$PackageMCPScript = Join-Path $PSScriptRoot "PackageMCP.ps1"
+if (Test-Path $PackageMCPScript) {
+    & powershell -ExecutionPolicy Bypass -File $PackageMCPScript
+    if ($LASTEXITCODE -ne 0) {
+        Write-Warning "MCP packaging failed, but continuing with installer build..."
+    }
+} else {
+    Write-Warning "PackageMCP.ps1 not found, skipping MCP packaging..."
+}
+Write-Host "MCP Server packaging completed" -ForegroundColor Green
 }
 finally {
     Pop-Location
