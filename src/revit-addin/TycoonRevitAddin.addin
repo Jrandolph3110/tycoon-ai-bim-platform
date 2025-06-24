@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RevitAddIns>
+  <AddIn Type="Application">
+    <Name>Tycoon AI-BIM Platform</Name>
+    <Assembly>TycoonRevitAddin.dll</Assembly>
+    <AddInId>A1B2C3D4-E5F6-4890-ABCD-EF1234567890</AddInId>
+    <FullClassName>TycoonRevitAddin.Application</FullClassName>
+    <ClientId>A1B2C3D4-E5F6-4890-ABCD-EF1234567890</ClientId>
+    <VendorId>FLCS</VendorId>
+    <VendorDescription>F.L. Crane &amp; Sons - Joseph Randolph</VendorDescription>
+    <Description>Revolutionary AI-powered construction automation platform with live Revit integration for steel framing workflows.</Description>
+  </AddIn>
+  
+  <AddIn Type="Command">
+    <Text>Tycoon Connect</Text>
+    <Description>Connect to Tycoon AI-BIM Server</Description>
+    <Assembly>TycoonRevitAddin.dll</Assembly>
+    <AddInId>B2C3D4E5-A6B7-4901-BCDE-F12345678901</AddInId>
+    <FullClassName>TycoonRevitAddin.Commands.TycoonCommand</FullClassName>
+    <CommandId>TycoonConnect</CommandId>
+    <VendorId>FLCS</VendorId>
+    <VendorDescription>F.L. Crane &amp; Sons - Joseph Randolph</VendorDescription>
+    <LongDescription>Establish connection to Tycoon AI-BIM MCP Server for real-time AI-Revit integration and steel framing automation.</LongDescription>
+    <TooltipImage>Resources\TycoonIcon16.png</TooltipImage>
+    <LargeImage>Resources\TycoonIcon32.png</LargeImage>
+    <AvailabilityClassName>TycoonRevitAddin.Commands.TycoonCommand</AvailabilityClassName>
+  </AddIn>
+</RevitAddIns>

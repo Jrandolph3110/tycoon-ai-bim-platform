@@ -1,0 +1,143 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi" 
+     xmlns:util="http://schemas.microsoft.com/wix/UtilExtension">
+  
+  <Fragment>
+    <!-- Revit Version Detection Properties -->
+    
+    <!-- Revit 2022 Detection -->
+    <Property Id="REVIT_2022_INSTALLED">
+      <RegistrySearch Id="Revit2022Registry" 
+                      Root="HKLM" 
+                      Key="SOFTWARE\Autodesk\Revit\2022" 
+                      Name="InstallLocation" 
+                      Type="directory" />
+    </Property>
+    
+    <Property Id="REVIT_2022_INSTALLED_USER">
+      <RegistrySearch Id="Revit2022RegistryUser" 
+                      Root="HKCU" 
+                      Key="SOFTWARE\Autodesk\Revit\2022" 
+                      Name="InstallLocation" 
+                      Type="directory" />
+    </Property>
+
+    <!-- Revit 2023 Detection -->
+    <Property Id="REVIT_2023_INSTALLED">
+      <RegistrySearch Id="Revit2023Registry" 
+                      Root="HKLM" 
+                      Key="SOFTWARE\Autodesk\Revit\2023" 
+                      Name="InstallLocation" 
+                      Type="directory" />
+    </Property>
+    
+    <Property Id="REVIT_2023_INSTALLED_USER">
+      <RegistrySearch Id="Revit2023RegistryUser" 
+                      Root="HKCU" 
+                      Key="SOFTWARE\Autodesk\Revit\2023" 
+                      Name="InstallLocation" 
+                      Type="directory" />
+    </Property>
+
+    <!-- Revit 2024 Detection -->
+    <Property Id="REVIT_2024_INSTALLED">
+      <RegistrySearch Id="Revit2024Registry" 
+                      Root="HKLM" 
+                      Key="SOFTWARE\Autodesk\Revit\2024" 
+                      Name="InstallLocation" 
+                      Type="directory" />
+    </Property>
+    
+    <Property Id="REVIT_2024_INSTALLED_USER">
+      <RegistrySearch Id="Revit2024RegistryUser" 
+                      Root="HKCU" 
+                      Key="SOFTWARE\Autodesk\Revit\2024" 
+                      Name="InstallLocation" 
+                      Type="directory" />
+    </Property>
+
+    <!-- Revit 2025 Detection -->
+    <Property Id="REVIT_2025_INSTALLED">
+      <RegistrySearch Id="Revit2025Registry" 
+                      Root="HKLM" 
+                      Key="SOFTWARE\Autodesk\Revit\2025" 
+                      Name="InstallLocation" 
+                      Type="directory" />
+    </Property>
+    
+    <Property Id="REVIT_2025_INSTALLED_USER">
+      <RegistrySearch Id="Revit2025RegistryUser" 
+                      Root="HKCU" 
+                      Key="SOFTWARE\Autodesk\Revit\2025" 
+                      Name="InstallLocation" 
+                      Type="directory" />
+    </Property>
+
+    <!-- Installation Decision Properties -->
+    <Property Id="INSTALL_REVIT_2022" Value="0" />
+    <Property Id="INSTALL_REVIT_2023" Value="0" />
+    <Property Id="INSTALL_REVIT_2024" Value="0" />
+    <Property Id="INSTALL_REVIT_2025" Value="0" />
+
+    <!-- Custom Actions to Set Installation Flags -->
+    <CustomAction Id="SetRevit2022Install" Property="INSTALL_REVIT_2022" Value="1" />
+    <CustomAction Id="SetRevit2023Install" Property="INSTALL_REVIT_2023" Value="1" />
+    <CustomAction Id="SetRevit2024Install" Property="INSTALL_REVIT_2024" Value="1" />
+    <CustomAction Id="SetRevit2025Install" Property="INSTALL_REVIT_2025" Value="1" />
+
+    <!-- Installation Sequence -->
+    <InstallExecuteSequence>
+      <!-- Set installation flags based on detected Revit versions -->
+      <Custom Action="SetRevit2022Install" After="AppSearch">
+        <![CDATA[REVIT_2022_INSTALLED OR REVIT_2022_INSTALLED_USER]]>
+      </Custom>
+      <Custom Action="SetRevit2023Install" After="AppSearch">
+        <![CDATA[REVIT_2023_INSTALLED OR REVIT_2023_INSTALLED_USER]]>
+      </Custom>
+      <Custom Action="SetRevit2024Install" After="AppSearch">
+        <![CDATA[REVIT_2024_INSTALLED OR REVIT_2024_INSTALLED_USER]]>
+      </Custom>
+      <Custom Action="SetRevit2025Install" After="AppSearch">
+        <![CDATA[REVIT_2025_INSTALLED OR REVIT_2025_INSTALLED_USER]]>
+      </Custom>
+    </InstallExecuteSequence>
+
+    <InstallUISequence>
+      <!-- Set installation flags for UI sequence as well -->
+      <Custom Action="SetRevit2022Install" After="AppSearch">
+        <![CDATA[REVIT_2022_INSTALLED OR REVIT_2022_INSTALLED_USER]]>
+      </Custom>
+      <Custom Action="SetRevit2023Install" After="AppSearch">
+        <![CDATA[REVIT_2023_INSTALLED OR REVIT_2023_INSTALLED_USER]]>
+      </Custom>
+      <Custom Action="SetRevit2024Install" After="AppSearch">
+        <![CDATA[REVIT_2024_INSTALLED OR REVIT_2024_INSTALLED_USER]]>
+      </Custom>
+      <Custom Action="SetRevit2025Install" After="AppSearch">
+        <![CDATA[REVIT_2025_INSTALLED OR REVIT_2025_INSTALLED_USER]]>
+      </Custom>
+    </InstallUISequence>
+
+    <!-- Validation -->
+    <Property Id="REVIT_FOUND" Value="0" />
+    <CustomAction Id="SetRevitFound" Property="REVIT_FOUND" Value="1" />
+    
+    <InstallExecuteSequence>
+      <Custom Action="SetRevitFound" After="SetRevit2025Install">
+        <![CDATA[INSTALL_REVIT_2022 OR INSTALL_REVIT_2023 OR INSTALL_REVIT_2024 OR INSTALL_REVIT_2025]]>
+      </Custom>
+    </InstallExecuteSequence>
+
+    <InstallUISequence>
+      <Custom Action="SetRevitFound" After="SetRevit2025Install">
+        <![CDATA[INSTALL_REVIT_2022 OR INSTALL_REVIT_2023 OR INSTALL_REVIT_2024 OR INSTALL_REVIT_2025]]>
+      </Custom>
+    </InstallUISequence>
+
+    <!-- Condition to ensure at least one Revit version is found -->
+    <Condition Message="Tycoon AI-BIM Platform requires Autodesk Revit 2022 or later to be installed. Please install Revit and run this installer again.">
+      <![CDATA[Installed OR REVIT_FOUND]]>
+    </Condition>
+
+  </Fragment>
+</Wix>

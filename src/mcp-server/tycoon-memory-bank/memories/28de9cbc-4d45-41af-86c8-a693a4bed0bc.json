@@ -1,0 +1,24 @@
+{
+  "id": "28de9cbc-4d45-41af-86c8-a693a4bed0bc",
+  "title": "Revit Selection - 1 elements",
+  "content": "{\n  \"elements\": [\n    {\n      \"id\": \"775d98f3-d913-4c93-b2a6-69c0635b65b1-007282aa\",\n      \"elementId\": 7504554,\n      \"category\": \"Walls\",\n      \"familyName\": null,\n      \"typeName\": \"SW\",\n      \"parameters\": {\n        \"Category\": -2000011,\n        \"Cross-Section\": 1,\n        \"Export to IFC\": 0,\n        \"IfcGUID\": \"1tNPZpsHDCaxAcQS1ZAUSR\",\n        \"Base Extension Distance\": 0,\n        \"Top Extension Distance\": 0,\n        \"Volume\": 17.708333333332305,\n        \"Area\": 50,\n        \"Phase Created\": 118390,\n        \"Length\": 5,\n        \"Edited by\": \"\",\n        \"Workset\": 0,\n        \"Family and Type\": 7507859,\n        \"Family\": 7507859,\n        \"Type\": 7507859,\n        \"Type Id\": 7507859,\n        \"Related to Mass\": 0,\n        \"Structural\": 0,\n        \"Location Line\": 1,\n        \"Structural Usage\": 0,\n        \"Base is Attached\": 0,\n        \"Top is Attached\": 0,\n        \"Top Offset\": 0,\n        \"Base Offset\": 0,\n        \"Base Constraint\": 30,\n        \"Unconnected Height\": 10,\n        \"Room Bounding\": 1,\n        \"BIMSF_Template\": \"IMPERIAL/Default/\"\n      },\n      \"geometry\": {\n        \"location\": {\n          \"x\": -265.56798094959004,\n          \"y\": -343.51764572499275,\n          \"z\": 0\n        },\n        \"boundingBox\": {\n          \"min\": {\n            \"x\": -267.4609647283915,\n            \"y\": -345.4106295037943,\n            \"z\": 0\n          },\n          \"max\": {\n            \"x\": -263.6749971707886,\n            \"y\": -341.6246619461912,\n            \"z\": 10\n          }\n        }\n      },\n      \"relationships\": {\n        \"hostId\": null,\n        \"dependentIds\": [\n          \"775d98f3-d913-4c93-b2a6-69c0635b65b1-007282aa\",\n          \"775d98f3-d913-4c93-b2a6-69c0635b65b1-00728964\",\n          \"775d98f3-d913-4c93-b2a6-69c0635b65b1-00728b33\",\n          \"775d98f3-d913-4c93-b2a6-69c0635b65b1-00728b37\"\n        ]\n      }\n    }\n  ],\n  \"count\": 1,\n  \"timestamp\": \"2025-06-24T13:53:53.4705353Z\",\n  \"viewId\": null,\n  \"viewName\": null,\n  \"documentTitle\": \"PyRevit Retama Playground\"\n}",
+  "tags": [
+    "revit",
+    "selection",
+    "context"
+  ],
+  "category": "revit-selection",
+  "importance": 6,
+  "accessCount": 0,
+  "lastAccessed": "2025-06-24T13:53:53.500Z",
+  "created": "2025-06-24T13:53:53.500Z",
+  "modified": "2025-06-24T13:53:53.500Z",
+  "context": "Document: PyRevit Retama Playground, View: null",
+  "relationships": [],
+  "summary": "{\n  \"elements\": [\n    {\n      \"id\": \"775d98f3-d913-4c93-b2a6-69c0635b65b1-007282aa\",\n      \"elementId\": 7504554,\n      \"category\": \"Walls\",\n      \"familyName\": null,\n      \"typeName\": \"SW\",\n      \"parameters\": {\n        \"Category\": -2000011,\n        \"Cross-Section\": 1,\n        \"Export to IFC\": 0,\n        \"IfcGUID\": \"1tNPZpsHDCaxAcQS1ZAUSR\",\n        \"Base Extension Distance\": 0,\n        \"Top Extension Distance\": 0,\n        \"Volume\": 17",
+  "keyInsights": [
+    "{ \"elements\":",
+    "\"elements\": [",
+    "{ \"id\":"
+  ]
+}

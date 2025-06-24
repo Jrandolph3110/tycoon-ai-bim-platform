@@ -1,0 +1,151 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi" 
+     xmlns:util="http://schemas.microsoft.com/wix/UtilExtension">
+  
+  <!-- Product Definition -->
+  <Product Id="*"
+           Name="Tycoon AI-BIM Platform"
+           Language="1033"
+           Version="1.0.4.0"
+           Manufacturer="Joseph Randolph - F.L. Crane &amp; Sons"
+           UpgradeCode="12345678-1234-1234-1234-123456789012">
+    
+    <!-- Package Information -->
+    <Package InstallerVersion="200"
+             Compressed="yes"
+             InstallScope="perUser"
+             Description="Revolutionary AI-powered construction automation platform with live Revit integration"
+             Comments="Tycoon AI-BIM Platform for Autodesk Revit - Developed by Joseph Randolph"
+             Manufacturer="Joseph Randolph - F.L. Crane &amp; Sons" />
+
+    <!-- Media and Cab Information -->
+    <MajorUpgrade DowngradeErrorMessage="A newer version of [ProductName] is already installed." />
+    <MediaTemplate EmbedCab="yes" />
+
+    <!-- Prerequisites - simplified for now -->
+    <!-- Note: .NET Framework 4.8 check removed for initial build -->
+
+    <!-- Custom Properties - simplified to avoid conflicts with WixUI_Minimal -->
+    <!-- ARPPRODUCTICON removed for now - no icon file -->
+    <Property Id="ARPHELPLINK" Value="https://flcrane.com/tycoon-support" />
+    <Property Id="ARPURLINFOABOUT" Value="https://flcrane.com/tycoon" />
+    <!-- ARPNOMODIFY and ARPNOREPAIR removed - already defined by WixUI_Minimal -->
+    
+    <!-- Installation Directory Structure -->
+    <Directory Id="TARGETDIR" Name="SourceDir">
+
+      <!-- AppData for Revit Add-ins -->
+      <Directory Id="AppDataFolder">
+        <Directory Id="AutodeskFolder" Name="Autodesk">
+          <Directory Id="RevitFolder" Name="Revit">
+            <Directory Id="AddinsFolder" Name="Addins">
+              <!-- Revit 2022 -->
+              <Directory Id="Revit2022Folder" Name="2022">
+                <Component Id="Revit2022Addin" Guid="33333333-3333-3333-3333-333333333333">
+                  <File Id="TycoonRevitAddin2022.addin" 
+                        Source="..\revit-addin\TycoonRevitAddin.addin" 
+                        Name="TycoonRevitAddin.addin" />
+                  <File Id="TycoonRevitAddin2022.dll"
+                        Source="..\revit-addin\bin\Release\TycoonRevitAddin.dll"
+                        Name="TycoonRevitAddin.dll" />
+                  <File Id="Newtonsoft2022.Json.dll"
+                        Source="..\revit-addin\bin\Release\Newtonsoft.Json.dll"
+                        Name="Newtonsoft.Json.dll" />
+                  <File Id="WebSocketSharp2022.dll"
+                        Source="..\revit-addin\bin\Release\websocket-sharp.dll"
+                        Name="websocket-sharp.dll" />
+                </Component>
+              </Directory>
+              
+              <!-- Revit 2023 -->
+              <Directory Id="Revit2023Folder" Name="2023">
+                <Component Id="Revit2023Addin" Guid="44444444-4444-4444-4444-444444444444">
+                  <File Id="TycoonRevitAddin2023.addin" 
+                        Source="..\revit-addin\TycoonRevitAddin.addin" 
+                        Name="TycoonRevitAddin.addin" />
+                  <File Id="TycoonRevitAddin2023.dll"
+                        Source="..\revit-addin\bin\Release\TycoonRevitAddin.dll"
+                        Name="TycoonRevitAddin.dll" />
+                  <File Id="Newtonsoft2023.Json.dll"
+                        Source="..\revit-addin\bin\Release\Newtonsoft.Json.dll"
+                        Name="Newtonsoft.Json.dll" />
+                  <File Id="WebSocketSharp2023.dll"
+                        Source="..\revit-addin\bin\Release\websocket-sharp.dll"
+                        Name="websocket-sharp.dll" />
+                </Component>
+              </Directory>
+              
+              <!-- Revit 2024 -->
+              <Directory Id="Revit2024Folder" Name="2024">
+                <Component Id="Revit2024Addin" Guid="55555555-5555-5555-5555-555555555555">
+                  <File Id="TycoonRevitAddin2024.addin" 
+                        Source="..\revit-addin\TycoonRevitAddin.addin" 
+                        Name="TycoonRevitAddin.addin" />
+                  <File Id="TycoonRevitAddin2024.dll"
+                        Source="..\revit-addin\bin\Release\TycoonRevitAddin.dll"
+                        Name="TycoonRevitAddin.dll" />
+                  <File Id="Newtonsoft2024.Json.dll"
+                        Source="..\revit-addin\bin\Release\Newtonsoft.Json.dll"
+                        Name="Newtonsoft.Json.dll" />
+                  <File Id="WebSocketSharp2024.dll"
+                        Source="..\revit-addin\bin\Release\websocket-sharp.dll"
+                        Name="websocket-sharp.dll" />
+                </Component>
+              </Directory>
+              
+              <!-- Revit 2025 -->
+              <Directory Id="Revit2025Folder" Name="2025">
+                <Component Id="Revit2025Addin" Guid="66666666-6666-6666-6666-666666666666">
+                  <File Id="TycoonRevitAddin2025.addin" 
+                        Source="..\revit-addin\TycoonRevitAddin.addin" 
+                        Name="TycoonRevitAddin.addin" />
+                  <File Id="TycoonRevitAddin2025.dll"
+                        Source="..\revit-addin\bin\Release\TycoonRevitAddin.dll"
+                        Name="TycoonRevitAddin.dll" />
+                  <File Id="Newtonsoft2025.Json.dll"
+                        Source="..\revit-addin\bin\Release\Newtonsoft.Json.dll"
+                        Name="Newtonsoft.Json.dll" />
+                  <File Id="WebSocketSharp2025.dll"
+                        Source="..\revit-addin\bin\Release\websocket-sharp.dll"
+                        Name="websocket-sharp.dll" />
+                </Component>
+              </Directory>
+            </Directory>
+          </Directory>
+        </Directory>
+      </Directory>
+
+      <!-- Start Menu -->
+      <Directory Id="ProgramMenuFolder">
+        <Directory Id="ApplicationProgramsFolder" Name="Tycoon AI-BIM Platform">
+          <Component Id="ApplicationShortcut" Guid="77777777-7777-7777-7777-777777777777">
+            <Shortcut Id="ApplicationStartMenuShortcut"
+                      Name="Tycoon AI-BIM Platform"
+                      Description="Revolutionary AI-powered construction automation"
+                      Target="[INSTALLFOLDER]TycoonRevitAddin.dll"
+                      WorkingDirectory="INSTALLFOLDER"/>
+            <RemoveFolder Id="ApplicationProgramsFolder" On="uninstall"/>
+            <RegistryValue Root="HKCU" Key="Software\F.L. Crane &amp; Sons\Tycoon AI-BIM Platform" 
+                           Name="installed" Type="integer" Value="1" KeyPath="yes"/>
+          </Component>
+        </Directory>
+      </Directory>
+    </Directory>
+
+    <!-- Features -->
+    <Feature Id="RevitIntegration" Title="Tycoon AI-BIM Platform" Level="1"
+             Description="Tycoon AI-BIM Platform Revit add-in">
+      <ComponentRef Id="Revit2022Addin" />
+      <ComponentRef Id="Revit2023Addin" />
+      <ComponentRef Id="Revit2024Addin" />
+      <ComponentRef Id="Revit2025Addin" />
+      <ComponentRef Id="ApplicationShortcut" />
+    </Feature>
+
+    <!-- Custom UI -->
+    <UIRef Id="TycoonUI" />
+
+    <!-- Icons removed for now -->
+
+  </Product>
+</Wix>

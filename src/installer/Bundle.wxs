@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi" 
+     xmlns:bal="http://schemas.microsoft.com/wix/BalExtension" 
+     xmlns:util="http://schemas.microsoft.com/wix/UtilExtension">
+  
+  <!-- Bundle Definition -->
+  <Bundle Name="Tycoon AI-BIM Platform Setup" 
+          Version="1.0.0.0" 
+          Manufacturer="F.L. Crane &amp; Sons" 
+          UpgradeCode="87654321-4321-4321-4321-210987654321"
+          IconSourceFile="Resources\TycoonIcon.ico"
+          AboutUrl="https://flcrane.com/tycoon"
+          HelpUrl="https://flcrane.com/tycoon-support"
+          UpdateUrl="https://flcrane.com/tycoon-updates">
+
+    <!-- Bundle UI -->
+    <BootstrapperApplicationRef Id="WixStandardBootstrapperApplication.RtfLicense">
+      <bal:WixStandardBootstrapperApplication 
+        LicenseFile="Resources\License.rtf"
+        LogoFile="Resources\TycoonLogo.png"
+        ThemeFile="Resources\TycoonTheme.xml"
+        LocalizationFile="Resources\TycoonStrings.wxl" />
+    </BootstrapperApplicationRef>
+
+    <!-- Variables -->
+    <Variable Name="InstallFolder" Type="string" Value="[ProgramFilesFolder]F.L. Crane &amp; Sons\Tycoon AI-BIM Platform" />
+    <Variable Name="LaunchTarget" Type="string" Value="[InstallFolder]TycoonRevitAddin.dll" />
+
+    <!-- Chain of packages to install -->
+    <Chain>
+      
+      <!-- .NET Framework 4.8 Prerequisite -->
+      <PackageGroupRef Id="NetFx48Web" />
+      
+      <!-- Visual C++ 2019 Redistributable (for WebSocketSharp dependencies) -->
+      <ExePackage Id="VCRedist2019"
+                  Cache="no"
+                  Compressed="no"
+                  PerMachine="yes"
+                  Permanent="yes"
+                  Vital="yes"
+                  SourceFile="Prerequisites\VC_redist.x64.exe"
+                  DownloadUrl="https://aka.ms/vs/16/release/vc_redist.x64.exe"
+                  InstallCommand="/quiet /norestart"
+                  RepairCommand="/quiet /norestart"
+                  UninstallCommand="/quiet /norestart"
+                  DetectCondition="VCRedist2019x64Installed" />
+
+      <!-- Main Tycoon Application -->
+      <MsiPackage Id="TycoonMainPackage"
+                  Cache="yes"
+                  Compressed="yes"
+                  Vital="yes"
+                  SourceFile="$(var.TycoonInstaller.TargetPath)"
+                  DisplayInternalUI="no">
+        
+        <!-- Pass variables to MSI -->
+        <MsiProperty Name="INSTALLFOLDER" Value="[InstallFolder]" />
+        
+        <!-- Installation conditions -->
+        <InstallCondition>VersionNT >= v6.1</InstallCondition>
+        
+      </MsiPackage>
+
+    </Chain>
+
+  </Bundle>
+
+  <!-- Fragment for .NET Framework detection and installation -->
+  <Fragment>
+    
+    <!-- .NET Framework 4.8 Package Group -->
+    <PackageGroup Id="NetFx48Web">
+      <ExePackage Id="NetFx48Web"
+                  Cache="no"
+                  Compressed="no"
+                  PerMachine="yes"
+                  Permanent="yes"
+                  Vital="yes"
+                  SourceFile="Prerequisites\ndp48-web.exe"
+                  DownloadUrl="https://download.microsoft.com/download/6/E/4/6E48E8AB-DC00-419E-9704-06DD46E5F81D/NDP48-KB4486153-Web.exe"
+                  InstallCommand="/quiet /norestart"
+                  RepairCommand="/quiet /norestart"
+                  UninstallCommand="/quiet /norestart"
+                  DetectCondition="NetFx48Installed" />
+    </PackageGroup>
+
+    <!-- Detection Conditions -->
+    <util:RegistrySearch Root="HKLM"
+                         Key="SOFTWARE\Microsoft\NET Framework Setup\NDP\v4\Full"
+                         Value="Release"
+                         Variable="NetFx48Version" />
+    
+    <util:RegistrySearch Root="HKLM"
+                         Key="SOFTWARE\Microsoft\VisualStudio\14.0\VC\Runtimes\x64"
+                         Value="Installed"
+                         Variable="VCRedist2019x64Installed" />
+
+    <!-- Conditions -->
+    <Condition Message="This application requires Windows 7 SP1 or later.">
+      VersionNT >= v6.1
+    </Condition>
+
+    <Condition Message="This application requires .NET Framework 4.8 or later.">
+      NetFx48Version >= 528040
+    </Condition>
+
+  </Fragment>
+
+</Wix>

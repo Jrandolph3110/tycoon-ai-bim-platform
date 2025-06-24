@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+  
+  <Fragment>
+    <!-- Custom UI Definition -->
+    <UI Id="TycoonUI">
+
+      <!-- Use WixUI_Minimal as base for simplicity -->
+      <UIRef Id="WixUI_Minimal" />
+
+      <!-- Custom Revit Version Selection Dialog - simplified for initial build -->
+
+    </UI>
+
+    <!-- WiX Variables must be outside UI element -->
+    <WixVariable Id="WixUILicenseRtf" Value="Resources\License.rtf" />
+    <!-- Note: Custom bitmaps removed to avoid conflicts with WixUIExtension defaults -->
+
+    <!-- Progress Text - removed for now to simplify build -->
+    
+  </Fragment>
+</Wix>

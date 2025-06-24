@@ -1,0 +1,291 @@
+using System;
+using System.Threading.Tasks;
+using System.Windows.Forms;
+using Autodesk.Revit.Attributes;
+using Autodesk.Revit.DB;
+using Autodesk.Revit.UI;
+
+namespace TycoonRevitAddin.Commands
+{
+    /// <summary>
+    /// Main Tycoon command for connecting to AI-BIM server
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class TycoonCommand : IExternalCommand, IExternalCommandAvailability
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            try
+            {
+                var logger = Application.Logger;
+                var bridge = Application.TycoonBridge;
+
+                logger.Log("🎯 Tycoon Connect command executed");
+
+                if (bridge.IsConnected)
+                {
+                    // Already connected - show status or disconnect
+                    var result = MessageBox.Show(
+                        "Tycoon AI-BIM is currently connected.\n\nWould you like to disconnect?",
+                        "Tycoon AI-BIM Status",
+                        MessageBoxButtons.YesNo,
+                        MessageBoxIcon.Question
+                    );
+
+                    if (result == DialogResult.Yes)
+                    {
+                        bridge.Disconnect();
+                        ShowMessage("Disconnected from Tycoon AI-BIM Server", "Tycoon Disconnected");
+                    }
+                }
+                else
+                {
+                    // Not connected - attempt connection
+                    Application.Logger.Log("🔄 Starting connection attempt...");
+
+                    // Connect asynchronously
+                    Application.Logger.Log("🔄 Starting async connection task...");
+                    Task.Run(() =>
+                    {
+                        Application.Logger.Log("🎯 INSIDE Task.Run - starting execution...");
+                        try
+                        {
+                            Application.Logger.Log("📞 About to call bridge.ConnectAsync()...");
+                            var connectTask = bridge.ConnectAsync();
+                            Application.Logger.Log("📞 ConnectAsync task created, waiting for result...");
+                            bool connected = connectTask.Result;
+                            Application.Logger.Log($"📞 bridge.ConnectAsync() returned: {connected}");
+                            
+                            // Show result - no need for dispatcher in Revit
+                            Application.Logger.Log($"🎯 Showing connection result dialog: {connected}");
+                            if (connected)
+                            {
+                                ShowMessage(
+                                    "Successfully connected to Tycoon AI-BIM Server!\n\n" +
+                                    "🎯 AI-Revit integration is now active\n" +
+                                    "📋 Selection context will be shared with AI\n" +
+                                    "🏗️ Steel framing workflows are available\n" +
+                                    "🤖 Ready for AI-powered script generation",
+                                    "Tycoon Connected"
+                                );
+                            }
+                            else
+                            {
+                                ShowMessage(
+                                    "Failed to connect to Tycoon AI-BIM Server.\n\n" +
+                                    "Please ensure:\n" +
+                                    "• Tycoon MCP Server is running (npm start)\n" +
+                                    "• Server is listening on ports 8765-8864\n" +
+                                    "• No firewall blocking connection\n" +
+                                    "• Check server console for actual port number",
+                                    "Connection Failed"
+                                );
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            Application.Logger.LogError("Connection error", ex);
+
+                            ShowMessage(
+                                $"Connection error: {ex.Message}\n\n" +
+                                "Check the log file for more details.",
+                                "Connection Error"
+                            );
+                        }
+                    });
+                }
+
+                return Result.Succeeded;
+            }
+            catch (Exception ex)
+            {
+                Application.Logger?.LogError("Error in TycoonCommand", ex);
+                message = $"Error: {ex.Message}";
+                return Result.Failed;
+            }
+        }
+
+        /// <summary>
+        /// Determine if command is available
+        /// </summary>
+        public bool IsCommandAvailable(UIApplication applicationData, CategorySet selectedCategories)
+        {
+            // Command is always available
+            return true;
+        }
+
+        /// <summary>
+        /// Show message to user with proper parent window
+        /// </summary>
+        private void ShowMessage(string message, string title)
+        {
+            try
+            {
+                // Get Revit main window handle for proper dialog parenting
+                var revitWindow = System.Diagnostics.Process.GetCurrentProcess().MainWindowHandle;
+
+                if (revitWindow != IntPtr.Zero)
+                {
+                    // Create a wrapper for the Revit window handle
+                    var parentWindow = new RevitWindowWrapper(revitWindow);
+                    MessageBox.Show(parentWindow, message, title, MessageBoxButtons.OK, MessageBoxIcon.Information);
+                }
+                else
+                {
+                    // Fallback to regular MessageBox
+                    MessageBox.Show(message, title, MessageBoxButtons.OK, MessageBoxIcon.Information);
+                }
+            }
+            catch
+            {
+                // If anything fails, use regular MessageBox
+                MessageBox.Show(message, title, MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+        }
+
+        /// <summary>
+        /// Wrapper class for Revit window handle
+        /// </summary>
+        private class RevitWindowWrapper : System.Windows.Forms.IWin32Window
+        {
+            private readonly IntPtr _handle;
+
+            public RevitWindowWrapper(IntPtr handle)
+            {
+                _handle = handle;
+            }
+
+            public IntPtr Handle => _handle;
+        }
+    }
+
+    /// <summary>
+    /// Command for framing walls
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    public class FrameWallsCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            try
+            {
+                var bridge = Application.TycoonBridge;
+                
+                if (!bridge.IsConnected)
+                {
+                    MessageBox.Show(
+                        "Please connect to Tycoon AI-BIM Server first using the Connect button.",
+                        "Not Connected",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Warning
+                    );
+                    return Result.Cancelled;
+                }
+
+                // This would trigger the steel framing workflow
+                MessageBox.Show(
+                    "Steel framing workflow will be implemented here.\n\n" +
+                    "This will analyze selected walls and create framing elements using FLC standards.",
+                    "Frame Walls",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Information
+                );
+
+                return Result.Succeeded;
+            }
+            catch (Exception ex)
+            {
+                Application.Logger?.LogError("Error in FrameWallsCommand", ex);
+                message = ex.Message;
+                return Result.Failed;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Command for renumbering elements
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    public class RenumberCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            try
+            {
+                var bridge = Application.TycoonBridge;
+                
+                if (!bridge.IsConnected)
+                {
+                    MessageBox.Show(
+                        "Please connect to Tycoon AI-BIM Server first using the Connect button.",
+                        "Not Connected",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Warning
+                    );
+                    return Result.Cancelled;
+                }
+
+                // This would trigger the renumbering workflow
+                MessageBox.Show(
+                    "Element renumbering workflow will be implemented here.\n\n" +
+                    "This will renumber selected elements using FLC sequencing standards.",
+                    "Renumber Elements",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Information
+                );
+
+                return Result.Succeeded;
+            }
+            catch (Exception ex)
+            {
+                Application.Logger?.LogError("Error in RenumberCommand", ex);
+                message = ex.Message;
+                return Result.Failed;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Command for validating panels
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    public class ValidateCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            try
+            {
+                var bridge = Application.TycoonBridge;
+                
+                if (!bridge.IsConnected)
+                {
+                    MessageBox.Show(
+                        "Please connect to Tycoon AI-BIM Server first using the Connect button.",
+                        "Not Connected",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Warning
+                    );
+                    return Result.Cancelled;
+                }
+
+                // This would trigger the panel validation workflow
+                MessageBox.Show(
+                    "Panel validation workflow will be implemented here.\n\n" +
+                    "This will validate selected panels against FLC ticket requirements.",
+                    "Validate Panels",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Information
+                );
+
+                return Result.Succeeded;
+            }
+            catch (Exception ex)
+            {
+                Application.Logger?.LogError("Error in ValidateCommand", ex);
+                message = ex.Message;
+                return Result.Failed;
+            }
+        }
+    }
+}
