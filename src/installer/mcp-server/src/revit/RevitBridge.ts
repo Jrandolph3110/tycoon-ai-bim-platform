@@ -70,7 +70,6 @@ export class RevitBridge extends EventEmitter {
     constructor(preferredPort: number = 8765) {
         super();
         this.port = preferredPort;
-        console.log("Bridge constructed"); // ChatGPT's test #2
     }
 
     /**
@@ -115,24 +114,17 @@ export class RevitBridge extends EventEmitter {
         try {
             // Find an available port
             this.port = await this.findAvailablePort(this.port);
-            console.log(`🔍 DEBUG: Found available port: ${this.port}`);
             this.log(`🔍 Found available port: ${this.port}`);
 
-            console.log(`🚀 DEBUG: Creating WebSocketServer on port ${this.port}`);
             this.wss = new WebSocketServer({
                 port: this.port,
                 perMessageDeflate: false
             });
-            console.log(`✅ DEBUG: WebSocketServer created successfully`);
 
-            console.log(`🔧 DEBUG: Registering connection event handler...`);
             this.wss.on('connection', (ws: WebSocket) => {
-                console.log("CONN!", Date.now()); // ChatGPT's test #1
-                console.log(`🎉 DEBUG: CONNECTION EVENT FIRED! isConnected will be set to true`);
                 this.log('🔗 Revit add-in connected');
                 this.revitConnection = ws;
                 this.isConnected = true;
-                console.log(`✅ DEBUG: isConnected is now: ${this.isConnected}`);
 
                 ws.on('message', (data: Buffer) => {
                     try {
@@ -157,11 +149,8 @@ export class RevitBridge extends EventEmitter {
 
                 this.emit('connected');
             });
-            console.log(`✅ DEBUG: Connection event handler registered successfully`);
 
-            console.log(`🚀 DEBUG: About to start listening on port ${this.port}`);
             this.log(`🚀 Tycoon RevitBridge listening on port ${this.port}`);
-            console.log(`✅ DEBUG: WebSocket server is now listening and ready for connections`);
             
         } catch (error) {
             this.logError('Failed to initialize RevitBridge', error);
@@ -244,13 +233,8 @@ export class RevitBridge extends EventEmitter {
         } else if (message.type === 'heartbeat') {
             // Handle heartbeat
             this.sendHeartbeatResponse();
-        } else if (message.type === 'heartbeat_response') {
-            // Handle heartbeat response - this is normal, don't log as unknown
-            // Just ignore it silently
         } else {
-            console.warn("Unknown", message.type); // ChatGPT's test #3
             this.log(`⚠️ Unhandled message type: ${message.type}`);
-            // DON'T flip any state here
         }
     }
 
@@ -277,9 +261,6 @@ export class RevitBridge extends EventEmitter {
      * Check if connected to Revit
      */
     isRevitConnected(): boolean {
-        console.log(`🔍 DEBUG: isRevitConnected() called - returning: ${this.isConnected}`);
-        console.log(`🔍 DEBUG: revitConnection exists: ${this.revitConnection !== null}`);
-        console.log(`🔍 DEBUG: wss exists: ${this.wss !== null}`);
         return this.isConnected;
     }
 

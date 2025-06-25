@@ -1,0 +1,24 @@
+{
+  "id": "c05b6468-e225-40af-85b2-be874df1a5f8",
+  "title": "Revit Selection - 1 elements",
+  "content": "{\n  \"elements\": [\n    {\n      \"id\": \"c8923f5e-6a14-4420-9b1d-c31d7ae067d2-0000c7ab\",\n      \"elementId\": 51115,\n      \"category\": \"Unknown\",\n      \"familyName\": null,\n      \"typeName\": null,\n      \"parameters\": {\n        \"Edited by\": \"\",\n        \"Workset\": 54,\n        \"Family Name\": \"Browser - Views\",\n        \"Type Name\": \"all\"\n      },\n      \"geometry\": {\n        \"location\": null,\n        \"boundingBox\": null\n      },\n      \"relationships\": {\n        \"hostId\": null,\n        \"dependentIds\": [\n          \"c8923f5e-6a14-4420-9b1d-c31d7ae067d2-0000c7ab\"\n        ]\n      }\n    }\n  ],\n  \"count\": 1,\n  \"timestamp\": \"2025-06-24T14:03:29.0284115Z\",\n  \"viewId\": null,\n  \"viewName\": null,\n  \"documentTitle\": \"PyRevit Retama Playground\"\n}",
+  "tags": [
+    "revit",
+    "selection",
+    "context"
+  ],
+  "category": "revit-selection",
+  "importance": 6,
+  "accessCount": 0,
+  "lastAccessed": "2025-06-24T14:03:29.042Z",
+  "created": "2025-06-24T14:03:29.042Z",
+  "modified": "2025-06-24T14:03:29.042Z",
+  "context": "Document: PyRevit Retama Playground, View: null",
+  "relationships": [],
+  "summary": "{\n  \"elements\": [\n    {\n      \"id\": \"c8923f5e-6a14-4420-9b1d-c31d7ae067d2-0000c7ab\",\n      \"elementId\": 51115,\n      \"category\": \"Unknown\",\n      \"familyName\": null,\n      \"typeName\": null,\n      \"parameters\": {\n        \"Edited by\": \"\",\n        \"Workset\": 54,\n        \"Family Name\": \"Browser - Views\",\n        \"Type Name\": \"all\"\n      },\n      \"geometry\": {\n        \"location\": null,\n        \"boundingBox\": null\n      },\n      \"relationships\": {\n        \"hostId\": null,\n        \"dependentIds\": [\n          \"c8923f5e-6a14-4420-9b1d-c31d7ae067d2-0000c7ab\"\n        ]\n      }\n    }\n  ],\n  \"count\": 1,\n  \"timestamp\": \"2025-06-24T14:03:29",
+  "keyInsights": [
+    "{ \"elements\":",
+    "\"elements\": [",
+    "{ \"id\":"
+  ]
+}

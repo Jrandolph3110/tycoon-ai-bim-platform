@@ -3,7 +3,7 @@
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFramework>net48</TargetFramework>
-    <AssemblyName>DownloadMCP</AssemblyName>
+    <AssemblyName>InstallMCP</AssemblyName>
     <RootNamespace>TycoonInstaller</RootNamespace>
     <UseWindowsForms>false</UseWindowsForms>
     <UseWPF>false</UseWPF>

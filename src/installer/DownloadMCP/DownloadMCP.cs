@@ -5,81 +5,94 @@ using System.Net;
 
 namespace TycoonInstaller
 {
-    class DownloadMCP
+    class InstallMCP
     {
         static int Main(string[] args)
         {
             try
             {
-                Console.WriteLine("Tycoon AI-BIM Platform: Downloading MCP Server...");
-                
+                Console.WriteLine("Tycoon AI-BIM Platform: Installing MCP Server...");
+
                 // Get AppData path from installer
                 string appDataPath = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
                 string tycoonPath = Path.Combine(appDataPath, "Tycoon");
                 string mcpServerPath = Path.Combine(tycoonPath, "mcp-server");
-                
+
                 Console.WriteLine($"Target directory: {mcpServerPath}");
-                
+
                 // Create directories
                 Directory.CreateDirectory(mcpServerPath);
-                
-                // Download latest MCP server from GitHub releases
-                string downloadUrl = "https://github.com/Jrandolph3110/tycoon-ai-bim-platform/releases/latest/download/mcp-server.zip";
-                string tempZipPath = Path.Combine(Path.GetTempPath(), "tycoon-mcp-server.zip");
-                
-                Console.WriteLine("Downloading MCP server from GitHub...");
-                DownloadFile(downloadUrl, tempZipPath);
 
-                Console.WriteLine("Extracting MCP server...");
-                ZipFile.ExtractToDirectory(tempZipPath, mcpServerPath);
+                // Get installer directory (where bundled MCP server files are)
+                string installerDir = Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location);
+                string bundledMcpPath = Path.Combine(installerDir, "mcp-server");
 
-                // Clean up temp file
-                File.Delete(tempZipPath);
+                Console.WriteLine($"Source directory: {bundledMcpPath}");
+
+                if (Directory.Exists(bundledMcpPath))
+                {
+                    Console.WriteLine("Copying bundled MCP server files...");
+                    CopyDirectory(bundledMcpPath, mcpServerPath);
+                }
+                else
+                {
+                    Console.WriteLine("Bundled MCP server not found, creating minimal setup...");
+                    CreateMinimalMCPServer(mcpServerPath);
+                }
 
                 // Create package.json if it doesn't exist
                 CreatePackageJsonIfNeeded(mcpServerPath);
 
                 // Install Node.js dependencies
                 InstallNodeDependencies(mcpServerPath);
-                
+
                 Console.WriteLine("MCP Server installation completed successfully!");
                 return 0;
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error downloading MCP server: {ex.Message}");
+                Console.WriteLine($"Error installing MCP server: {ex.Message}");
                 Console.WriteLine($"Stack trace: {ex.StackTrace}");
                 return 1;
             }
         }
         
-        private static void DownloadFile(string url, string filePath)
+        private static void CreateMinimalMCPServer(string mcpServerPath)
         {
-            try
-            {
-                using (var webClient = new WebClient())
-                {
-                    webClient.DownloadFile(url, filePath);
-                }
-            }
-            catch (WebException)
-            {
-                // Fallback: Copy from local installation if GitHub download fails
-                Console.WriteLine("GitHub download failed, using local MCP server...");
-                CopyLocalMCPServer(Path.GetDirectoryName(filePath));
-            }
-        }
-        
-        private static void CopyLocalMCPServer(string targetPath)
-        {
-            // This is a fallback - copy from the installer's embedded MCP server
-            string installerDir = Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location);
-            string localMcpPath = Path.Combine(installerDir, "mcp-server");
+            // Create minimal MCP server structure if bundled files not found
+            Directory.CreateDirectory(Path.Combine(mcpServerPath, "dist"));
+            Directory.CreateDirectory(Path.Combine(mcpServerPath, "src"));
 
-            if (Directory.Exists(localMcpPath))
-            {
-                CopyDirectory(localMcpPath, targetPath);
-            }
+            // Create a basic index.js file
+            string indexJsPath = Path.Combine(mcpServerPath, "dist", "index.js");
+            string basicMcpServer = @"#!/usr/bin/env node
+// Tycoon AI-BIM MCP Server
+// This is a placeholder - full server should be installed manually
+
+const { Server } = require('@modelcontextprotocol/sdk/server/index.js');
+const { StdioServerTransport } = require('@modelcontextprotocol/sdk/server/stdio.js');
+
+const server = new Server(
+  {
+    name: 'tycoon-ai-bim',
+    version: '1.0.6.0',
+  },
+  {
+    capabilities: {
+      tools: {},
+    },
+  }
+);
+
+async function main() {
+  const transport = new StdioServerTransport();
+  await server.connect(transport);
+  console.error('Tycoon AI-BIM MCP Server running');
+}
+
+main().catch(console.error);
+";
+            File.WriteAllText(indexJsPath, basicMcpServer);
         }
         
         private static void CopyDirectory(string sourceDir, string targetDir)

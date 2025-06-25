@@ -263,15 +263,33 @@ namespace TycoonRevitAddin.Commands
                 // Copy to clipboard
                 System.Windows.Forms.Clipboard.SetText(mcpConfig);
 
+                // Check if MCP server exists
+                string appDataPath = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+                string mcpServerPath = Path.Combine(appDataPath, "Tycoon", "mcp-server", "dist", "index.js");
+
+                string statusMessage;
+                if (File.Exists(mcpServerPath))
+                {
+                    statusMessage = "MCP configuration copied to clipboard!\n\n" +
+                                   "Next steps:\n" +
+                                   "1. Open your AI assistant (Augment, VS Code, etc.)\n" +
+                                   "2. Navigate to MCP settings\n" +
+                                   "3. Paste the configuration\n" +
+                                   "4. Restart your AI assistant\n" +
+                                   "5. Click 'Connect to AI' in Revit to test the connection";
+                }
+                else
+                {
+                    statusMessage = "MCP configuration copied to clipboard!\n\n" +
+                                   "⚠️ Note: MCP server not found at expected location.\n" +
+                                   "You may need to manually install the MCP server from:\n" +
+                                   "https://github.com/Jrandolph3110/tycoon-ai-bim-platform/releases\n\n" +
+                                   "Then paste this configuration into your AI assistant.";
+                }
+
                 // Show success message
                 MessageBox.Show(
-                    "MCP configuration copied to clipboard!\n\n" +
-                    "Next steps:\n" +
-                    "1. Open your AI assistant (Augment, VS Code, etc.)\n" +
-                    "2. Navigate to MCP settings\n" +
-                    "3. Paste the configuration\n" +
-                    "4. Restart your AI assistant\n" +
-                    "5. Click 'Connect to AI' in Revit to test the connection",
+                    statusMessage,
                     "MCP Configuration Ready",
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Information

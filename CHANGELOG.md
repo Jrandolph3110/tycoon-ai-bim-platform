@@ -5,6 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.11.0] - 2025-06-24
+
+### 🛡️ Crash-Proof Processing
+- **FIXED**: Pure Virtual Function Call crashes on large selections (8,000+ elements)
+- **FIXED**: Cloud model transaction errors ("Cannot modify the document")
+- **IMPROVED**: Memory-safe chunking with 250-element batches (reduced from 1,000)
+- **IMPROVED**: Aggressive memory cleanup with GC.Collect() after each chunk
+- **ADDED**: Memory monitoring with 6GB threshold and graceful abort
+- **REMOVED**: Unnecessary transactions for read-only operations
+
+### 🔧 Technical Improvements
+- **OPTIMIZED**: Chunk processing for better memory management
+- **ENHANCED**: Error handling with detailed logging
+- **IMPROVED**: Processing time estimates and progress tracking
+- **ADDED**: Memory usage reporting in logs
+
+### 🎯 Performance
+- **Target**: 5,000-8,000 elements processed reliably
+- **Memory**: Reduced LOH pressure through smaller chunks
+- **Stability**: Eliminated system crashes on hospital-scale projects
+
 ## [Unreleased]
 
 ## [1.0.4.0] - 2025-06-24

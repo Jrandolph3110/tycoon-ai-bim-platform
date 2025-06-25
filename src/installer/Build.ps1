@@ -134,31 +134,31 @@ if (Test-Command "nuget") {
 
 Write-Host "Package restore completed" -ForegroundColor Green
 
-# Build Download Helper first
-Write-Host "Building Download Helper..." -ForegroundColor Yellow
+# Build Setup Wizard first
+Write-Host "Building Setup Wizard..." -ForegroundColor Yellow
 
-$DownloadHelperProject = Join-Path $PSScriptRoot "DownloadMCP\DownloadMCP.csproj"
+$SetupWizardProject = Join-Path $PSScriptRoot "SetupWizard\TycoonSetupWizard.csproj"
 
-# Restore packages for Download Helper
-Write-Host "Restoring packages for Download Helper..." -ForegroundColor Yellow
-& "$MSBuildPath" $DownloadHelperProject /t:Restore /verbosity:minimal
+# Restore packages for Setup Wizard
+Write-Host "Restoring packages for Setup Wizard..." -ForegroundColor Yellow
+& "$MSBuildPath" $SetupWizardProject /t:Restore /verbosity:minimal
 if ($LASTEXITCODE -ne 0) {
-    Write-Error "Failed to restore packages for Download Helper"
+    Write-Error "Failed to restore packages for Setup Wizard"
     exit 1
 }
 
-& "$MSBuildPath" $DownloadHelperProject /p:Configuration=$Configuration /p:Platform="AnyCPU" /verbosity:minimal
+& "$MSBuildPath" $SetupWizardProject /p:Configuration=$Configuration /p:Platform="AnyCPU" /verbosity:minimal
 
 if ($LASTEXITCODE -ne 0) {
-    Write-Error "Failed to build Download Helper"
+    Write-Error "Failed to build Setup Wizard"
     exit 1
 }
 
-# Copy DownloadMCP.exe to installer directory for WiX
-$DownloadHelperExe = Join-Path $PSScriptRoot "DownloadMCP\bin\Release\net48\DownloadMCP.exe"
-Copy-Item $DownloadHelperExe $PSScriptRoot -Force
+# Copy TycoonSetupWizard.exe to installer directory for WiX
+$SetupWizardExe = Join-Path $PSScriptRoot "SetupWizard\bin\Release\net48\TycoonSetupWizard.exe"
+Copy-Item $SetupWizardExe $PSScriptRoot -Force
 
-Write-Host "Download Helper build completed" -ForegroundColor Green
+Write-Host "Setup Wizard build completed" -ForegroundColor Green
 
 # Build Revit Add-in
 Write-Host "Building Revit Add-in..." -ForegroundColor Yellow

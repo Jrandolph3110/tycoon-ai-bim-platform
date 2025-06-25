@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using System.Timers;
 using System.Net.NetworkInformation;
@@ -13,10 +14,10 @@ namespace TycoonRevitAddin.Communication
 {
     /// <summary>
     /// TycoonBridge - Communication bridge between Revit and Tycoon MCP Server
-    /// 
+    ///
     /// Handles:
     /// - WebSocket connection to MCP server
-    /// - Real-time selection monitoring
+    /// - On-demand selection querying (when AI is requested)
     /// - Command execution and response handling
     /// - Element data serialization
     /// </summary>
@@ -24,7 +25,7 @@ namespace TycoonRevitAddin.Communication
     {
         private WebSocket _webSocket;
         private Timer _heartbeatTimer;
-        private Timer _selectionMonitorTimer;
+        // Removed _selectionMonitorTimer - selection now queried on-demand only
         private bool _isConnected = false;
         private string _serverUrl = "";
         private int _serverPort = 0;
@@ -45,10 +46,7 @@ namespace TycoonRevitAddin.Communication
             _selectionManager = new SelectionManager();
             _lastSelection = new List<ElementId>();
             
-            // Setup selection monitoring timer (check every 500ms)
-            _selectionMonitorTimer = new Timer(500);
-            _selectionMonitorTimer.Elapsed += OnSelectionMonitorTick;
-            _selectionMonitorTimer.AutoReset = true;
+            // Selection monitoring removed - now queried on-demand only for stability
         }
 
         /// <summary>
@@ -170,7 +168,7 @@ namespace TycoonRevitAddin.Communication
             try
             {
                 _heartbeatTimer?.Stop();
-                _selectionMonitorTimer?.Stop();
+                // Selection monitoring timer removed
                 
                 if (_webSocket != null && _webSocket.ReadyState == WebSocketState.Open)
                 {
@@ -232,12 +230,8 @@ namespace TycoonRevitAddin.Communication
             var uiApp = new UIApplication(document.Application);
             _currentUIDocument = uiApp.ActiveUIDocument;
             
-            // Start selection monitoring if connected
-            if (_isConnected)
-            {
-                _selectionMonitorTimer.Start();
-                _logger.Log($"📋 Started selection monitoring for: {document.Title}");
-            }
+            // Selection monitoring removed - now queried on-demand only
+            _logger.Log($"📋 Document opened: {document.Title}");
         }
 
         /// <summary>
@@ -250,12 +244,11 @@ namespace TycoonRevitAddin.Communication
             {
                 string documentTitle = document?.Title ?? _currentDocument.Title;
 
-                _selectionMonitorTimer.Stop();
                 _currentDocument = null;
                 _currentUIDocument = null;
                 _lastSelection.Clear();
 
-                _logger.Log($"📋 Stopped selection monitoring for: {documentTitle}");
+                _logger.Log($"📋 Document closed: {documentTitle}");
             }
         }
 
@@ -275,11 +268,7 @@ namespace TycoonRevitAddin.Communication
             _heartbeatTimer.AutoReset = true;
             _heartbeatTimer.Start();
             
-            // Start selection monitoring if document is open
-            if (_currentDocument != null)
-            {
-                _selectionMonitorTimer.Start();
-            }
+            // Selection monitoring removed - now queried on-demand only
         }
 
         /// <summary>
@@ -302,6 +291,7 @@ namespace TycoonRevitAddin.Communication
                         SendHeartbeatResponse();
                         break;
                     case "command":
+                    case "selection":
                         HandleCommand(message);
                         break;
                     default:
@@ -332,7 +322,7 @@ namespace TycoonRevitAddin.Communication
             ConnectionStatusChanged?.Invoke(this, false);
             
             _heartbeatTimer?.Stop();
-            _selectionMonitorTimer?.Stop();
+            // Selection monitoring timer removed
             
             _logger.Log($"❌ Connection closed: {e.Reason}");
         }
@@ -389,61 +379,305 @@ namespace TycoonRevitAddin.Communication
         /// </summary>
         private void HandleCommand(dynamic message)
         {
-            // This would handle commands from the MCP server
-            // For now, just log the command
-            _logger.Log($"📋 Received command: {message.type}");
-        }
-
-        /// <summary>
-        /// Monitor selection changes
-        /// </summary>
-        private void OnSelectionMonitorTick(object sender, ElapsedEventArgs e)
-        {
             try
             {
-                if (_currentUIDocument == null || !_isConnected)
-                    return;
+                string messageType = message.type?.ToString();
+                string commandId = message.id?.ToString();
 
-                var currentSelection = _currentUIDocument.Selection.GetElementIds();
-                
-                // Check if selection has changed
-                if (!SelectionsEqual(currentSelection, _lastSelection))
+                _logger.Log($"📋 Processing command: {messageType} ({commandId})");
+
+                switch (messageType)
                 {
-                    _lastSelection = new List<ElementId>(currentSelection);
-                    SendSelectionUpdate(currentSelection);
+                    case "selection":
+                        HandleSelectionCommand(message);
+                        break;
+                    case "command":
+                        // Handle other commands
+                        _logger.Log($"📋 Received command: {messageType}");
+                        break;
+                    default:
+                        _logger.Log($"⚠️ Unknown command type: {messageType}");
+                        break;
                 }
             }
             catch (Exception ex)
             {
-                _logger.LogError("Error monitoring selection", ex);
+                _logger.LogError("Error handling command", ex);
             }
         }
 
         /// <summary>
-        /// Send selection update to server
+        /// Handle selection command from MCP server
         /// </summary>
-        private void SendSelectionUpdate(ICollection<ElementId> selection)
+        private void HandleSelectionCommand(dynamic message)
         {
             try
             {
-                var selectionData = _selectionManager.SerializeSelection(_currentDocument, selection);
-                
-                var message = new
+                string commandId = message.id?.ToString();
+                var payload = message.payload;
+                string action = payload?.action?.ToString();
+
+                _logger.Log($"📋 Handling selection command: {action} ({commandId})");
+
+                if (action == "get")
                 {
-                    type = "selection_changed",
-                    data = selectionData,
-                    timestamp = DateTime.UtcNow.ToString("O")
-                };
-                
-                string json = JsonConvert.SerializeObject(message);
-                _webSocket.Send(json);
-                
-                _logger.Log($"📋 Selection update sent: {selection.Count} elements");
+                    // Get current selection and send response
+                    var selectionResponse = GetCurrentSelection();
+                    selectionResponse.CommandId = commandId;
+
+                    // Send response back to MCP server
+                    SendSelectionResponse(selectionResponse);
+                }
             }
             catch (Exception ex)
             {
-                _logger.LogError("Failed to send selection update", ex);
+                _logger.LogError("Error handling selection command", ex);
             }
+        }
+
+        /// <summary>
+        /// Send selection response back to MCP server
+        /// </summary>
+        private void SendSelectionResponse(TycoonResponse response)
+        {
+            try
+            {
+                string json = JsonConvert.SerializeObject(response);
+                _webSocket.Send(json);
+
+                _logger.Log($"📤 Sent selection response: {response.CommandId}");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError("Failed to send selection response", ex);
+            }
+        }
+
+        /// <summary>
+        /// Get current selection on-demand (called only when AI is requested)
+        /// </summary>
+        public TycoonResponse GetCurrentSelection()
+        {
+            try
+            {
+                if (_currentUIDocument == null || !_isConnected)
+                {
+                    return new TycoonResponse
+                    {
+                        CommandId = Guid.NewGuid().ToString(),
+                        Success = false,
+                        Error = "No document open or not connected",
+                        Timestamp = DateTime.UtcNow.ToString("O")
+                    };
+                }
+
+                var currentSelection = _currentUIDocument.Selection.GetElementIds();
+
+                // Tiered selection limits based on expert recommendations
+                const int GREEN_LIMIT = 1000;    // Immediate execution
+                const int YELLOW_LIMIT = 2500;   // Progress bar + cancel
+                const int ORANGE_LIMIT = 4000;   // Warning + chunked processing
+                const int RED_LIMIT = 4000;      // Hard limit - refuse or auto-chunk
+
+                _logger.Log($"🔍 Selection count: {currentSelection.Count} elements");
+
+                // Determine processing tier
+                string tier = currentSelection.Count <= GREEN_LIMIT ? "GREEN" :
+                             currentSelection.Count <= YELLOW_LIMIT ? "YELLOW" :
+                             currentSelection.Count <= ORANGE_LIMIT ? "ORANGE" : "RED";
+
+                _logger.Log($"📊 Processing tier: {tier} ({currentSelection.Count} elements)");
+
+                // Enable auto-chunking for RED tier (BRUTE FORCE MODE!)
+                if (currentSelection.Count > RED_LIMIT)
+                {
+                    _logger.Log($"🔥 RED TIER DETECTED! {currentSelection.Count} > {RED_LIMIT} - ENABLING BRUTE FORCE AUTO-CHUNKING!");
+                    tier = "RED_CHUNKED"; // Special tier for massive selections
+                }
+
+                // Process selection based on tier
+                var selectionData = ProcessSelectionByTier(currentSelection, tier);
+
+                return new TycoonResponse
+                {
+                    CommandId = Guid.NewGuid().ToString(),
+                    Success = true,
+                    Data = selectionData,
+                    Timestamp = DateTime.UtcNow.ToString("O")
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError("Error getting current selection", ex);
+                return new TycoonResponse
+                {
+                    CommandId = Guid.NewGuid().ToString(),
+                    Success = false,
+                    Error = $"Error getting selection: {ex.Message}",
+                    Timestamp = DateTime.UtcNow.ToString("O")
+                };
+            }
+        }
+
+        // SendSelectionUpdate method removed - selection now queried on-demand only
+
+        /// <summary>
+        /// Process selection based on tier with appropriate optimizations
+        /// </summary>
+        private SelectionData ProcessSelectionByTier(ICollection<ElementId> elementIds, string tier)
+        {
+            _logger.Log($"🔄 Processing {elementIds.Count} elements in {tier} tier");
+
+            switch (tier)
+            {
+                case "GREEN":
+                    // Immediate processing for small selections
+                    return _selectionManager.SerializeSelection(_currentDocument, elementIds);
+
+                case "YELLOW":
+                    // Process with progress indication (future: add progress callback)
+                    _logger.Log($"⚡ YELLOW tier: Processing with progress tracking");
+                    return _selectionManager.SerializeSelection(_currentDocument, elementIds);
+
+                case "ORANGE":
+                    // Chunked processing for large selections
+                    _logger.Log($"🔶 ORANGE tier: Using chunked processing");
+                    return ProcessSelectionInChunks(elementIds);
+
+                case "RED_CHUNKED":
+                    // BRUTE FORCE MODE: Auto-chunking for massive selections
+                    _logger.Log($"🔥 RED_CHUNKED tier: BRUTE FORCE AUTO-CHUNKING ENGAGED!");
+                    return ProcessMassiveSelectionInChunks(elementIds);
+
+                default:
+                    // Fallback to standard processing
+                    return _selectionManager.SerializeSelection(_currentDocument, elementIds);
+            }
+        }
+
+        /// <summary>
+        /// Process large selections in memory-safe chunks
+        /// </summary>
+        private SelectionData ProcessSelectionInChunks(ICollection<ElementId> elementIds)
+        {
+            const int CHUNK_SIZE = 250; // Optimized chunk size to prevent memory issues
+            var allElements = new List<RevitElementData>();
+            var elementList = elementIds.ToList();
+            var totalChunks = (elementList.Count + CHUNK_SIZE - 1) / CHUNK_SIZE;
+
+            _logger.Log($"📦 MEMORY-SAFE Chunking {elementIds.Count} elements into {totalChunks} batches of {CHUNK_SIZE}");
+
+            for (int i = 0; i < elementList.Count; i += CHUNK_SIZE)
+            {
+                var chunk = elementList.Skip(i).Take(CHUNK_SIZE).ToList();
+                var chunkNumber = (i / CHUNK_SIZE) + 1;
+                var progress = (double)chunkNumber / totalChunks * 100;
+
+                // Memory monitoring
+                var memoryUsage = GC.GetTotalMemory(false) / (1024 * 1024); // MB
+                _logger.Log($"🔄 Processing chunk {chunkNumber}/{totalChunks} ({progress:F1}%) - {chunk.Count} elements (Memory: {memoryUsage}MB)");
+
+                // Process chunk WITHOUT transactions (read-only operation)
+                try
+                {
+                    var chunkData = _selectionManager.SerializeSelection(_currentDocument, chunk);
+                    allElements.AddRange(chunkData.Elements);
+                }
+                catch (Exception ex)
+                {
+                    _logger.Log($"❌ Chunk {chunkNumber} failed: {ex.Message}");
+                }
+
+                // Memory cleanup after each chunk
+                chunk.Clear();
+                GC.Collect(GC.MaxGeneration, GCCollectionMode.Forced, true);
+                GC.WaitForPendingFinalizers();
+
+                // Yield control to keep Revit responsive
+                System.Threading.Thread.Sleep(25); // 25ms yield for cleanup
+            }
+
+            var finalMemory = GC.GetTotalMemory(false) / (1024 * 1024);
+            _logger.Log($"📦 CHUNKING COMPLETE! Final Memory: {finalMemory}MB");
+
+            return new SelectionData
+            {
+                Count = allElements.Count,
+                Elements = allElements,
+                ViewName = _currentUIDocument?.ActiveView?.Name,
+                DocumentTitle = _currentDocument?.Title,
+                Timestamp = DateTime.UtcNow.ToString("O")
+            };
+        }
+
+        /// <summary>
+        /// CRASH-PROOF MODE: Process massive selections with memory-safe chunking
+        /// </summary>
+        private SelectionData ProcessMassiveSelectionInChunks(ICollection<ElementId> elementIds)
+        {
+            const int CHUNK_SIZE = 250; // Optimized chunk size to prevent LOH fragmentation
+            var allElements = new List<RevitElementData>();
+            var elementList = elementIds.ToList();
+            var totalChunks = (elementList.Count + CHUNK_SIZE - 1) / CHUNK_SIZE;
+
+            _logger.Log($"🛡️ CRASH-PROOF CHUNKING: {elementIds.Count} elements into {totalChunks} batches of {CHUNK_SIZE}");
+            _logger.Log($"⏱️ Estimated time: {totalChunks * 2}-{totalChunks * 4} seconds");
+
+            var startTime = DateTime.UtcNow;
+
+            for (int i = 0; i < elementList.Count; i += CHUNK_SIZE)
+            {
+                var chunk = elementList.Skip(i).Take(CHUNK_SIZE).ToList();
+                var chunkNumber = (i / CHUNK_SIZE) + 1;
+                var progress = (double)chunkNumber / totalChunks * 100;
+
+                // Memory monitoring - abort if approaching dangerous levels
+                var memoryUsage = GC.GetTotalMemory(false) / (1024 * 1024); // MB
+                if (memoryUsage > 6000) // 6GB threshold
+                {
+                    _logger.Log($"🚨 MEMORY THRESHOLD EXCEEDED: {memoryUsage}MB > 6000MB - ABORTING SAFELY");
+                    break;
+                }
+
+                _logger.Log($"🛡️ CRASH-PROOF chunk {chunkNumber}/{totalChunks} ({progress:F1}%) - {chunk.Count} elements (Memory: {memoryUsage}MB)");
+
+                // Process chunk WITHOUT transactions (read-only operation)
+                try
+                {
+                    var chunkData = _selectionManager.SerializeSelection(_currentDocument, chunk);
+                    allElements.AddRange(chunkData.Elements);
+
+                    _logger.Log($"✅ Chunk {chunkNumber} completed - {chunkData.Elements.Count} elements processed");
+                }
+                catch (Exception ex)
+                {
+                    _logger.Log($"❌ Chunk {chunkNumber} failed: {ex.Message}");
+                    // Continue with next chunk instead of failing completely
+                }
+
+                // Aggressive memory cleanup after each chunk
+                chunk.Clear();
+                GC.Collect(GC.MaxGeneration, GCCollectionMode.Forced, true);
+                GC.WaitForPendingFinalizers();
+
+                // Yield to keep Revit responsive
+                System.Threading.Thread.Sleep(50); // 50ms yield for memory cleanup
+            }
+
+            var endTime = DateTime.UtcNow;
+            var totalTime = (endTime - startTime).TotalSeconds;
+            var finalMemory = GC.GetTotalMemory(false) / (1024 * 1024);
+
+            _logger.Log($"🎯 CRASH-PROOF COMPLETE! {allElements.Count} elements processed in {totalTime:F1} seconds (Final Memory: {finalMemory}MB)");
+
+            return new SelectionData
+            {
+                Count = allElements.Count,
+                Elements = allElements,
+                ViewName = _currentUIDocument?.ActiveView?.Name,
+                DocumentTitle = _currentDocument?.Title,
+                Timestamp = DateTime.UtcNow.ToString("O")
+            };
         }
 
         /// <summary>

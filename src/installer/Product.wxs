@@ -6,7 +6,7 @@
   <Product Id="*"
            Name="Tycoon AI-BIM Platform"
            Language="1033"
-           Version="1.0.4.0"
+           Version="1.0.11.0"
            Manufacturer="Joseph Randolph - F.L. Crane &amp; Sons"
            UpgradeCode="12345678-1234-1234-1234-123456789012">
     
@@ -132,23 +132,17 @@
       </Directory>
     </Directory>
 
-    <!-- Custom Actions for MCP Download -->
-    <CustomAction Id="DownloadMCPServer"
-                  BinaryKey="DownloadHelper"
+    <!-- Custom Action to Launch Setup Wizard -->
+    <CustomAction Id="LaunchSetupWizard"
+                  BinaryKey="SetupWizard"
                   ExeCommand=""
-                  Execute="deferred"
-                  Return="check"
-                  Impersonate="no" />
+                  Execute="immediate"
+                  Return="asyncNoWait"
+                  Impersonate="yes" />
 
-    <CustomAction Id="SetMCPDownloadProperties"
-                  Property="DownloadMCPServer"
-                  Value="APPDATA=[APPDATA]"
-                  Execute="immediate" />
-
-    <!-- Installation Sequence -->
+    <!-- Installation Sequence - Launch setup wizard after install -->
     <InstallExecuteSequence>
-      <Custom Action="SetMCPDownloadProperties" After="CostFinalize">NOT Installed</Custom>
-      <Custom Action="DownloadMCPServer" After="InstallFiles">NOT Installed</Custom>
+      <Custom Action="LaunchSetupWizard" After="InstallFinalize">NOT Installed</Custom>
     </InstallExecuteSequence>
 
     <!-- Features -->
@@ -164,8 +158,8 @@
     <!-- Custom UI -->
     <UIRef Id="TycoonUI" />
 
-    <!-- Binary for MCP Download Helper -->
-    <Binary Id="DownloadHelper" SourceFile="DownloadMCP.exe" />
+    <!-- Binary for Setup Wizard -->
+    <Binary Id="SetupWizard" SourceFile="TycoonSetupWizard.exe" />
 
     <!-- Icons removed for now -->
 

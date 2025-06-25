@@ -85,11 +85,11 @@ Update-VersionInFile -FilePath (Join-Path $ScriptDir "Product.wxs") `
 
 $AssemblyInfoPath = Join-Path $ScriptDir "..\revit-addin\Properties\AssemblyInfo.cs"
 Update-VersionInFile -FilePath $AssemblyInfoPath `
-    -Pattern '\[assembly: AssemblyVersion\("[\d\.]+"\)\]' `
+    -Pattern '\[assembly: AssemblyVersion\("\d+\.\d+\.\d+\.\d+"\)\]' `
     -Replacement "[assembly: AssemblyVersion(`"$Version`")]"
 
 Update-VersionInFile -FilePath $AssemblyInfoPath `
-    -Pattern '\[assembly: AssemblyFileVersion\("[\d\.]+"\)\]' `
+    -Pattern '\[assembly: AssemblyFileVersion\("\d+\.\d+\.\d+\.\d+"\)\]' `
     -Replacement "[assembly: AssemblyFileVersion(`"$Version`")]"
 
 $PackageJsonPath = Join-Path $ScriptDir "..\mcp-server\package.json"
