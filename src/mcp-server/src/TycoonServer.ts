@@ -12,10 +12,14 @@ import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import chalk from 'chalk';
+import { readFileSync } from 'fs';
+import { join, dirname } from 'path';
+import { fileURLToPath } from 'url';
 
 // Import Temporal Neural Nexus components
 import { MemoryManager } from './core/MemoryManager.js';
 import { TimeManager } from './core/TimeManager.js';
+import { BimVectorDatabase } from './core/BimVectorDatabase.js';
 
 // Import Tycoon-specific components
 import { RevitBridge, RevitSelection } from './revit/RevitBridge.js';
@@ -27,6 +31,7 @@ export class TycoonServer {
     private timeManager: TimeManager;
     private revitBridge: RevitBridge;
     private flcAdapter: FLCAdapter;
+    private bimVectorDb: BimVectorDatabase;
     private isInitialized: boolean = false;
 
     constructor() {
@@ -51,6 +56,11 @@ export class TycoonServer {
         // Initialize Tycoon components
         this.revitBridge = new RevitBridge(8765);
         this.flcAdapter = new FLCAdapter(this.revitBridge);
+        this.bimVectorDb = new BimVectorDatabase({
+            chromaUrl: process.env.CHROMA_URL || 'http://localhost:8000',
+            openaiApiKey: process.env.OPENAI_API_KEY,
+            collectionName: 'tycoon_bim_elements'
+        });
 
         this.setupToolHandlers();
         this.setupErrorHandling();
@@ -237,6 +247,44 @@ export class TycoonServer {
                         description: 'Get current Revit connection and system status',
                         inputSchema: { type: 'object', properties: {} }
                     },
+                    {
+                        name: 'get_mcp_version',
+                        description: 'Get the current Tycoon MCP server version and build information',
+                        inputSchema: { type: 'object', properties: {} }
+                    },
+                    {
+                        name: 'get_system_versions',
+                        description: 'Get comprehensive version information for all system components: FAFB GPU MCP, Revit Add-in, and Tycoon MCP',
+                        inputSchema: {
+                            type: 'object',
+                            properties: {
+                                includeCapabilities: { type: 'boolean', description: 'Include detailed capability information', default: true }
+                            }
+                        }
+                    },
+                    {
+                        name: 'search_bim_elements',
+                        description: 'Search for BIM elements using semantic similarity in the vector database',
+                        inputSchema: {
+                            type: 'object',
+                            properties: {
+                                query: { type: 'string', description: 'Search query (natural language)' },
+                                category: { type: 'string', description: 'Filter by element category' },
+                                familyName: { type: 'string', description: 'Filter by family name' },
+                                level: { type: 'string', description: 'Filter by level' },
+                                maxResults: { type: 'number', description: 'Maximum number of results', default: 10 },
+                                minSimilarity: { type: 'number', description: 'Minimum similarity threshold (0-1)', default: 0.5 },
+                                includeGeometry: { type: 'boolean', description: 'Include geometry data', default: false },
+                                includeParameters: { type: 'boolean', description: 'Include parameter data', default: true }
+                            },
+                            required: ['query']
+                        }
+                    },
+                    {
+                        name: 'get_bim_database_stats',
+                        description: 'Get statistics about the BIM vector database',
+                        inputSchema: { type: 'object', properties: {} }
+                    },
                     // Include all Temporal Neural Nexus tools here...
                     // (Memory management, search, context, time awareness tools)
                     // These would be imported from the base implementation
@@ -266,7 +314,15 @@ export class TycoonServer {
                         return await this.validatePanelTickets(args);
                     case 'get_revit_status':
                         return await this.getRevitStatus(args);
-                    
+                    case 'get_mcp_version':
+                        return await this.getMcpVersion(args);
+                    case 'get_system_versions':
+                        return await this.getSystemVersions(args);
+                    case 'search_bim_elements':
+                        return await this.searchBimElements(args);
+                    case 'get_bim_database_stats':
+                        return await this.getBimDatabaseStats(args);
+
                     // Temporal Neural Nexus tools would be handled here
                     // case 'create_memory': return await this.createMemory(args);
                     // etc...
@@ -571,11 +627,242 @@ export class TycoonServer {
     }
 
     /**
+     * Get MCP server version and build information
+     */
+    private async getMcpVersion(args: any): Promise<any> {
+        try {
+            // Get the directory of the current module
+            const __filename = fileURLToPath(import.meta.url);
+            const __dirname = dirname(__filename);
+
+            // Read package.json to get version info
+            const packageJsonPath = join(__dirname, '..', 'package.json');
+            const packageJson = JSON.parse(readFileSync(packageJsonPath, 'utf8'));
+
+            const buildTime = new Date().toISOString();
+            const nodeVersion = process.version;
+            const platform = process.platform;
+            const arch = process.arch;
+
+            return {
+                status: 'success',
+                version: {
+                    mcpServer: packageJson.version,
+                    name: packageJson.name,
+                    description: packageJson.description,
+                    buildTime: buildTime,
+                    runtime: {
+                        node: nodeVersion,
+                        platform: platform,
+                        architecture: arch
+                    },
+                    capabilities: {
+                        binaryStreaming: true,
+                        memorySystem: true,
+                        revitIntegration: true,
+                        fafbOptimization: true
+                    }
+                }
+            };
+        } catch (error) {
+            console.error(chalk.red('Failed to get MCP version:'), error);
+            return {
+                status: 'error',
+                error: `Failed to retrieve version information: ${error instanceof Error ? error.message : String(error)}`
+            };
+        }
+    }
+
+    /**
+     * Get comprehensive system version information for all components
+     */
+    private async getSystemVersions(args: any): Promise<any> {
+        try {
+            const includeCapabilities = args.includeCapabilities !== false;
+
+            // Get Tycoon MCP version (this server)
+            const tycoonMcpVersion = await this.getMcpVersion({});
+
+            // Get Revit Add-in version (if connected)
+            let revitAddinVersion: any = null;
+            try {
+                const revitStatus: any = await this.getRevitStatus({});
+                if (revitStatus && revitStatus.revit && revitStatus.revit.connected) {
+                    // Try to get version from Revit bridge
+                    revitAddinVersion = {
+                        status: 'connected',
+                        version: 'Available via Revit connection',
+                        note: 'Use get_revit_status for detailed Revit information'
+                    };
+                } else {
+                    revitAddinVersion = {
+                        status: 'disconnected',
+                        version: 'Unknown - Revit not connected',
+                        note: 'Connect to Revit to get add-in version information'
+                    };
+                }
+            } catch (error) {
+                revitAddinVersion = {
+                    status: 'error',
+                    version: 'Unknown - Error checking Revit connection',
+                    error: error instanceof Error ? error.message : String(error)
+                };
+            }
+
+            // Check for FAFB GPU MCP (this would need to be implemented based on how FAFB is accessible)
+            let fafbGpuVersion = {
+                status: 'unknown',
+                version: 'Unknown - FAFB GPU MCP detection not implemented',
+                note: 'FAFB GPU MCP version checking requires additional integration'
+            };
+
+            const systemInfo: any = {
+                status: 'success',
+                timestamp: new Date().toISOString(),
+                components: {
+                    tycoonMcp: {
+                        name: 'Tycoon AI-BIM MCP Server',
+                        ...tycoonMcpVersion.version,
+                        status: 'running'
+                    },
+                    revitAddin: {
+                        name: 'Tycoon Revit Add-in',
+                        ...revitAddinVersion
+                    },
+                    fafbGpu: {
+                        name: 'FAFB GPU MCP Server',
+                        ...fafbGpuVersion
+                    }
+                }
+            };
+
+            if (includeCapabilities) {
+                systemInfo.capabilities = {
+                    binaryStreaming: true,
+                    memorySystem: true,
+                    revitIntegration: revitAddinVersion.status === 'connected',
+                    fafbOptimization: true,
+                    gpuAcceleration: fafbGpuVersion.status === 'running',
+                    massiveSelectionProcessing: true,
+                    chunkOptimization: true
+                };
+            }
+
+            return systemInfo;
+
+        } catch (error) {
+            console.error(chalk.red('Failed to get system versions:'), error);
+            return {
+                status: 'error',
+                error: `Failed to retrieve system version information: ${error instanceof Error ? error.message : String(error)}`
+            };
+        }
+    }
+
+    /**
+     * Search BIM elements using semantic similarity
+     */
+    private async searchBimElements(args: any): Promise<any> {
+        try {
+            if (!this.bimVectorDb) {
+                return {
+                    status: 'error',
+                    error: 'BIM Vector Database not initialized'
+                };
+            }
+
+            const { query, category, familyName, level, maxResults, minSimilarity, includeGeometry, includeParameters } = args;
+
+            if (!query) {
+                return {
+                    status: 'error',
+                    error: 'Query parameter is required'
+                };
+            }
+
+            const results = await this.bimVectorDb.searchSimilar(query, {
+                category,
+                familyName,
+                level,
+                maxResults: maxResults || 10,
+                minSimilarity: minSimilarity || 0.5,
+                includeGeometry: includeGeometry || false,
+                includeParameters: includeParameters !== false
+            });
+
+            return {
+                status: 'success',
+                query,
+                resultsCount: results.length,
+                results: results.map(result => ({
+                    element: result.element,
+                    similarity: result.similarity,
+                    distance: result.distance
+                })),
+                timestamp: new Date().toISOString()
+            };
+
+        } catch (error) {
+            console.error(chalk.red('Failed to search BIM elements:'), error);
+            return {
+                status: 'error',
+                error: `Search failed: ${error instanceof Error ? error.message : String(error)}`
+            };
+        }
+    }
+
+    /**
+     * Get BIM database statistics
+     */
+    private async getBimDatabaseStats(args: any): Promise<any> {
+        try {
+            if (!this.bimVectorDb) {
+                return {
+                    status: 'error',
+                    error: 'BIM Vector Database not initialized'
+                };
+            }
+
+            const stats = await this.bimVectorDb.getStats();
+
+            return {
+                status: 'success',
+                statistics: stats,
+                timestamp: new Date().toISOString()
+            };
+
+        } catch (error) {
+            console.error(chalk.red('Failed to get BIM database stats:'), error);
+            return {
+                status: 'error',
+                error: `Failed to get statistics: ${error instanceof Error ? error.message : String(error)}`
+            };
+        }
+    }
+
+    /**
      * Start the server
      */
     async start(): Promise<void> {
-        const transport = new StdioServerTransport();
-        await this.server.connect(transport);
-        console.log(chalk.green('🚀 Tycoon AI-BIM Server started'));
+        try {
+            // Initialize BIM Vector Database
+            console.log(chalk.blue('🔄 Initializing BIM Vector Database...'));
+            await this.bimVectorDb.initialize();
+
+            // Connect BIM Vector Database to RevitBridge for direct streaming
+            this.revitBridge.setBimVectorDatabase(this.bimVectorDb);
+            console.log(chalk.green('✅ BIM Vector Database connected to Revit streaming pipeline'));
+
+            const transport = new StdioServerTransport();
+            await this.server.connect(transport);
+            console.log(chalk.green('🚀 Tycoon AI-BIM Server started with Vector Database Pipeline'));
+        } catch (error) {
+            console.error(chalk.red('❌ Failed to start server:'), error);
+            console.log(chalk.yellow('⚠️ Starting server without Vector Database...'));
+
+            const transport = new StdioServerTransport();
+            await this.server.connect(transport);
+            console.log(chalk.green('🚀 Tycoon AI-BIM Server started (Vector DB disabled)'));
+        }
     }
 }

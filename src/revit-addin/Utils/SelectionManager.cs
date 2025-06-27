@@ -16,6 +16,7 @@ namespace TycoonRevitAddin.Utils
     /// </summary>
     public class SelectionManager
     {
+
         // Optimized JSON serializer (reused to avoid reflection overhead)
         private static readonly JsonSerializer _jsonSerializer = new JsonSerializer
         {
@@ -59,6 +60,14 @@ namespace TycoonRevitAddin.Utils
             new Dictionary<ElementId, Dictionary<string, object>>();
 
         /// <summary>
+        /// Initialize SelectionManager (stable version)
+        /// </summary>
+        public SelectionManager()
+        {
+            // Stable initialization without caching
+        }
+
+        /// <summary>
         /// Serialize current selection to JSON-compatible format with optimizations
         /// </summary>
         public SelectionData SerializeSelection(Document document, ICollection<ElementId> elementIds)
@@ -98,7 +107,7 @@ namespace TycoonRevitAddin.Utils
         }
 
         /// <summary>
-        /// Serialize a single Revit element
+        /// Serialize a single Revit element (stable version)
         /// </summary>
         private RevitElementData SerializeElement(Element element)
         {

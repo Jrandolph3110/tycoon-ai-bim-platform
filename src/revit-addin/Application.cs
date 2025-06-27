@@ -1,10 +1,13 @@
 using System;
+using System.IO;
 using System.Reflection;
 using System.Windows.Media.Imaging;
 using Autodesk.Revit.ApplicationServices;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.UI;
 using TycoonRevitAddin.Communication;
+using TycoonRevitAddin.Services;
+using TycoonRevitAddin.UI;
 using TycoonRevitAddin.Utils;
 
 namespace TycoonRevitAddin
@@ -24,9 +27,29 @@ namespace TycoonRevitAddin
     {
         private static TycoonBridge _tycoonBridge;
         private static Logger _logger;
-        
-        public static TycoonBridge TycoonBridge => _tycoonBridge;
+        private static StatusPollingService _statusService;
+        private static DynamicRibbonManager _ribbonManager;
+        private static PushButton _connectButton;
+
+        /// <summary>
+        /// Public access to logger
+        /// </summary>
         public static Logger Logger => _logger;
+
+        /// <summary>
+        /// Public access to Tycoon bridge
+        /// </summary>
+        public static TycoonBridge TycoonBridge => _tycoonBridge;
+
+        /// <summary>
+        /// Public access to status service
+        /// </summary>
+        public static StatusPollingService StatusService => _statusService;
+
+        /// <summary>
+        /// Public access to ribbon manager
+        /// </summary>
+        public static DynamicRibbonManager RibbonManager => _ribbonManager;
 
         /// <summary>
         /// Application startup
@@ -35,18 +58,28 @@ namespace TycoonRevitAddin
         {
             try
             {
-                // Initialize logger
+                // Initialize logger first (safely)
                 _logger = new Logger("Tycoon", debugMode: true);
-                _logger.Log("🚀 Starting Tycoon AI-BIM Platform v1.0.3.0 (DEBUG BUILD)...");
+                _logger.Log("🚀 Starting Tycoon AI-BIM Platform v1.0.33.0 (Crash Fix - Stable)...");
 
                 // Create ribbon tab and panels
                 CreateRibbonInterface(application);
 
-                // Initialize Tycoon bridge
+                // Initialize Tycoon bridge (minimal version)
                 _tycoonBridge = new TycoonBridge();
-                
-                // Setup event handlers
+                _logger.Log("🔗 TycoonBridge initialized");
+
+                // TODO: Initialize status services after ribbon creation
+                // Temporarily disabled to prevent crashes
+                _logger.Log("⚠️ Status services temporarily disabled for stability");
+
+                // Setup document event handlers
                 SetupEventHandlers(application);
+                _logger.Log("🔗 Event handlers registered");
+
+                // Check if a document is already open
+                // Note: We'll handle this in the document opened event instead
+                // since we don't have direct access to UIApplication here
 
                 _logger.Log("✅ Tycoon AI-BIM Platform initialized successfully");
                 return Result.Succeeded;
@@ -54,6 +87,7 @@ namespace TycoonRevitAddin
             catch (Exception ex)
             {
                 _logger?.LogError("Failed to initialize Tycoon", ex);
+                TaskDialog.Show("Tycoon Error", ex.Message);
                 return Result.Failed;
             }
         }
@@ -66,16 +100,16 @@ namespace TycoonRevitAddin
             try
             {
                 _logger?.Log("🛑 Shutting down Tycoon AI-BIM Platform...");
-                
+
                 // Disconnect from MCP server
                 _tycoonBridge?.Disconnect();
-                
+
                 _logger?.Log("✅ Tycoon shutdown complete");
                 return Result.Succeeded;
             }
             catch (Exception ex)
             {
-                _logger?.LogError("Error during shutdown", ex);
+                _logger?.LogError("Shutdown error", ex);
                 return Result.Failed;
             }
         }
@@ -126,13 +160,19 @@ namespace TycoonRevitAddin
             PushButton copyConfigButton = mainPanel.AddItem(copyConfigButtonData) as PushButton;
             PushButton connectButton = mainPanel.AddItem(connectButtonData) as PushButton;
 
+            _logger?.Log($"📋 Created buttons - Copy Config: {copyConfigButton != null}, Connect: {connectButton != null}");
+
+            // Store connect button for later registration with ribbon manager
+            _connectButton = connectButton;
+            _logger?.Log($"🔗 Stored connect button: {_connectButton != null}");
+
             // Create FLC Steel Framing panel
             RibbonPanel flcPanel = application.CreateRibbonPanel(tabName, "Steel Framing");
 
             // Add placeholder buttons for FLC workflows
             AddFLCButtons(flcPanel);
 
-            _logger.Log("✅ Ribbon interface created");
+            _logger?.Log("✅ Ribbon interface created");
         }
 
         /// <summary>
@@ -245,6 +285,91 @@ namespace TycoonRevitAddin
             }
             
             return null;
+        }
+
+        /// <summary>
+        /// Enhanced assembly resolution event handler for MessagePack and other dependencies
+        /// </summary>
+        private static Assembly OnAssemblyResolve(object sender, ResolveEventArgs args)
+        {
+            try
+            {
+                // Get the assembly name
+                var assemblyName = new AssemblyName(args.Name);
+                string assemblyFileName = assemblyName.Name + ".dll";
+
+                // Get the add-in directory
+                string addinDirectory = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
+
+                // Multiple search paths for maximum compatibility
+                string[] searchPaths = {
+                    addinDirectory,
+                    Path.Combine(addinDirectory, "Dependencies"),
+                    Path.Combine(addinDirectory, "Libs"),
+                    Path.Combine(addinDirectory, "bin"),
+                    Environment.CurrentDirectory,
+                    Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "Autodesk", "Revit 2024", "AddIns", "TycoonAI-BIM"),
+                    Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "Autodesk", "Revit 2023", "AddIns", "TycoonAI-BIM"),
+                    Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "Autodesk", "Revit 2022", "AddIns", "TycoonAI-BIM")
+                };
+
+                // Handle MessagePack specifically with enhanced search
+                if (assemblyName.Name.Equals("MessagePack", StringComparison.OrdinalIgnoreCase))
+                {
+                    foreach (string searchPath in searchPaths)
+                    {
+                        if (Directory.Exists(searchPath))
+                        {
+                            string messagePackPath = Path.Combine(searchPath, "MessagePack.dll");
+                            if (File.Exists(messagePackPath))
+                            {
+                                _logger?.Log($"🔧 Loading MessagePack from: {messagePackPath}");
+                                return Assembly.LoadFrom(messagePackPath);
+                            }
+                        }
+                    }
+
+                    // Try to load from GAC or already loaded assemblies
+                    try
+                    {
+                        return Assembly.Load("MessagePack");
+                    }
+                    catch
+                    {
+                        _logger?.Log($"❌ MessagePack not found in any search path");
+                    }
+                }
+
+                // Handle other dependencies with enhanced search
+                foreach (string searchPath in searchPaths)
+                {
+                    if (Directory.Exists(searchPath))
+                    {
+                        string assemblyPath = Path.Combine(searchPath, assemblyFileName);
+                        if (File.Exists(assemblyPath))
+                        {
+                            _logger?.Log($"🔧 Loading dependency: {assemblyFileName} from {searchPath}");
+                            return Assembly.LoadFrom(assemblyPath);
+                        }
+                    }
+                }
+
+                // Try partial name loading as last resort
+                try
+                {
+                    return Assembly.Load(assemblyName.Name);
+                }
+                catch
+                {
+                    _logger?.Log($"⚠️ Could not resolve assembly: {args.Name}");
+                    return null;
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError($"Failed to resolve assembly: {args.Name}", ex);
+                return null;
+            }
         }
     }
 }

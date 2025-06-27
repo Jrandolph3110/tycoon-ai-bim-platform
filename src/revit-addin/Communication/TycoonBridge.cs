@@ -1,6 +1,8 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Timers;
 using System.Net.NetworkInformation;
@@ -9,6 +11,7 @@ using Autodesk.Revit.UI;
 using Newtonsoft.Json;
 using WebSocketSharp;
 using TycoonRevitAddin.Utils;
+using TycoonRevitAddin.Storage;
 
 namespace TycoonRevitAddin.Communication
 {
@@ -24,18 +27,23 @@ namespace TycoonRevitAddin.Communication
     public class TycoonBridge
     {
         private WebSocket _webSocket;
-        private Timer _heartbeatTimer;
+        private System.Timers.Timer _heartbeatTimer;
         // Removed _selectionMonitorTimer - selection now queried on-demand only
         private bool _isConnected = false;
         private string _serverUrl = "";
         private int _serverPort = 0;
         private TycoonRevitAddin.Utils.Logger _logger;
         private SelectionManager _selectionManager;
-        
+        private BinaryStreamingManager _streamingManager;
+
+
         // Current document and UI context
         private Document _currentDocument;
         private UIDocument _currentUIDocument;
         private ICollection<ElementId> _lastSelection;
+
+        // 🚀 STREAMING DATA VAULT - File-based streaming system
+        private StreamingDataVault _dataVault;
 
         public bool IsConnected => _isConnected;
         public event EventHandler<bool> ConnectionStatusChanged;
@@ -45,7 +53,10 @@ namespace TycoonRevitAddin.Communication
             _logger = Application.Logger;
             _selectionManager = new SelectionManager();
             _lastSelection = new List<ElementId>();
-            
+
+            // Initialize streaming data vault
+            _dataVault = new StreamingDataVault(_logger);
+
             // Selection monitoring removed - now queried on-demand only for stability
         }
 
@@ -120,7 +131,12 @@ namespace TycoonRevitAddin.Communication
 
                 _webSocket = new WebSocket(_serverUrl);
                 _logger.Log("✅ WebSocket created successfully");
-                
+
+                // Initialize binary streaming manager
+                _streamingManager = new BinaryStreamingManager(_webSocket, _logger);
+                _streamingManager.ConfigureStreaming(enableCompression: true, enableBinaryMode: true);
+                _logger.Log("🚀 Binary streaming manager initialized");
+
                 _logger.Log("🔧 Setting up WebSocket event handlers...");
                 _webSocket.OnOpen += OnWebSocketOpen;
                 _webSocket.OnMessage += OnWebSocketMessage;
@@ -263,7 +279,7 @@ namespace TycoonRevitAddin.Communication
             _logger.Log("✅ Connected to Tycoon MCP Server");
             
             // Start heartbeat
-            _heartbeatTimer = new Timer(30000); // 30 seconds
+            _heartbeatTimer = new System.Timers.Timer(30000); // 30 seconds
             _heartbeatTimer.Elapsed += SendHeartbeat;
             _heartbeatTimer.AutoReset = true;
             _heartbeatTimer.Start();
@@ -421,8 +437,11 @@ namespace TycoonRevitAddin.Communication
 
                 if (action == "get")
                 {
+                    // 🚀 FAFB IMMEDIATE ACKNOWLEDGMENT - Send progress start message
+                    SendProgressUpdate(commandId, "selection_started", 0, 0, "Analyzing selection...");
+
                     // Get current selection and send response
-                    var selectionResponse = GetCurrentSelection();
+                    var selectionResponse = GetCurrentSelection(commandId);
                     selectionResponse.CommandId = commandId;
 
                     // Send response back to MCP server
@@ -436,16 +455,60 @@ namespace TycoonRevitAddin.Communication
         }
 
         /// <summary>
-        /// Send selection response back to MCP server
+        /// 🚀 FAFB Send progress update to prevent timeouts during large selections
         /// </summary>
-        private void SendSelectionResponse(TycoonResponse response)
+        private void SendProgressUpdate(string commandId, string status, int processed, int total, string message)
         {
             try
             {
-                string json = JsonConvert.SerializeObject(response);
-                _webSocket.Send(json);
+                var progressMessage = new
+                {
+                    type = "selection_progress",
+                    id = commandId,
+                    status = status,
+                    processed = processed,
+                    total = total,
+                    message = message,
+                    timestamp = DateTime.UtcNow.ToString("O")
+                };
 
-                _logger.Log($"📤 Sent selection response: {response.CommandId}");
+                string jsonMessage = JsonConvert.SerializeObject(progressMessage);
+                _webSocket?.Send(jsonMessage);
+                _logger.Log($"📊 Progress update sent: {status} - {message}");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError("Failed to send progress update", ex);
+            }
+        }
+
+        /// <summary>
+        /// Send selection response back to MCP server using optimized streaming
+        /// </summary>
+        private async void SendSelectionResponse(TycoonResponse response)
+        {
+            try
+            {
+                if (response.Data is SelectionData selectionData && selectionData.Count > 1000)
+                {
+                    // Use binary streaming for large selections
+                    _logger.Log($"🚀 STREAMING: Large selection detected ({selectionData.Count} elements), using binary streaming");
+
+                    var processingTier = DetermineProcessingTier(selectionData.Count);
+                    var success = await _streamingManager.StreamSelectionAsync(selectionData, response.CommandId, processingTier);
+
+                    if (!success)
+                    {
+                        _logger.LogError("Binary streaming failed, falling back to JSON");
+                        // Fallback to traditional JSON
+                        await SendJsonResponseAsync(response);
+                    }
+                }
+                else
+                {
+                    // Use traditional JSON for smaller selections
+                    await SendJsonResponseAsync(response);
+                }
             }
             catch (Exception ex)
             {
@@ -454,9 +517,40 @@ namespace TycoonRevitAddin.Communication
         }
 
         /// <summary>
+        /// Send traditional JSON response (fallback or small selections)
+        /// </summary>
+        private async Task SendJsonResponseAsync(TycoonResponse response)
+        {
+            try
+            {
+                string json = JsonConvert.SerializeObject(response);
+                _webSocket.Send(json);
+                _logger.Log($"📤 JSON: Sent selection response: {response.CommandId}");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError("Failed to send JSON response", ex);
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// Determine processing tier based on element count
+        /// </summary>
+        private string DetermineProcessingTier(int elementCount)
+        {
+            if (elementCount <= 1000) return "GREEN";
+            if (elementCount <= 2500) return "YELLOW";
+            if (elementCount <= 5000) return "ORANGE";
+            if (elementCount <= 10000) return "RED";
+            if (elementCount <= 50000) return "EXTREME";
+            return "LUDICROUS";
+        }
+
+        /// <summary>
         /// Get current selection on-demand (called only when AI is requested)
         /// </summary>
-        public TycoonResponse GetCurrentSelection()
+        public TycoonResponse GetCurrentSelection(string commandId = null)
         {
             try
             {
@@ -473,26 +567,40 @@ namespace TycoonRevitAddin.Communication
 
                 var currentSelection = _currentUIDocument.Selection.GetElementIds();
 
-                // Tiered selection limits based on expert recommendations
-                const int GREEN_LIMIT = 1000;    // Immediate execution
-                const int YELLOW_LIMIT = 2500;   // Progress bar + cancel
-                const int ORANGE_LIMIT = 4000;   // Warning + chunked processing
-                const int RED_LIMIT = 4000;      // Hard limit - refuse or auto-chunk
+                // 🦝💨 FAFB Enhanced Tiered Selection Limits for Massive Processing
+                const int GREEN_LIMIT = 1000;    // Immediate execution (< 30 seconds)
+                const int YELLOW_LIMIT = 2500;   // Progress tracking (30-60 seconds)
+                const int ORANGE_LIMIT = 5000;   // Chunked processing (1-3 minutes)
+                const int RED_LIMIT = 10000;     // Heavy chunking (3-10 minutes)
+                const int EXTREME_LIMIT = 50000; // FAFB Extreme mode (10+ minutes)
 
                 _logger.Log($"🔍 Selection count: {currentSelection.Count} elements");
 
-                // Determine processing tier
+                // 🚀 FAFB Send progress update with selection count
+                if (!string.IsNullOrEmpty(commandId))
+                {
+                    SendProgressUpdate(commandId, "selection_analyzed", 0, currentSelection.Count,
+                        $"Found {currentSelection.Count} elements, determining processing strategy...");
+                }
+
+                // 🦝💨 FAFB Enhanced Tier Determination with Extreme Mode Support
                 string tier = currentSelection.Count <= GREEN_LIMIT ? "GREEN" :
                              currentSelection.Count <= YELLOW_LIMIT ? "YELLOW" :
-                             currentSelection.Count <= ORANGE_LIMIT ? "ORANGE" : "RED";
+                             currentSelection.Count <= ORANGE_LIMIT ? "ORANGE" :
+                             currentSelection.Count <= RED_LIMIT ? "RED" : "EXTREME";
 
                 _logger.Log($"📊 Processing tier: {tier} ({currentSelection.Count} elements)");
 
-                // Enable auto-chunking for RED tier (BRUTE FORCE MODE!)
-                if (currentSelection.Count > RED_LIMIT)
+                // Enhanced tier handling for massive selections
+                if (currentSelection.Count > RED_LIMIT && currentSelection.Count <= EXTREME_LIMIT)
                 {
-                    _logger.Log($"🔥 RED TIER DETECTED! {currentSelection.Count} > {RED_LIMIT} - ENABLING BRUTE FORCE AUTO-CHUNKING!");
-                    tier = "RED_CHUNKED"; // Special tier for massive selections
+                    _logger.Log($"🔥 EXTREME TIER DETECTED! {currentSelection.Count} > {RED_LIMIT} - ENABLING FAFB MASSIVE PROCESSING!");
+                    tier = "EXTREME_CHUNKED"; // FAFB Extreme processing mode
+                }
+                else if (currentSelection.Count > EXTREME_LIMIT)
+                {
+                    _logger.Log($"💀 LUDICROUS TIER! {currentSelection.Count} > {EXTREME_LIMIT} - MAXIMUM FAFB PROTECTION MODE!");
+                    tier = "LUDICROUS"; // Ultimate protection mode
                 }
 
                 // Process selection based on tier
@@ -528,6 +636,13 @@ namespace TycoonRevitAddin.Communication
         {
             _logger.Log($"🔄 Processing {elementIds.Count} elements in {tier} tier");
 
+            // 🚀 STREAMING DATA VAULT: Use streaming for all selections > 1000 elements
+            if (elementIds.Count > 1000)
+            {
+                _logger.Log($"📡 STREAMING MODE: {elementIds.Count} elements → Data Vault");
+                return ProcessWithStreaming(elementIds, tier);
+            }
+
             switch (tier)
             {
                 case "GREEN":
@@ -544,14 +659,185 @@ namespace TycoonRevitAddin.Communication
                     _logger.Log($"🔶 ORANGE tier: Using chunked processing");
                     return ProcessSelectionInChunks(elementIds);
 
-                case "RED_CHUNKED":
-                    // BRUTE FORCE MODE: Auto-chunking for massive selections
-                    _logger.Log($"🔥 RED_CHUNKED tier: BRUTE FORCE AUTO-CHUNKING ENGAGED!");
+                case "RED":
+                    // Heavy chunked processing for large selections
+                    _logger.Log($"🔥 RED tier: Heavy chunked processing");
                     return ProcessMassiveSelectionInChunks(elementIds);
+
+                case "EXTREME_CHUNKED":
+                    // FAFB EXTREME MODE: Maximum safety chunking
+                    _logger.Log($"💥 EXTREME_CHUNKED tier: FAFB EXTREME PROCESSING ENGAGED!");
+                    return ProcessExtremeSelectionInChunks(elementIds);
+
+                case "LUDICROUS":
+                    // FAFB LUDICROUS MODE: Ultimate protection with streaming
+                    _logger.Log($"💀 LUDICROUS tier: MAXIMUM FAFB PROTECTION MODE WITH STREAMING!");
+                    return ProcessLudicrousWithStreaming(elementIds);
 
                 default:
                     // Fallback to standard processing
                     return _selectionManager.SerializeSelection(_currentDocument, elementIds);
+            }
+        }
+
+        /// <summary>
+        /// 🚀 STREAMING DATA VAULT: Process selection with file streaming
+        /// </summary>
+        private SelectionData ProcessWithStreaming(ICollection<ElementId> elementIds, string tier)
+        {
+            try
+            {
+                var documentTitle = _currentDocument?.Title ?? "Unknown Document";
+                var viewName = _currentUIDocument?.ActiveView?.Name ?? "Unknown View";
+
+                // Start streaming session
+                _dataVault.StartStreaming(elementIds.Count, documentTitle, viewName);
+                _logger.Log($"🚀 STREAMING SESSION STARTED: {elementIds.Count} elements");
+
+                // 🎯 IMMEDIATE RESPONSE FOR MASSIVE SELECTIONS (>10K elements)
+                if (elementIds.Count > 10000)
+                {
+                    _logger.Log($"🚀 MASSIVE SELECTION: {elementIds.Count} elements - Starting background streaming");
+
+                    // Start background streaming task
+                    Task.Run(() => ProcessStreamingInBackground(elementIds, tier));
+
+                    // Return immediate response with session info
+                    return new SelectionData
+                    {
+                        Count = elementIds.Count,
+                        Elements = new List<RevitElementData>(), // Empty - data is streaming
+                        ViewName = viewName,
+                        DocumentTitle = documentTitle,
+                        Timestamp = DateTime.UtcNow.ToString("O"),
+                        ProcessingTier = tier + "_BACKGROUND_STREAMING",
+                        StreamingInfo = _dataVault.GetSessionInfo()
+                    };
+                }
+
+                // Process smaller selections normally (in foreground)
+                return ProcessStreamingInForeground(elementIds, tier, documentTitle, viewName);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError("Error in streaming processing", ex);
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// Process streaming in background for massive selections
+        /// </summary>
+        private void ProcessStreamingInBackground(ICollection<ElementId> elementIds, string tier)
+        {
+            try
+            {
+                _logger.Log($"🔄 BACKGROUND STREAMING: Processing {elementIds.Count} elements");
+
+                var chunkSize = GetOptimalChunkSize(elementIds.Count);
+                var elementList = elementIds.ToList();
+                var chunks = ChunkList(elementList, chunkSize);
+
+                int chunkNumber = 1;
+                foreach (var chunk in chunks)
+                {
+                    _logger.Log($"📤 BACKGROUND chunk {chunkNumber}: {chunk.Count} elements");
+
+                    // Serialize chunk
+                    var chunkData = _selectionManager.SerializeSelection(_currentDocument, chunk);
+
+                    // Stream to vault
+                    _dataVault.StreamChunk(chunkData.Elements.Cast<object>().ToList(), chunkNumber);
+
+                    chunkNumber++;
+
+                    // Memory management
+                    if (chunkNumber % 5 == 0)
+                    {
+                        GC.Collect();
+                        GC.WaitForPendingFinalizers();
+                    }
+                }
+
+                // Complete streaming session
+                _dataVault.CompleteStreaming();
+                _logger.Log($"✅ BACKGROUND STREAMING COMPLETE: {elementIds.Count} elements");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError("Error in background streaming", ex);
+            }
+        }
+
+        /// <summary>
+        /// Process streaming in foreground for smaller selections
+        /// </summary>
+        private SelectionData ProcessStreamingInForeground(ICollection<ElementId> elementIds, string tier, string documentTitle, string viewName)
+        {
+            var chunkSize = GetOptimalChunkSize(elementIds.Count);
+            var elementList = elementIds.ToList();
+            var chunks = ChunkList(elementList, chunkSize);
+            var allElements = new List<RevitElementData>();
+
+            int chunkNumber = 1;
+            foreach (var chunk in chunks)
+            {
+                _logger.Log($"📤 STREAMING chunk {chunkNumber}: {chunk.Count} elements");
+
+                // Serialize chunk
+                var chunkData = _selectionManager.SerializeSelection(_currentDocument, chunk);
+
+                // Stream to vault
+                _dataVault.StreamChunk(chunkData.Elements.Cast<object>().ToList(), chunkNumber);
+
+                // Add to response (for immediate use)
+                allElements.AddRange(chunkData.Elements);
+
+                chunkNumber++;
+
+                // Memory management
+                if (chunkNumber % 5 == 0)
+                {
+                    GC.Collect();
+                    GC.WaitForPendingFinalizers();
+                }
+            }
+
+            // Complete streaming session
+            _dataVault.CompleteStreaming();
+            _logger.Log($"✅ STREAMING COMPLETE: {allElements.Count} elements streamed to vault");
+
+            return new SelectionData
+            {
+                Count = allElements.Count,
+                Elements = allElements,
+                ViewName = viewName,
+                DocumentTitle = documentTitle,
+                Timestamp = DateTime.UtcNow.ToString("O"),
+                ProcessingTier = tier,
+                StreamingInfo = _dataVault.GetSessionInfo()
+            };
+        }
+
+        /// <summary>
+        /// Get optimal chunk size based on element count
+        /// </summary>
+        private int GetOptimalChunkSize(int elementCount)
+        {
+            if (elementCount <= 2500) return 500;
+            if (elementCount <= 10000) return 1000;
+            if (elementCount <= 50000) return 2000;
+            return 4000;
+        }
+
+        /// <summary>
+        /// Chunk a list into smaller lists
+        /// </summary>
+        private IEnumerable<List<T>> ChunkList<T>(List<T> source, int chunkSize)
+        {
+            for (int i = 0; i < source.Count; i += chunkSize)
+            {
+                yield return source.GetRange(i, Math.Min(chunkSize, source.Count - i));
             }
         }
 
@@ -681,6 +967,125 @@ namespace TycoonRevitAddin.Communication
         }
 
         /// <summary>
+        /// 🦝💨 FAFB EXTREME MODE: Process massive selections with real-time streaming
+        /// </summary>
+        private SelectionData ProcessExtremeSelectionInChunks(ICollection<ElementId> elementIds)
+        {
+            var memoryOptimizer = new DynamicMemoryOptimizer(_logger, memoryCheckInterval: 5);
+            var elementList = elementIds.ToList();
+
+            _logger.Log($"💥 FAFB EXTREME PROCESSING: {elementIds.Count} elements with REAL-TIME STREAMING!");
+            // Start real-time streaming (stable version)
+            return ProcessWithRealTimeStreaming(elementList, memoryOptimizer);
+
+        }
+
+        /// <summary>
+        /// 💀 FAFB LUDICROUS MODE: Ultimate protection with real-time streaming
+        /// </summary>
+        private SelectionData ProcessLudicrousWithStreaming(ICollection<ElementId> elementIds)
+        {
+            var memoryOptimizer = new DynamicMemoryOptimizer(_logger, memoryCheckInterval: 3); // More frequent monitoring
+            var elementList = elementIds.ToList();
+
+            _logger.Log($"💀 FAFB LUDICROUS MODE: {elementIds.Count} elements with ULTRA-SAFE STREAMING!");
+
+            // Use streaming with ultra-conservative settings
+            return ProcessWithRealTimeStreaming(elementList, memoryOptimizer);
+        }
+
+        /// <summary>
+        /// 💀 FAFB LUDICROUS MODE: Ultimate protection for insanely massive selections (LEGACY - kept for fallback)
+        /// </summary>
+        private SelectionData ProcessLudicrousSelectionInChunks(ICollection<ElementId> elementIds)
+        {
+            const int CHUNK_SIZE = 250; // Optimized chunks for maximum performance
+            var allElements = new List<RevitElementData>();
+            var elementList = elementIds.ToList();
+            var totalChunks = (elementList.Count + CHUNK_SIZE - 1) / CHUNK_SIZE;
+
+            _logger.Log($"💀 FAFB LUDICROUS MODE ACTIVATED: {elementIds.Count} elements into {totalChunks} optimized batches of {CHUNK_SIZE}");
+            _logger.Log($"⏱️ Estimated time: {totalChunks * 5}-{totalChunks * 10} seconds (MAXIMUM PROTECTION)");
+            _logger.Log($"🦝💨 That raccoon is about to BOOK IT through {elementIds.Count} elements with MAXIMUM SAFETY!");
+
+            var startTime = DateTime.UtcNow;
+            var processedCount = 0;
+            var failedChunks = 0;
+
+            for (int i = 0; i < elementList.Count; i += CHUNK_SIZE)
+            {
+                var chunk = elementList.Skip(i).Take(CHUNK_SIZE).ToList();
+                var chunkNumber = (i / CHUNK_SIZE) + 1;
+                var progress = (double)chunkNumber / totalChunks * 100;
+
+                // Ultra-conservative memory monitoring
+                var memoryBefore = GC.GetTotalMemory(false) / (1024 * 1024);
+
+                // Ultra-conservative memory safety - abort at 4GB
+                if (memoryBefore > 4000)
+                {
+                    _logger.Log($"💀 LUDICROUS MEMORY LIMIT: {memoryBefore}MB > 4000MB - EMERGENCY ABORT!");
+                    break;
+                }
+
+                _logger.Log($"💀 LUDICROUS chunk {chunkNumber}/{totalChunks} ({progress:F1}%) - {chunk.Count} elements (Memory: {memoryBefore}MB)");
+
+                try
+                {
+                    // Ultra-safe processing
+                    var chunkData = _selectionManager.SerializeSelection(_currentDocument, chunk);
+                    allElements.AddRange(chunkData.Elements);
+                    processedCount += chunkData.Elements.Count;
+
+                    // Frequent progress updates
+                    if (chunkNumber % 5 == 0)
+                    {
+                        var elapsed = DateTime.UtcNow - startTime;
+                        var rate = processedCount / elapsed.TotalSeconds;
+                        var eta = (elementIds.Count - processedCount) / Math.Max(rate, 1);
+                        _logger.Log($"💀 LUDICROUS Progress: {processedCount}/{elementIds.Count} ({rate:F0} elements/sec, ETA: {eta:F0}s)");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.Log($"❌ LUDICROUS chunk {chunkNumber} failed: {ex.Message} - MAXIMUM SAFETY RECOVERY");
+                    failedChunks++;
+
+                    // If too many chunks fail, abort for safety
+                    if (failedChunks > totalChunks * 0.1) // 10% failure rate
+                    {
+                        _logger.Log($"💀 TOO MANY FAILURES ({failedChunks}) - EMERGENCY ABORT FOR SAFETY!");
+                        break;
+                    }
+                }
+
+                // Ultra-aggressive memory cleanup
+                chunk.Clear();
+                GC.Collect(GC.MaxGeneration, GCCollectionMode.Forced, true);
+                GC.WaitForPendingFinalizers();
+                GC.Collect(GC.MaxGeneration, GCCollectionMode.Forced, true);
+                GC.WaitForPendingFinalizers();
+
+                // Maximum yield for system recovery
+                System.Threading.Thread.Sleep(100); // 100ms yield for ludicrous safety
+            }
+
+            var finalTime = DateTime.UtcNow - startTime;
+            var finalMemory = GC.GetTotalMemory(false) / (1024 * 1024);
+            _logger.Log($"💀 FAFB LUDICROUS COMPLETE! {processedCount} elements in {finalTime.TotalSeconds:F1}s (Memory: {finalMemory}MB, Failed: {failedChunks})");
+            _logger.Log($"🦝💨 That chunky raccoon BOOKED IT through {processedCount} elements with MAXIMUM PROTECTION!");
+
+            return new SelectionData
+            {
+                Count = allElements.Count,
+                Elements = allElements,
+                ViewName = _currentUIDocument?.ActiveView?.Name,
+                DocumentTitle = _currentDocument?.Title,
+                Timestamp = DateTime.UtcNow.ToString("O")
+            };
+        }
+
+        /// <summary>
         /// Compare two selections for equality
         /// </summary>
         private bool SelectionsEqual(ICollection<ElementId> selection1, ICollection<ElementId> selection2)
@@ -695,6 +1100,380 @@ namespace TycoonRevitAddin.Communication
             }
             
             return true;
+        }
+
+        /// <summary>
+        /// 🚀 REVOLUTIONARY: Process with real-time streaming - send chunks as they're processed
+        /// </summary>
+        private SelectionData ProcessWithRealTimeStreaming(List<ElementId> elementList, DynamicMemoryOptimizer memoryOptimizer)
+        {
+            var startTime = DateTime.UtcNow;
+            var processedCount = 0;
+            var chunkNumber = 0;
+            var currentIndex = 0;
+            var totalElements = elementList.Count;
+
+            _logger.Log($"🚀 Starting REAL-TIME STREAMING processing for {totalElements} elements...");
+
+            // Send stream start message
+            SendStreamingMessage(StreamingMessageTypes.STREAM_START, null, 0, 0, totalElements, 0, 0, 0, 0);
+
+            while (currentIndex < elementList.Count)
+            {
+                // Get current optimal chunk size
+                var currentChunkSize = memoryOptimizer.GetOptimalChunkSize();
+                var remainingElements = elementList.Count - currentIndex;
+                var actualChunkSize = Math.Min(currentChunkSize, remainingElements);
+
+                var chunk = elementList.Skip(currentIndex).Take(actualChunkSize).ToList();
+                chunkNumber++;
+                var progress = (double)currentIndex / elementList.Count * 100;
+
+                _logger.Log($"🚀 STREAMING chunk {chunkNumber} ({progress:F1}%) - {chunk.Count} elements | {memoryOptimizer.GetMemoryStats()}");
+
+                try
+                {
+                    // Process chunk
+                    var chunkData = _selectionManager.SerializeSelection(_currentDocument, chunk);
+                    processedCount += chunkData.Elements.Count;
+                    currentIndex += actualChunkSize;
+
+                    // 🚀 IMMEDIATELY SEND CHUNK - No accumulation!
+                    var elapsed = DateTime.UtcNow - startTime;
+                    var rate = processedCount / Math.Max(elapsed.TotalSeconds, 1);
+                    var eta = (totalElements - processedCount) / Math.Max(rate, 1);
+
+                    SendStreamingMessage(
+                        StreamingMessageTypes.STREAM_CHUNK,
+                        chunkData.Elements,
+                        chunkNumber,
+                        0, // totalChunks unknown with dynamic sizing
+                        totalElements,
+                        processedCount,
+                        chunkData.Elements.Count,
+                        rate,
+                        eta
+                    );
+
+                    // Update memory optimizer for dynamic chunk sizing
+                    memoryOptimizer.UpdateChunkSize();
+
+                    // Progress feedback every 10 chunks
+                    if (chunkNumber % 10 == 0)
+                    {
+                        _logger.Log($"🚀 STREAMING Progress: {processedCount}/{totalElements} ({rate:F0} elements/sec, ETA: {eta:F0}s)");
+                    }
+
+                    // 🚀 IMMEDIATE MEMORY RELEASE - No accumulation!
+                    chunkData.Elements.Clear();
+                    chunk.Clear();
+
+                    // 🧠 AGGRESSIVE MEMORY PRESSURE MONITORING
+                    var currentMemory = GC.GetTotalMemory(false) / (1024 * 1024);
+                    if (currentMemory > 2000) // 2GB threshold for immediate GC
+                    {
+                        _logger.Log($"🗑️ Memory pressure detected ({currentMemory}MB) - forcing immediate GC");
+                        GC.Collect();
+                        GC.WaitForPendingFinalizers();
+                        GC.Collect(); // Double GC for aggressive cleanup
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.Log($"❌ STREAMING chunk {chunkNumber} failed: {ex.Message} - CONTINUING WITH NEXT CHUNK");
+                    currentIndex += actualChunkSize; // Still advance to avoid infinite loop
+
+                    // Send error for this chunk
+                    SendStreamingMessage(StreamingMessageTypes.STREAM_ERROR, null, chunkNumber, 0, totalElements, processedCount, 0, 0, 0);
+                }
+
+                // 🗑️ ENHANCED MEMORY CLEANUP STRATEGY
+                if (chunkNumber % 2 == 0) // More frequent GC every 2 chunks
+                {
+                    var memoryBefore = GC.GetTotalMemory(false) / (1024 * 1024);
+                    GC.Collect();
+                    GC.WaitForPendingFinalizers();
+                    var memoryAfter = GC.GetTotalMemory(false) / (1024 * 1024);
+                    var freed = memoryBefore - memoryAfter;
+
+                    if (freed > 50) // Log significant memory releases
+                    {
+                        _logger.Log($"🗑️ GC freed {freed}MB: {memoryBefore}MB → {memoryAfter}MB");
+                    }
+                }
+
+                // Adaptive yield based on chunk size
+                var yieldTime = Math.Max(10, Math.Min(50, actualChunkSize / 20)); // 10-50ms based on chunk size
+                System.Threading.Thread.Sleep(yieldTime);
+            }
+
+            var finalTime = DateTime.UtcNow - startTime;
+            _logger.Log($"🚀 REAL-TIME STREAMING COMPLETE! {processedCount} elements in {finalTime.TotalSeconds:F1}s | {memoryOptimizer.GetMemoryStats()}");
+
+            // Send completion message
+            SendStreamingMessage(StreamingMessageTypes.STREAM_COMPLETE, null, chunkNumber, chunkNumber, totalElements, processedCount, 0, 0, 0);
+
+            // Return minimal SelectionData since actual data was streamed
+            return new SelectionData
+            {
+                Count = processedCount,
+                Elements = new List<RevitElementData>(), // Empty - data was streamed!
+                ViewName = _currentUIDocument?.ActiveView?.Name,
+                DocumentTitle = _currentDocument?.Title,
+                Timestamp = DateTime.UtcNow.ToString("O")
+            };
+        }
+
+        /// <summary>
+        /// Send real-time streaming message with enhanced protocol
+        /// </summary>
+        private void SendStreamingMessage(string messageType, List<RevitElementData> elements, int chunkNumber, int totalChunks, int totalElements, int processedElements, int elementsInChunk, double processingRate, double eta)
+        {
+            try
+            {
+                // Check connection health before sending
+                if (!_isConnected || _webSocket?.ReadyState != WebSocketState.Open)
+                {
+                    _logger.LogError($"❌ Cannot send streaming message: Connection not available (Type: {messageType})");
+                    return;
+                }
+                var streamingResponse = new StreamingResponse
+                {
+                    CommandId = "streaming_" + Guid.NewGuid().ToString("N").Substring(0, 8),
+                    Type = messageType,
+                    ChunkNumber = chunkNumber,
+                    TotalChunks = totalChunks,
+                    Elements = elements ?? new List<RevitElementData>(),
+                    Progress = totalElements > 0 ? (double)processedElements / totalElements * 100 : 0,
+                    ElementsInChunk = elementsInChunk,
+                    TotalElements = totalElements,
+                    ProcessedElements = processedElements,
+                    MemoryUsage = GC.GetTotalMemory(false),
+                    ChunkSize = elements?.Count ?? 0,
+                    EstimatedTimeRemaining = eta,
+                    ProcessingRate = processingRate,
+                    Timestamp = DateTime.UtcNow.ToString("O"),
+                    IsComplete = messageType == StreamingMessageTypes.STREAM_COMPLETE,
+                    Metadata = new StreamingMetadata
+                    {
+                        TotalElements = totalElements,
+                        ProcessingTier = "EXTREME_STREAMING",
+                        ChunkSize = elements?.Count ?? 0,
+                        CompressionEnabled = false,
+                        BinaryMode = false,
+                        ViewName = _currentUIDocument?.ActiveView?.Name,
+                        DocumentTitle = _currentDocument?.Title
+                    }
+                };
+
+                string json = JsonConvert.SerializeObject(streamingResponse);
+
+                // 🔄 RETRY LOGIC for critical streaming messages
+                int maxRetries = 3;
+                int retryCount = 0;
+                bool sent = false;
+
+                while (!sent && retryCount < maxRetries)
+                {
+                    try
+                    {
+                        _webSocket.Send(json);
+                        sent = true;
+
+                        if (messageType == StreamingMessageTypes.STREAM_CHUNK)
+                        {
+                            _logger.Log($"📤 STREAMED chunk {chunkNumber}: {elementsInChunk} elements");
+                        }
+                    }
+                    catch (Exception sendEx)
+                    {
+                        retryCount++;
+                        _logger.Log($"⚠️ Send attempt {retryCount} failed for {messageType}: {sendEx.Message}");
+
+                        if (retryCount < maxRetries)
+                        {
+                            System.Threading.Thread.Sleep(100 * retryCount); // Exponential backoff
+                        }
+                    }
+                }
+
+                if (!sent)
+                {
+                    _logger.LogError($"❌ Failed to send {messageType} after {maxRetries} attempts - CONNECTION UNSTABLE");
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Failed to send streaming message: {messageType}", ex);
+            }
+        }
+
+        /// <summary>
+        /// 🚀 REVOLUTIONARY: Parallel processing with real-time streaming for maximum performance
+        /// </summary>
+        private SelectionData ProcessWithParallelStreaming(List<ElementId> elementList, DynamicMemoryOptimizer memoryOptimizer)
+        {
+            var startTime = DateTime.UtcNow;
+            var totalElements = elementList.Count;
+            var processedCount = 0;
+            var chunkNumber = 0;
+
+            // Determine optimal parallelism based on system resources
+            var maxParallelism = DetermineOptimalParallelism();
+
+            _logger.Log($"🚀 Starting PARALLEL STREAMING processing for {totalElements} elements with {maxParallelism} parallel streams...");
+
+            // Send stream start message
+            SendStreamingMessage(StreamingMessageTypes.STREAM_START, null, 0, 0, totalElements, 0, 0, 0, 0);
+
+            // Create thread-safe collections for parallel processing
+            var processedChunks = new ConcurrentBag<(int chunkId, List<RevitElementData> elements)>();
+            var chunkQueue = new ConcurrentQueue<(int chunkId, List<ElementId> chunk)>();
+            var lockObject = new object();
+
+            // Prepare chunks for parallel processing
+            var currentIndex = 0;
+            var preparedChunkId = 0;
+            while (currentIndex < elementList.Count)
+            {
+                var currentChunkSize = memoryOptimizer.GetOptimalChunkSize();
+                var remainingElements = elementList.Count - currentIndex;
+                var actualChunkSize = Math.Min(currentChunkSize, remainingElements);
+
+                var chunk = elementList.Skip(currentIndex).Take(actualChunkSize).ToList();
+                chunkQueue.Enqueue((++preparedChunkId, chunk));
+                currentIndex += actualChunkSize;
+            }
+
+            var totalChunks = preparedChunkId;
+            _logger.Log($"🔄 Prepared {totalChunks} chunks for parallel processing");
+
+            // Process chunks in parallel
+            var parallelOptions = new ParallelOptions
+            {
+                MaxDegreeOfParallelism = maxParallelism
+            };
+
+            var processedChunkCount = 0;
+
+            Parallel.ForEach(chunkQueue.ToArray(), parallelOptions, chunkInfo =>
+            {
+                var (chunkId, chunk) = chunkInfo;
+
+                try
+                {
+                    var progress = (double)chunkId / totalChunks * 100;
+                    _logger.Log($"🚀 PARALLEL chunk {chunkId}/{totalChunks} ({progress:F1}%) - {chunk.Count} elements | Thread: {Thread.CurrentThread.ManagedThreadId}");
+
+                    // Process chunk (this is thread-safe as each chunk is independent)
+                    var chunkData = _selectionManager.SerializeSelection(_currentDocument, chunk);
+
+                    // Thread-safe increment
+                    lock (lockObject)
+                    {
+                        processedCount += chunkData.Elements.Count;
+                        processedChunkCount++;
+
+                        // Update memory optimizer periodically (thread-safe)
+                        if (processedChunkCount % 5 == 0)
+                        {
+                            memoryOptimizer.UpdateChunkSize();
+                        }
+                    }
+
+                    // 🚀 IMMEDIATELY SEND CHUNK - Thread-safe streaming
+                    var elapsed = DateTime.UtcNow - startTime;
+                    var rate = processedCount / Math.Max(elapsed.TotalSeconds, 1);
+                    var eta = (totalElements - processedCount) / Math.Max(rate, 1);
+
+                    SendStreamingMessage(
+                        StreamingMessageTypes.STREAM_CHUNK,
+                        chunkData.Elements,
+                        chunkId,
+                        totalChunks,
+                        totalElements,
+                        processedCount,
+                        chunkData.Elements.Count,
+                        rate,
+                        eta
+                    );
+
+                    // Progress feedback every 10 chunks
+                    if (chunkId % 10 == 0)
+                    {
+                        _logger.Log($"🚀 PARALLEL Progress: {processedCount}/{totalElements} ({rate:F0} elements/sec, ETA: {eta:F0}s)");
+                    }
+
+                    // 🚀 IMMEDIATE MEMORY RELEASE - No accumulation!
+                    chunkData.Elements.Clear();
+                    chunk.Clear();
+
+                    // 🧠 PARALLEL-SAFE MEMORY PRESSURE MONITORING
+                    var currentMemory = GC.GetTotalMemory(false) / (1024 * 1024);
+                    if (currentMemory > 4000) // 4GB threshold for parallel processing
+                    {
+                        lock (lockObject)
+                        {
+                            _logger.Log($"🗑️ Parallel memory pressure detected ({currentMemory}MB) - forcing GC");
+                            GC.Collect();
+                            GC.WaitForPendingFinalizers();
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.Log($"❌ PARALLEL chunk {chunkId} failed: {ex.Message} - CONTINUING WITH OTHER CHUNKS");
+
+                    // Send error for this chunk
+                    SendStreamingMessage(StreamingMessageTypes.STREAM_ERROR, null, chunkId, totalChunks, totalElements, processedCount, 0, 0, 0);
+                }
+            });
+
+            var finalTime = DateTime.UtcNow - startTime;
+            var finalRate = processedCount / finalTime.TotalSeconds;
+
+            _logger.Log($"🚀 PARALLEL STREAMING COMPLETE! {processedCount} elements in {finalTime.TotalSeconds:F1}s ({finalRate:F0} elements/sec) | {memoryOptimizer.GetMemoryStats()}");
+
+            // Send completion message
+            SendStreamingMessage(StreamingMessageTypes.STREAM_COMPLETE, null, totalChunks, totalChunks, totalElements, processedCount, 0, finalRate, 0);
+
+            // Return minimal SelectionData since actual data was streamed
+            return new SelectionData
+            {
+                Count = processedCount,
+                Elements = new List<RevitElementData>(), // Empty - data was streamed!
+                ViewName = _currentUIDocument?.ActiveView?.Name,
+                DocumentTitle = _currentDocument?.Title,
+                Timestamp = DateTime.UtcNow.ToString("O")
+            };
+        }
+
+        /// <summary>
+        /// Determine optimal parallelism based on system resources
+        /// </summary>
+        private int DetermineOptimalParallelism()
+        {
+            var processorCount = Environment.ProcessorCount;
+            var availableMemoryGB = GC.GetTotalMemory(false) / (1024 * 1024 * 1024);
+
+            // Conservative parallelism based on system resources
+            int optimalParallelism;
+
+            if (availableMemoryGB > 32) // High-end system
+            {
+                optimalParallelism = Math.Min(8, processorCount); // Up to 8 parallel streams
+            }
+            else if (availableMemoryGB > 16) // Standard system
+            {
+                optimalParallelism = Math.Min(4, processorCount); // Up to 4 parallel streams
+            }
+            else // Conservative system
+            {
+                optimalParallelism = Math.Min(2, processorCount); // Up to 2 parallel streams
+            }
+
+            _logger.Log($"🔄 Optimal parallelism: {optimalParallelism} streams (CPU: {processorCount}, Memory: {availableMemoryGB}GB)");
+            return optimalParallelism;
         }
     }
 }

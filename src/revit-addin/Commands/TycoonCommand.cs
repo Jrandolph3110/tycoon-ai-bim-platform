@@ -5,6 +5,7 @@ using System.Windows.Forms;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
+using TycoonRevitAddin.UI;
 
 namespace TycoonRevitAddin.Commands
 {
@@ -22,7 +23,7 @@ namespace TycoonRevitAddin.Commands
                 var logger = Application.Logger;
                 var bridge = Application.TycoonBridge;
 
-                logger.Log("🎯 Tycoon Connect command executed");
+                logger?.Log("🎯 Tycoon Connect command executed");
 
                 if (bridge.IsConnected)
                 {
@@ -37,64 +38,71 @@ namespace TycoonRevitAddin.Commands
                     if (result == DialogResult.Yes)
                     {
                         bridge.Disconnect();
-                        ShowMessage("Disconnected from Tycoon AI-BIM Server", "Tycoon Disconnected");
+                        TaskDialog.Show("Tycoon Disconnected", "Disconnected from Tycoon AI-BIM Server");
                     }
                 }
                 else
                 {
-                    // Not connected - attempt connection
-                    Application.Logger.Log("🔄 Starting connection attempt...");
+                    // Not connected - show real-time connection dialog
+                    logger?.Log("🔄 Starting connection attempt...");
 
-                    // Connect asynchronously
-                    Application.Logger.Log("🔄 Starting async connection task...");
-                    Task.Run(() =>
+                    // TODO: Set connecting status when ribbon manager is ready
+
+                    try
                     {
-                        Application.Logger.Log("🎯 INSIDE Task.Run - starting execution...");
-                        try
-                        {
-                            Application.Logger.Log("📞 About to call bridge.ConnectAsync()...");
-                            var connectTask = bridge.ConnectAsync();
-                            Application.Logger.Log("📞 ConnectAsync task created, waiting for result...");
-                            bool connected = connectTask.Result;
-                            Application.Logger.Log($"📞 bridge.ConnectAsync() returned: {connected}");
-                            
-                            // Show result - no need for dispatcher in Revit
-                            Application.Logger.Log($"🎯 Showing connection result dialog: {connected}");
-                            if (connected)
-                            {
-                                ShowMessage(
-                                    "Successfully connected to Tycoon AI-BIM Server!\n\n" +
-                                    "🎯 AI-Revit integration is now active\n" +
-                                    "📋 Selection context will be shared with AI\n" +
-                                    "🏗️ Steel framing workflows are available\n" +
-                                    "🤖 Ready for AI-powered script generation",
-                                    "Tycoon Connected"
-                                );
-                            }
-                            else
-                            {
-                                ShowMessage(
-                                    "Failed to connect to Tycoon AI-BIM Server.\n\n" +
-                                    "Please ensure:\n" +
-                                    "• Tycoon MCP Server is running (npm start)\n" +
-                                    "• Server is listening on ports 8765-8864\n" +
-                                    "• No firewall blocking connection\n" +
-                                    "• Check server console for actual port number",
-                                    "Connection Failed"
-                                );
-                            }
-                        }
-                        catch (Exception ex)
-                        {
-                            Application.Logger.LogError("Connection error", ex);
+                        // Create and show real-time connection dialog
+                        var connectionDialog = new ConnectionProgressDialog();
 
-                            ShowMessage(
-                                $"Connection error: {ex.Message}\n\n" +
-                                "Check the log file for more details.",
-                                "Connection Error"
-                            );
+                        // Start the connection process in the background
+                        Task<bool> connectionTask = null;
+
+                        // Show the dialog and start connection when it loads
+                        connectionDialog.Loaded += async (s, e) =>
+                        {
+                            try
+                            {
+                                connectionTask = connectionDialog.ConnectAsync(bridge);
+                                await connectionTask;
+                            }
+                            catch (Exception ex)
+                            {
+                                logger?.LogError("Connection task error", ex);
+                            }
+                        };
+
+                        // Show the dialog (this will block until user closes it)
+                        var dialogResult = connectionDialog.ShowDialog();
+
+                        // Check the connection result
+                        bool connected = connectionDialog.WasSuccessful;
+
+                        // Show final result only if dialog was not cancelled
+                        if (dialogResult == true && connected)
+                        {
+                            TaskDialog.Show("Tycoon Connected",
+                                "✅ Successfully connected to Tycoon AI-BIM Server!\n\n" +
+                                "🎯 AI-Revit integration is now active\n" +
+                                "📋 Selection context will be shared with AI\n" +
+                                "🤖 Ready for AI-powered workflows");
                         }
-                    });
+                        else if (dialogResult == true && !connected && connectionDialog.ErrorMessage != null)
+                        {
+                            TaskDialog.Show("Connection Failed",
+                                $"❌ Connection failed: {connectionDialog.ErrorMessage}\n\n" +
+                                "Please ensure:\n" +
+                                "• Tycoon MCP Server is running (npm start)\n" +
+                                "• Server is listening on ports 8765-8864\n" +
+                                "• No firewall blocking connection");
+                        }
+                        // If dialogResult is false, user cancelled - no need to show error
+                    }
+                    catch (Exception ex)
+                    {
+                        logger?.LogError("Connection error", ex);
+                        TaskDialog.Show("Connection Error",
+                            $"❌ Connection error: {ex.Message}\n\n" +
+                            "Please check the log file for more details.");
+                    }
                 }
 
                 return Result.Succeeded;
@@ -102,6 +110,7 @@ namespace TycoonRevitAddin.Commands
             catch (Exception ex)
             {
                 Application.Logger?.LogError("Error in TycoonCommand", ex);
+                TaskDialog.Show("Tycoon Error", ex.Message);
                 message = $"Error: {ex.Message}";
                 return Result.Failed;
             }

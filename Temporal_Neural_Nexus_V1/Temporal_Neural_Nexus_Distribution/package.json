@@ -1,11 +1,11 @@
 {
-  "name": "tycoon-ai-bim-server",
-  "version": "1.0.27.0",
-  "description": "Tycoon AI-BIM MCP Server - Revolutionary AI-powered construction automation with live Revit integration",
+  "name": "temporal-neural-net-v1",
+  "version": "1.0.0",
+  "description": "Temporal Neural Nexus MCP Server - Advanced memory management with time awareness, analytics, and AI-powered features",
   "type": "module",
   "main": "dist/index.js",
   "bin": {
-    "tycoon-ai-bim-server": "dist/index.js"
+    "temporal-neural-net-v1": "dist/index.js"
   },
   "files": [
     "dist"
@@ -22,46 +22,28 @@
   },
   "keywords": [
     "mcp",
-    "ai",
-    "bim",
-    "revit",
-    "construction",
-    "automation",
-    "steel-framing",
     "memory",
     "context",
     "time",
     "analytics",
+    "ai",
     "search",
     "vector",
     "semantic"
   ],
-  "author": "F.L. Crane & Sons Development Team",
+  "author": "Augment Agent",
   "license": "MIT",
   "dependencies": {
     "@modelcontextprotocol/sdk": "^0.5.0",
-    "@msgpack/msgpack": "^3.0.0",
     "chalk": "^5.4.1",
-    "chromadb": "^1.10.5",
-    "cors": "^2.8.5",
-    "express": "^4.21.1",
     "fuse.js": "^7.0.0",
-    "helmet": "^8.0.0",
     "natural": "^6.12.0",
     "simple-git": "^3.25.0",
-    "uuid": "^10.0.0",
-    "ws": "^8.18.0",
-    "chokidar": "^3.5.3",
-    "sqlite3": "^5.1.6",
-    "sqlite": "^5.0.1"
+    "uuid": "^10.0.0"
   },
   "devDependencies": {
-    "@types/cors": "^2.8.17",
-    "@types/express": "^5.0.0",
     "@types/node": "^22.15.3",
     "@types/uuid": "^10.0.0",
-    "@types/ws": "^8.5.13",
-    "@types/sqlite3": "^3.1.11",
     "shx": "^0.3.4",
     "typescript": "^5.8.3"
   }

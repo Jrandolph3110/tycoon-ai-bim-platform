@@ -126,5 +126,149 @@ namespace TycoonRevitAddin.Communication
 
         [JsonProperty("documentTitle")]
         public string DocumentTitle { get; set; }
+
+        [JsonProperty("processingTier")]
+        public string ProcessingTier { get; set; }
+
+        [JsonProperty("streamingInfo")]
+        public object StreamingInfo { get; set; }
+    }
+
+    /// <summary>
+    /// Optimized streaming chunk for binary transport
+    /// </summary>
+    public class ElementChunk
+    {
+        [JsonProperty("chunkId")]
+        public int ChunkId { get; set; }
+
+        [JsonProperty("totalChunks")]
+        public int TotalChunks { get; set; }
+
+        [JsonProperty("elements")]
+        public List<RevitElementData> Elements { get; set; }
+
+        [JsonProperty("progress")]
+        public double Progress { get; set; }
+
+        [JsonProperty("memoryUsage")]
+        public long MemoryUsage { get; set; }
+
+        [JsonProperty("timestamp")]
+        public string Timestamp { get; set; }
+
+        [JsonProperty("isComplete")]
+        public bool IsComplete { get; set; }
+    }
+
+    /// <summary>
+    /// Streaming message wrapper for binary transport
+    /// </summary>
+    public class StreamingMessage
+    {
+        [JsonProperty("type")]
+        public string Type { get; set; }
+
+        [JsonProperty("commandId")]
+        public string CommandId { get; set; }
+
+        [JsonProperty("chunk")]
+        public ElementChunk Chunk { get; set; }
+
+        [JsonProperty("metadata")]
+        public StreamingMetadata Metadata { get; set; }
+    }
+
+    /// <summary>
+    /// Metadata for streaming operations
+    /// </summary>
+    public class StreamingMetadata
+    {
+        [JsonProperty("totalElements")]
+        public int TotalElements { get; set; }
+
+        [JsonProperty("processingTier")]
+        public string ProcessingTier { get; set; }
+
+        [JsonProperty("chunkSize")]
+        public int ChunkSize { get; set; }
+
+        [JsonProperty("compressionEnabled")]
+        public bool CompressionEnabled { get; set; }
+
+        [JsonProperty("binaryMode")]
+        public bool BinaryMode { get; set; }
+
+        [JsonProperty("viewName")]
+        public string ViewName { get; set; }
+
+        [JsonProperty("documentTitle")]
+        public string DocumentTitle { get; set; }
+    }
+
+    /// <summary>
+    /// Real-time streaming message types for progressive data transmission
+    /// </summary>
+    public static class StreamingMessageTypes
+    {
+        public const string STREAM_START = "stream_start";
+        public const string STREAM_CHUNK = "stream_chunk";
+        public const string STREAM_PROGRESS = "stream_progress";
+        public const string STREAM_COMPLETE = "stream_complete";
+        public const string STREAM_ERROR = "stream_error";
+    }
+
+    /// <summary>
+    /// Real-time streaming response for immediate chunk transmission
+    /// </summary>
+    public class StreamingResponse
+    {
+        [JsonProperty("commandId")]
+        public string CommandId { get; set; }
+
+        [JsonProperty("type")]
+        public string Type { get; set; }
+
+        [JsonProperty("chunkNumber")]
+        public int ChunkNumber { get; set; }
+
+        [JsonProperty("totalChunks")]
+        public int TotalChunks { get; set; }
+
+        [JsonProperty("elements")]
+        public List<RevitElementData> Elements { get; set; }
+
+        [JsonProperty("progress")]
+        public double Progress { get; set; }
+
+        [JsonProperty("elementsInChunk")]
+        public int ElementsInChunk { get; set; }
+
+        [JsonProperty("totalElements")]
+        public int TotalElements { get; set; }
+
+        [JsonProperty("processedElements")]
+        public int ProcessedElements { get; set; }
+
+        [JsonProperty("memoryUsage")]
+        public long MemoryUsage { get; set; }
+
+        [JsonProperty("chunkSize")]
+        public int ChunkSize { get; set; }
+
+        [JsonProperty("estimatedTimeRemaining")]
+        public double EstimatedTimeRemaining { get; set; }
+
+        [JsonProperty("processingRate")]
+        public double ProcessingRate { get; set; }
+
+        [JsonProperty("timestamp")]
+        public string Timestamp { get; set; }
+
+        [JsonProperty("isComplete")]
+        public bool IsComplete { get; set; }
+
+        [JsonProperty("metadata")]
+        public StreamingMetadata Metadata { get; set; }
     }
 }

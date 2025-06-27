@@ -50,7 +50,8 @@
     <Reference Include="PresentationFramework" />
     <Reference Include="WindowsBase" />
     <Reference Include="System.Xaml" />
-    
+    <Reference Include="Microsoft.VisualBasic" />
+
     <!-- Revit API References -->
     <Reference Include="RevitAPI">
       <HintPath>C:\Program Files\Autodesk\Revit 2024\RevitAPI.dll</HintPath>
@@ -68,9 +69,19 @@
     <Compile Include="Application.cs" />
     <Compile Include="Commands\TycoonCommand.cs" />
     <Compile Include="Communication\TycoonBridge.cs" />
+    <Compile Include="Communication\BinaryStreamingManager.cs" />
+    <Compile Include="Communication\ConnectionStatus.cs" />
     <Compile Include="Communication\MessageTypes.cs" />
+    <Compile Include="Resources\StatusIconManager.cs" />
+    <Compile Include="Services\StatusPollingService.cs" />
+    <Compile Include="UI\ConnectionProgressDialog.xaml.cs">
+      <DependentUpon>ConnectionProgressDialog.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="UI\DynamicRibbonManager.cs" />
     <Compile Include="Utils\Logger.cs" />
+    <Compile Include="Storage\StreamingDataVault.cs" />
     <Compile Include="Utils\SelectionManager.cs" />
+    <Compile Include="Utils\DynamicMemoryOptimizer.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   
@@ -78,11 +89,25 @@
     <None Include="TycoonRevitAddin.addin">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
+    <None Include="app.config">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Page Include="UI\ConnectionProgressDialog.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
   </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
     <PackageReference Include="WebSocketSharp-netstandard" Version="1.0.1" />
+    <PackageReference Include="MessagePack" Version="2.5.140">
+      <Private>True</Private>
+      <CopyLocal>True</CopyLocal>
+    </PackageReference>
   </ItemGroup>
   
   <ItemGroup>
