@@ -6,7 +6,7 @@
   <Product Id="*"
            Name="Tycoon AI-BIM Platform"
            Language="1033"
-           Version="1.1.4.0"
+           Version="1.1.5.0"
            Manufacturer="Joseph Randolph - F.L. Crane &amp; Sons"
            UpgradeCode="12345678-1234-1234-1234-123456789012">
     
@@ -93,6 +93,9 @@
                   <File Id="MessagePack2024.dll"
                         Source="..\revit-addin\bin\Release\MessagePack.dll"
                         Name="MessagePack.dll" />
+                  <File Id="MessagePackAnnotations2024.dll"
+                        Source="..\revit-addin\bin\Release\MessagePack.Annotations.dll"
+                        Name="MessagePack.Annotations.dll" />
                   <File Id="SystemMemory2024.dll"
                         Source="..\revit-addin\bin\Release\System.Memory.dll"
                         Name="System.Memory.dll" />
