@@ -111,9 +111,9 @@ namespace TycoonRevitAddin.Communication
             CancellationToken cancellationToken = default)
         {
             var wrapper = await DeserializeAsync<CorrelatedData<T>>(data, cancellationToken);
-            
+
             _logger.Log($"🔗 Deserialized with correlation ID: {wrapper.CorrelationId}");
-            return (wrapper.Data, wrapper.CorrelationId, wrapper.Timestamp);
+            return ((T)wrapper.Data, wrapper.CorrelationId, wrapper.Timestamp);
         }
 
         /// <summary>
@@ -200,12 +200,12 @@ namespace TycoonRevitAddin.Communication
     {
         [Key(0)]
         public string CorrelationId { get; set; }
-        
+
         [Key(1)]
         public DateTime Timestamp { get; set; }
-        
+
         [Key(2)]
-        public T Data { get; set; }
+        public object Data { get; set; }  // Changed from T to object for MessagePack compatibility
     }
 
     /// <summary>
@@ -216,12 +216,12 @@ namespace TycoonRevitAddin.Communication
     {
         [Key(0)]
         public string CorrelationId { get; set; }
-        
+
         [Key(1)]
         public DateTime Timestamp { get; set; }
-        
+
         [Key(2)]
-        public IEnumerable<T> Items { get; set; }
+        public object Items { get; set; }  // Changed from IEnumerable<T> to object for MessagePack compatibility
     }
 
     /// <summary>
