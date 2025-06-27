@@ -60,7 +60,7 @@ namespace TycoonRevitAddin
             {
                 // Initialize logger first (safely)
                 _logger = new Logger("Tycoon", debugMode: true);
-                _logger.Log("🚀 Starting Tycoon AI-BIM Platform v1.0.33.0 (Crash Fix - Stable)...");
+                _logger.Log("🚀 Starting Tycoon AI-BIM Platform v1.1.0.0 (Advanced Performance - Enterprise)...");
 
                 // Create ribbon tab and panels
                 CreateRibbonInterface(application);

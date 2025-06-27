@@ -6,7 +6,7 @@ namespace TycoonRevitAddin.Utils
     /// <summary>
     /// Simple logging utility for Tycoon Revit Add-in
     /// </summary>
-    public class Logger
+    public class Logger : ILogger
     {
         private readonly string _logName;
         private readonly bool _debugMode;

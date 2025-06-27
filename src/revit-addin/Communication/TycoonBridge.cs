@@ -36,6 +36,11 @@ namespace TycoonRevitAddin.Communication
         private SelectionManager _selectionManager;
         private BinaryStreamingManager _streamingManager;
 
+        // 🚀 ADVANCED PERFORMANCE MANAGERS
+        private AdvancedSerializationManager _serializationManager;
+        private AdaptiveChunkManager _chunkManager;
+        private PipelineParallelismManager _pipelineManager;
+        private CircuitBreakerManager _circuitBreaker;
 
         // Current document and UI context
         private Document _currentDocument;
@@ -56,6 +61,14 @@ namespace TycoonRevitAddin.Communication
 
             // Initialize streaming data vault
             _dataVault = new StreamingDataVault(_logger);
+
+            // 🚀 Initialize advanced performance managers
+            _serializationManager = new AdvancedSerializationManager(_logger);
+            _chunkManager = new AdaptiveChunkManager(_logger);
+            _circuitBreaker = new CircuitBreakerManager(_logger);
+            _pipelineManager = new PipelineParallelismManager(_logger, _serializationManager, _chunkManager);
+
+            _logger.Log("🚀 TycoonBridge initialized with advanced performance managers");
 
             // Selection monitoring removed - now queried on-demand only for stability
         }
@@ -634,49 +647,51 @@ namespace TycoonRevitAddin.Communication
         /// </summary>
         private SelectionData ProcessSelectionByTier(ICollection<ElementId> elementIds, string tier)
         {
-            _logger.Log($"🔄 Processing {elementIds.Count} elements in {tier} tier");
+            _logger.Log($"🔄 Processing {elementIds.Count} elements in {tier} tier with advanced pipeline");
 
-            // 🚀 STREAMING DATA VAULT: Use streaming for all selections > 1000 elements
-            if (elementIds.Count > 1000)
+            // 🚀 NEW: Use circuit breaker for resilient processing
+            try
             {
-                _logger.Log($"📡 STREAMING MODE: {elementIds.Count} elements → Data Vault");
-                return ProcessWithStreaming(elementIds, tier);
+                return _circuitBreaker.ExecuteAsync(async () =>
+                {
+                    // 🚀 ADVANCED PIPELINE: Use streaming for all selections > 500 elements
+                    if (elementIds.Count > 500)
+                    {
+                        _logger.Log($"📡 ADVANCED PIPELINE MODE: {elementIds.Count} elements → Pipeline Processing");
+                        return await ProcessWithAdvancedPipeline(elementIds, tier);
+                    }
+
+                    switch (tier)
+                    {
+                        case "GREEN":
+                            // Immediate processing for small selections with MessagePack
+                            _logger.Log($"💚 GREEN tier: Immediate processing with MessagePack");
+                            return await ProcessWithMessagePack(elementIds);
+
+                        case "YELLOW":
+                            // Process with adaptive chunking
+                            _logger.Log($"⚡ YELLOW tier: Adaptive chunking with progress tracking");
+                            return await ProcessWithAdaptiveChunking(elementIds);
+
+                        case "ORANGE":
+                        case "RED":
+                        case "EXTREME_CHUNKED":
+                        case "LUDICROUS":
+                            // All large selections use advanced pipeline
+                            _logger.Log($"🚀 {tier} tier: Advanced pipeline processing");
+                            return await ProcessWithAdvancedPipeline(elementIds, tier);
+
+                        default:
+                            // Fallback to MessagePack processing
+                            return await ProcessWithMessagePack(elementIds);
+                    }
+                }, $"ProcessSelection-{tier}").Result;
             }
-
-            switch (tier)
+            catch (Exception ex)
             {
-                case "GREEN":
-                    // Immediate processing for small selections
-                    return _selectionManager.SerializeSelection(_currentDocument, elementIds);
-
-                case "YELLOW":
-                    // Process with progress indication (future: add progress callback)
-                    _logger.Log($"⚡ YELLOW tier: Processing with progress tracking");
-                    return _selectionManager.SerializeSelection(_currentDocument, elementIds);
-
-                case "ORANGE":
-                    // Chunked processing for large selections
-                    _logger.Log($"🔶 ORANGE tier: Using chunked processing");
-                    return ProcessSelectionInChunks(elementIds);
-
-                case "RED":
-                    // Heavy chunked processing for large selections
-                    _logger.Log($"🔥 RED tier: Heavy chunked processing");
-                    return ProcessMassiveSelectionInChunks(elementIds);
-
-                case "EXTREME_CHUNKED":
-                    // FAFB EXTREME MODE: Maximum safety chunking
-                    _logger.Log($"💥 EXTREME_CHUNKED tier: FAFB EXTREME PROCESSING ENGAGED!");
-                    return ProcessExtremeSelectionInChunks(elementIds);
-
-                case "LUDICROUS":
-                    // FAFB LUDICROUS MODE: Ultimate protection with streaming
-                    _logger.Log($"💀 LUDICROUS tier: MAXIMUM FAFB PROTECTION MODE WITH STREAMING!");
-                    return ProcessLudicrousWithStreaming(elementIds);
-
-                default:
-                    // Fallback to standard processing
-                    return _selectionManager.SerializeSelection(_currentDocument, elementIds);
+                _logger.LogError($"Circuit breaker failed for {tier} processing", ex);
+                // Fallback to legacy processing
+                return _selectionManager.SerializeSelection(_currentDocument, elementIds);
             }
         }
 
@@ -1474,6 +1489,97 @@ namespace TycoonRevitAddin.Communication
 
             _logger.Log($"🔄 Optimal parallelism: {optimalParallelism} streams (CPU: {processorCount}, Memory: {availableMemoryGB}GB)");
             return optimalParallelism;
+        }
+
+        /// <summary>
+        /// 🚀 Process with MessagePack serialization for small selections
+        /// </summary>
+        private async Task<SelectionData> ProcessWithMessagePack(ICollection<ElementId> elementIds)
+        {
+            var correlationId = Guid.NewGuid().ToString("N").Substring(0, 8);
+            _logger.Log($"📦 Processing {elementIds.Count} elements with MessagePack (ID: {correlationId})");
+
+            var selectionData = _selectionManager.SerializeSelection(_currentDocument, elementIds);
+            var (serialized, _) = await _serializationManager.SerializeWithCorrelationAsync(selectionData.Elements, correlationId);
+
+            _logger.Log($"✅ MessagePack processing complete: {serialized.Length:N0} bytes (ID: {correlationId})");
+
+            return selectionData;
+        }
+
+        /// <summary>
+        /// 🚀 Process with adaptive chunking for medium selections
+        /// </summary>
+        private async Task<SelectionData> ProcessWithAdaptiveChunking(ICollection<ElementId> elementIds)
+        {
+            var correlationId = Guid.NewGuid().ToString("N").Substring(0, 8);
+            _logger.Log($"🎯 Processing {elementIds.Count} elements with adaptive chunking (ID: {correlationId})");
+
+            var selectionData = _selectionManager.SerializeSelection(_currentDocument, elementIds);
+            var elements = selectionData.Elements;
+            var chunks = _chunkManager.CalculateAdaptiveChunks(elements);
+
+            var processedElements = new List<object>();
+            var startTime = DateTime.UtcNow;
+
+            foreach (var chunk in chunks)
+            {
+                var chunkElements = elements.Skip(chunk.StartIndex).Take(chunk.Size).ToList();
+                var serialized = await _serializationManager.SerializeAsync(chunkElements);
+
+                processedElements.AddRange(chunkElements);
+
+                // Record performance for adaptive learning
+                var chunkTime = DateTime.UtcNow - startTime;
+                _chunkManager.RecordPerformance(chunk.Size, chunkTime, GC.GetTotalMemory(false));
+
+                _logger.Log($"📊 Processed chunk {chunk.Index + 1}/{chunks.Count()} " +
+                           $"({chunk.Size:N0} elements, {chunkTime.TotalMilliseconds:F0}ms)");
+            }
+
+            var stats = _chunkManager.GetPerformanceStats();
+            _logger.Log($"✅ Adaptive chunking complete: {processedElements.Count:N0} elements, " +
+                       $"avg throughput: {stats.AverageThroughput:F0} elem/s (ID: {correlationId})");
+
+            return selectionData;
+        }
+
+        /// <summary>
+        /// 🚀 Process with advanced pipeline for large selections
+        /// </summary>
+        private async Task<SelectionData> ProcessWithAdvancedPipeline(ICollection<ElementId> elementIds, string tier)
+        {
+            var correlationId = Guid.NewGuid().ToString("N").Substring(0, 8);
+            _logger.Log($"🚀 Processing {elementIds.Count} elements with advanced pipeline - {tier} (ID: {correlationId})");
+
+            var selectionData = _selectionManager.SerializeSelection(_currentDocument, elementIds);
+            var elements = selectionData.Elements;
+
+            // Define transmission handler for pipeline
+            Task<bool> TransmissionHandler(SerializedChunk chunk)
+            {
+                try
+                {
+                    // Stream to data vault for background processing
+                    var chunkData = new List<object> { chunk.SerializedData.ToArray() };
+                    _dataVault.StreamChunk(chunkData, chunk.ChunkInfo.Index, "serialized_chunk");
+
+                    return Task.FromResult(true);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError($"Transmission failed for chunk {chunk.ChunkInfo.Index}", ex);
+                    return Task.FromResult(false);
+                }
+            }
+
+            // Process through pipeline
+            var result = await _pipelineManager.ProcessAsync(elements, TransmissionHandler, correlationId);
+
+            _logger.Log($"🎉 Advanced pipeline complete: {result.ProcessedChunks}/{result.TotalChunks} chunks, " +
+                       $"{result.Throughput:F0} elem/s, {(result.Success ? "✅" : "❌")} (ID: {correlationId})");
+
+            return selectionData;
         }
     }
 }
