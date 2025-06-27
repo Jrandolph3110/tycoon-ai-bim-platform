@@ -42,68 +42,90 @@ namespace TycoonRevitAddin.Communication
         public string Timestamp { get; set; }
     }
 
+    [MessagePackObject]
     public class RevitElementData
     {
+        [Key(0)]
         [JsonProperty("id")]
         public string Id { get; set; }
 
+        [Key(1)]
         [JsonProperty("elementId")]
         public int ElementId { get; set; }
 
+        [Key(2)]
         [JsonProperty("category")]
         public string Category { get; set; }
 
+        [Key(3)]
         [JsonProperty("familyName")]
         public string FamilyName { get; set; }
 
+        [Key(4)]
         [JsonProperty("typeName")]
         public string TypeName { get; set; }
 
+        [Key(5)]
         [JsonProperty("parameters")]
         public Dictionary<string, object> Parameters { get; set; }
 
+        [Key(6)]
         [JsonProperty("geometry")]
         public GeometryData Geometry { get; set; }
 
+        [Key(7)]
         [JsonProperty("relationships")]
         public RelationshipData Relationships { get; set; }
     }
 
+    [MessagePackObject]
     public class GeometryData
     {
+        [Key(0)]
         [JsonProperty("location")]
         public Point3D Location { get; set; }
 
+        [Key(1)]
         [JsonProperty("boundingBox")]
         public BoundingBoxData BoundingBox { get; set; }
     }
 
+    [MessagePackObject]
     public class Point3D
     {
+        [Key(0)]
         [JsonProperty("x")]
         public double X { get; set; }
 
+        [Key(1)]
         [JsonProperty("y")]
         public double Y { get; set; }
 
+        [Key(2)]
         [JsonProperty("z")]
         public double Z { get; set; }
     }
 
+    [MessagePackObject]
     public class BoundingBoxData
     {
+        [Key(0)]
         [JsonProperty("min")]
         public Point3D Min { get; set; }
 
+        [Key(1)]
         [JsonProperty("max")]
         public Point3D Max { get; set; }
     }
 
+    [MessagePackObject]
     public class RelationshipData
     {
+        [Key(0)]
         [JsonProperty("hostId")]
         public string HostId { get; set; }
 
+        [Key(1)]
         [JsonProperty("dependentIds")]
         public List<string> DependentIds { get; set; }
     }

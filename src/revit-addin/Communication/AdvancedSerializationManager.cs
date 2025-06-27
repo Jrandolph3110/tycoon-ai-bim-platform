@@ -113,7 +113,7 @@ namespace TycoonRevitAddin.Communication
             var wrapper = await DeserializeAsync<CorrelatedData<T>>(data, cancellationToken);
 
             _logger.Log($"🔗 Deserialized with correlation ID: {wrapper.CorrelationId}");
-            return ((T)wrapper.Data, wrapper.CorrelationId, wrapper.Timestamp);
+            return (wrapper.Data, wrapper.CorrelationId, wrapper.Timestamp);
         }
 
         /// <summary>
@@ -205,7 +205,9 @@ namespace TycoonRevitAddin.Communication
         public DateTime Timestamp { get; set; }
 
         [Key(2)]
-        public object Data { get; set; }  // Changed from T to object for MessagePack compatibility
+        public T Data { get; set; }  // Reverted back to T - now that RevitElementData has MessagePack attributes
+
+        public CorrelatedData() { } // Parameterless constructor for MessagePack
     }
 
     /// <summary>
@@ -221,7 +223,9 @@ namespace TycoonRevitAddin.Communication
         public DateTime Timestamp { get; set; }
 
         [Key(2)]
-        public object Items { get; set; }  // Changed from IEnumerable<T> to object for MessagePack compatibility
+        public IEnumerable<T> Items { get; set; }  // Reverted back to IEnumerable<T> - proper generic implementation
+
+        public BatchData() { } // Parameterless constructor for MessagePack
     }
 
     /// <summary>
@@ -240,7 +244,9 @@ namespace TycoonRevitAddin.Communication
         public DateTime Timestamp { get; set; }
 
         [Key(3)]
-        public object Data { get; set; }  // Changed from T to object for MessagePack compatibility
+        public T Data { get; set; }  // Reverted back to T - proper generic implementation
+
+        public SequencedFrame() { } // Parameterless constructor for MessagePack
     }
 
     /// <summary>
