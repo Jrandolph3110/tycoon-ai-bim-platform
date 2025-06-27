@@ -319,6 +319,10 @@ namespace TycoonRevitAddin.Communication
                     case "heartbeat":
                         SendHeartbeatResponse();
                         break;
+                    case "heartbeat_response":
+                        // Heartbeat response received - connection is healthy
+                        _logger.Log($"💓 Heartbeat response received");
+                        break;
                     case "command":
                     case "selection":
                         HandleCommand(message);

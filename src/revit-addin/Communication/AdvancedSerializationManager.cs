@@ -232,15 +232,15 @@ namespace TycoonRevitAddin.Communication
     {
         [Key(0)]
         public long SequenceNumber { get; set; }
-        
+
         [Key(1)]
         public string CorrelationId { get; set; }
-        
+
         [Key(2)]
         public DateTime Timestamp { get; set; }
-        
+
         [Key(3)]
-        public T Data { get; set; }
+        public object Data { get; set; }  // Changed from T to object for MessagePack compatibility
     }
 
     /// <summary>

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using Newtonsoft.Json;
+using MessagePack;
 
 namespace TycoonRevitAddin.Communication
 {
@@ -137,26 +138,34 @@ namespace TycoonRevitAddin.Communication
     /// <summary>
     /// Optimized streaming chunk for binary transport
     /// </summary>
+    [MessagePackObject]
     public class ElementChunk
     {
+        [Key(0)]
         [JsonProperty("chunkId")]
         public int ChunkId { get; set; }
 
+        [Key(1)]
         [JsonProperty("totalChunks")]
         public int TotalChunks { get; set; }
 
+        [Key(2)]
         [JsonProperty("elements")]
         public List<RevitElementData> Elements { get; set; }
 
+        [Key(3)]
         [JsonProperty("progress")]
         public double Progress { get; set; }
 
+        [Key(4)]
         [JsonProperty("memoryUsage")]
         public long MemoryUsage { get; set; }
 
+        [Key(5)]
         [JsonProperty("timestamp")]
         public string Timestamp { get; set; }
 
+        [Key(6)]
         [JsonProperty("isComplete")]
         public bool IsComplete { get; set; }
     }
@@ -164,17 +173,22 @@ namespace TycoonRevitAddin.Communication
     /// <summary>
     /// Streaming message wrapper for binary transport
     /// </summary>
+    [MessagePackObject]
     public class StreamingMessage
     {
+        [Key(0)]
         [JsonProperty("type")]
         public string Type { get; set; }
 
+        [Key(1)]
         [JsonProperty("commandId")]
         public string CommandId { get; set; }
 
+        [Key(2)]
         [JsonProperty("chunk")]
         public ElementChunk Chunk { get; set; }
 
+        [Key(3)]
         [JsonProperty("metadata")]
         public StreamingMetadata Metadata { get; set; }
     }
@@ -182,26 +196,34 @@ namespace TycoonRevitAddin.Communication
     /// <summary>
     /// Metadata for streaming operations
     /// </summary>
+    [MessagePackObject]
     public class StreamingMetadata
     {
+        [Key(0)]
         [JsonProperty("totalElements")]
         public int TotalElements { get; set; }
 
+        [Key(1)]
         [JsonProperty("processingTier")]
         public string ProcessingTier { get; set; }
 
+        [Key(2)]
         [JsonProperty("chunkSize")]
         public int ChunkSize { get; set; }
 
+        [Key(3)]
         [JsonProperty("compressionEnabled")]
         public bool CompressionEnabled { get; set; }
 
+        [Key(4)]
         [JsonProperty("binaryMode")]
         public bool BinaryMode { get; set; }
 
+        [Key(5)]
         [JsonProperty("viewName")]
         public string ViewName { get; set; }
 
+        [Key(6)]
         [JsonProperty("documentTitle")]
         public string DocumentTitle { get; set; }
     }
