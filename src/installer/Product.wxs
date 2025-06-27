@@ -6,7 +6,7 @@
   <Product Id="*"
            Name="Tycoon AI-BIM Platform"
            Language="1033"
-           Version="1.1.0.0"
+           Version="1.1.1.0"
            Manufacturer="Joseph Randolph - F.L. Crane &amp; Sons"
            UpgradeCode="12345678-1234-1234-1234-123456789012">
     
@@ -90,6 +90,18 @@
                   <File Id="WebSocketSharp2024.dll"
                         Source="..\revit-addin\bin\Release\websocket-sharp.dll"
                         Name="websocket-sharp.dll" />
+                  <File Id="MessagePack2024.dll"
+                        Source="..\revit-addin\bin\Release\MessagePack.dll"
+                        Name="MessagePack.dll" />
+                  <File Id="SystemMemory2024.dll"
+                        Source="..\revit-addin\bin\Release\System.Memory.dll"
+                        Name="System.Memory.dll" />
+                  <File Id="SystemBuffers2024.dll"
+                        Source="..\revit-addin\bin\Release\System.Buffers.dll"
+                        Name="System.Buffers.dll" />
+                  <File Id="SystemThreadingTasksDataflow2024.dll"
+                        Source="..\revit-addin\bin\Release\System.Threading.Tasks.Dataflow.dll"
+                        Name="System.Threading.Tasks.Dataflow.dll" />
                 </Component>
               </Directory>
               
