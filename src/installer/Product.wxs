@@ -6,7 +6,7 @@
   <Product Id="*"
            Name="Tycoon AI-BIM Platform"
            Language="1033"
-           Version="1.2.0.0"
+           Version="1.7.1.0"
            Manufacturer="Joseph Randolph - F.L. Crane &amp; Sons"
            UpgradeCode="12345678-1234-1234-1234-123456789012">
     
@@ -128,12 +128,45 @@
             </Directory>
           </Directory>
         </Directory>
+
+        <!-- Tycoon MCP Server in AppData -->
+        <Directory Id="TycoonAppDataFolder" Name="Tycoon">
+          <Directory Id="McpServerFolder" Name="mcp-server">
+            <Component Id="TycoonMcpServer" Guid="88888888-8888-8888-8888-888888888888">
+              <!-- MCP Server Core Files -->
+              <File Id="McpServerPackageJson"
+                    Source="mcp-server\package.json"
+                    Name="package.json"
+                    DiskId="1" />
+            </Component>
+            <Directory Id="McpServerDistFolder" Name="dist">
+              <Component Id="TycoonMcpServerDist" Guid="77777777-7777-7777-7777-777777777777">
+                <File Id="McpServerIndexJs"
+                      Source="mcp-server\dist\index.js"
+                      Name="index.js"
+                      DiskId="1" />
+                <File Id="McpServerTycoonJs"
+                      Source="mcp-server\dist\TycoonServer.js"
+                      Name="TycoonServer.js"
+                      DiskId="1" />
+              </Component>
+              <Directory Id="McpServerDistRevitFolder" Name="revit">
+                <Component Id="TycoonMcpServerRevit" Guid="11111111-1111-1111-1111-111111111111">
+                  <File Id="McpServerRevitBridgeJs"
+                        Source="mcp-server\dist\revit\RevitBridge.js"
+                        Name="RevitBridge.js"
+                        DiskId="1" />
+                </Component>
+              </Directory>
+            </Directory>
+          </Directory>
+        </Directory>
       </Directory>
 
       <!-- Start Menu -->
       <Directory Id="ProgramMenuFolder">
         <Directory Id="ApplicationProgramsFolder" Name="Tycoon AI-BIM Platform">
-          <Component Id="ApplicationShortcut" Guid="77777777-7777-7777-7777-777777777777">
+          <Component Id="ApplicationShortcut" Guid="22222222-2222-2222-2222-222222222222">
             <Shortcut Id="ApplicationStartMenuShortcut"
                       Name="Tycoon AI-BIM Platform"
                       Description="Revolutionary AI-powered construction automation"
@@ -167,6 +200,9 @@
       <ComponentRef Id="Revit2023Addin" />
       <ComponentRef Id="Revit2024Addin" />
       <ComponentRef Id="Revit2025Addin" />
+      <ComponentRef Id="TycoonMcpServer" />
+      <ComponentRef Id="TycoonMcpServerDist" />
+      <ComponentRef Id="TycoonMcpServerRevit" />
       <ComponentRef Id="ApplicationShortcut" />
     </Feature>
 

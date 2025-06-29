@@ -237,6 +237,34 @@ export class TycoonServer {
                         description: 'Get current Revit connection and system status',
                         inputSchema: { type: 'object', properties: {} }
                     },
+                    // Phase 1 AI Orchestrator + Script Generator Tools
+                    {
+                        name: 'flc_hybrid_operation',
+                        description: 'Execute FLC hybrid operations using AI orchestrator + script generation',
+                        inputSchema: {
+                            type: 'object',
+                            properties: {
+                                operation: { type: 'string', description: 'Operation to perform', enum: ['ReNumberPanelElements', 'AnalyzePanelStructure', 'ValidateFraming'] },
+                                direction: { type: 'string', description: 'Processing direction', enum: ['left_to_right', 'bottom_to_top', 'custom'], default: 'left_to_right' },
+                                namingConvention: { type: 'string', description: 'Naming convention to use', enum: ['flc_standard', 'custom'], default: 'flc_standard' },
+                                dryRun: { type: 'boolean', description: 'Preview mode without making changes', default: true },
+                                includeSubassemblies: { type: 'boolean', description: 'Include subassembly elements', default: true }
+                            },
+                            required: ['operation']
+                        }
+                    },
+                    {
+                        name: 'flc_script_graduation_analytics',
+                        description: 'Analyze FLC script usage for graduation to AI rewrite candidates',
+                        inputSchema: {
+                            type: 'object',
+                            properties: {
+                                minExecutionCount: { type: 'number', description: 'Minimum execution count for graduation consideration', default: 5 },
+                                includeMetrics: { type: 'boolean', description: 'Include detailed performance metrics', default: true },
+                                cleanupTempFiles: { type: 'boolean', description: 'Clean up temporary analysis files', default: true }
+                            }
+                        }
+                    },
                     // Include all Temporal Neural Nexus tools here...
                     // (Memory management, search, context, time awareness tools)
                     // These would be imported from the base implementation
@@ -266,7 +294,13 @@ export class TycoonServer {
                         return await this.validatePanelTickets(args);
                     case 'get_revit_status':
                         return await this.getRevitStatus(args);
-                    
+
+                    // Phase 1 AI Orchestrator + Script Generator Tools
+                    case 'flc_hybrid_operation':
+                        return await this.flcHybridOperation(args);
+                    case 'flc_script_graduation_analytics':
+                        return await this.flcScriptGraduationAnalytics(args);
+
                     // Temporal Neural Nexus tools would be handled here
                     // case 'create_memory': return await this.createMemory(args);
                     // etc...
@@ -567,6 +601,96 @@ export class TycoonServer {
         } catch (error) {
             console.error(chalk.red('Failed to create memory:'), error);
             return null;
+        }
+    }
+
+    /**
+     * Phase 1 AI Orchestrator + Script Generator: FLC Hybrid Operation
+     */
+    private async flcHybridOperation(args: any): Promise<any> {
+        try {
+            console.log(chalk.blue('🌉 Processing FLC Hybrid Operation...'));
+
+            const { operation, direction = 'left_to_right', namingConvention = 'flc_standard', dryRun = true, includeSubassemblies = true } = args;
+
+            if (!this.revitBridge.isRevitConnected()) {
+                throw new Error('Revit add-in not connected');
+            }
+
+            // Phase 1: AI Orchestrator calls existing FLC scripts
+            const result = await this.revitBridge.sendCommand({
+                type: 'flc_hybrid_operation',
+                payload: {
+                    operation,
+                    direction,
+                    namingConvention,
+                    dryRun,
+                    includeSubassemblies
+                }
+            });
+
+            return {
+                content: [{
+                    type: 'text',
+                    text: `FLC Hybrid Operation completed successfully!\n\nOperation: ${operation}\nDirection: ${direction}\nConvention: ${namingConvention}\nDry Run: ${dryRun}\n\nResult: ${result.data || result.error || 'Operation completed'}`
+                }]
+            };
+
+        } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            console.error(chalk.red('❌ FLC Hybrid Operation failed:'), errorMessage);
+
+            return {
+                content: [{
+                    type: 'text',
+                    text: `Error in FLC hybrid operation: ${errorMessage}`
+                }],
+                isError: true
+            };
+        }
+    }
+
+    /**
+     * Phase 1 AI Orchestrator + Script Generator: FLC Script Graduation Analytics
+     */
+    private async flcScriptGraduationAnalytics(args: any): Promise<any> {
+        try {
+            console.log(chalk.blue('📊 Processing FLC Script Graduation Analytics...'));
+
+            const { minExecutionCount = 5, includeMetrics = true, cleanupTempFiles = true } = args;
+
+            if (!this.revitBridge.isRevitConnected()) {
+                throw new Error('Revit add-in not connected');
+            }
+
+            // Phase 1: Analyze script usage for graduation candidates
+            const result = await this.revitBridge.sendCommand({
+                type: 'flc_script_graduation_analytics',
+                payload: {
+                    minExecutionCount,
+                    includeMetrics,
+                    cleanupTempFiles
+                }
+            });
+
+            return {
+                content: [{
+                    type: 'text',
+                    text: `FLC Script Graduation Analytics completed!\n\nMin Execution Count: ${minExecutionCount}\nInclude Metrics: ${includeMetrics}\n\nResult: ${result.data || result.error || 'Analysis completed'}\n\nGraduation candidates identified for AI rewrite consideration.`
+                }]
+            };
+
+        } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            console.error(chalk.red('❌ FLC Script Graduation Analytics failed:'), errorMessage);
+
+            return {
+                content: [{
+                    type: 'text',
+                    text: `Error in FLC script graduation analytics: ${errorMessage}`
+                }],
+                isError: true
+            };
         }
     }
 

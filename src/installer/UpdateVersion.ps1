@@ -85,11 +85,11 @@ Update-VersionInFile -FilePath (Join-Path $ScriptDir "Product.wxs") `
 
 $AssemblyInfoPath = Join-Path $ScriptDir "..\revit-addin\Properties\AssemblyInfo.cs"
 Update-VersionInFile -FilePath $AssemblyInfoPath `
-    -Pattern '\[assembly: AssemblyVersion\("\d+\.\d+\.\d+\.\d+"\)\]' `
+    -Pattern '\[assembly: AssemblyVersion\("[\d\.]+"\)\]' `
     -Replacement "[assembly: AssemblyVersion(`"$Version`")]"
 
 Update-VersionInFile -FilePath $AssemblyInfoPath `
-    -Pattern '\[assembly: AssemblyFileVersion\("\d+\.\d+\.\d+\.\d+"\)\]' `
+    -Pattern '\[assembly: AssemblyFileVersion\("[0-9.]+"\)\]' `
     -Replacement "[assembly: AssemblyFileVersion(`"$Version`")]"
 
 $PackageJsonPath = Join-Path $ScriptDir "..\mcp-server\package.json"
@@ -109,4 +109,4 @@ Write-Host "  • AssemblyInfo.cs (DLL version)" -ForegroundColor White
 Write-Host "  • package.json (MCP server version)" -ForegroundColor White
 Write-Host "  • version.txt (build tracking)" -ForegroundColor White
 Write-Host ""
-Write-Host "Next: Run Build.bat to compile with new version" -ForegroundColor Cyan
+Write-Host "Next: Run Build.ps1 to compile with new version" -ForegroundColor Cyan

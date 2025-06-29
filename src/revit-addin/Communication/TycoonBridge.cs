@@ -12,6 +12,8 @@ using Newtonsoft.Json;
 using WebSocketSharp;
 using TycoonRevitAddin.Utils;
 using TycoonRevitAddin.Storage;
+using TycoonRevitAddin.AIActions.Commands;
+using TycoonRevitAddin.AIActions.Events;
 
 namespace TycoonRevitAddin.Communication
 {
@@ -35,6 +37,8 @@ namespace TycoonRevitAddin.Communication
         private TycoonRevitAddin.Utils.Logger _logger;
         private SelectionManager _selectionManager;
         private BinaryStreamingManager _streamingManager;
+        private ParameterManagementCommands _parameterCommands;
+        private EventStore _eventStore;
 
         // 🚀 ADVANCED PERFORMANCE MANAGERS
         private AdvancedSerializationManager _serializationManager;
@@ -50,6 +54,10 @@ namespace TycoonRevitAddin.Communication
         // 🚀 STREAMING DATA VAULT - File-based streaming system
         private StreamingDataVault _dataVault;
 
+        // 🤖 AI PARAMETER MANAGEMENT - External Event Handler
+        private ExternalEvent _aiParameterEvent;
+        private AIParameterEventHandler _aiParameterHandler;
+
         public bool IsConnected => _isConnected;
         public event EventHandler<bool> ConnectionStatusChanged;
 
@@ -61,6 +69,17 @@ namespace TycoonRevitAddin.Communication
 
             // Initialize streaming data vault
             _dataVault = new StreamingDataVault(_logger);
+
+            // 🤖 Initialize AI Actions components
+            _eventStore = new EventStore();
+            _parameterCommands = new ParameterManagementCommands(_logger, _eventStore);
+
+            // 🤖 Initialize AI Parameter External Event Handler with high priority
+            _aiParameterHandler = new AIParameterEventHandler(_logger, _parameterCommands);
+            _aiParameterEvent = ExternalEvent.Create(_aiParameterHandler);
+
+            // 🚀 Pre-warm External Event to reduce queue time
+            _logger.Log("🔥 Pre-warming AI Parameter External Event for optimal performance...");
 
             // 🚀 Initialize advanced performance managers
             _serializationManager = new AdvancedSerializationManager(_logger);
@@ -325,6 +344,11 @@ namespace TycoonRevitAddin.Communication
                         break;
                     case "command":
                     case "selection":
+                    case "ai_rename_panel_elements":
+                    case "ai_modify_parameters":
+                    case "ai_analyze_panel_structure":
+                    case "flc_hybrid_operation":
+                    case "flc_script_graduation_analytics":
                         HandleCommand(message);
                         break;
                     default:
@@ -424,6 +448,27 @@ namespace TycoonRevitAddin.Communication
                     case "selection":
                         HandleSelectionCommand(message);
                         break;
+                    case "query":
+                        HandleQueryCommand(message);
+                        break;
+                    case "modify":
+                        HandleModifyCommand(message);
+                        break;
+                    case "ai_rename_panel_elements":
+                        HandleAIRenamePanelElements(message);
+                        break;
+                    case "ai_modify_parameters":
+                        HandleAIModifyParameters(message);
+                        break;
+                    case "ai_analyze_panel_structure":
+                        HandleAIAnalyzePanelStructure(message);
+                        break;
+                    case "flc_hybrid_operation":
+                        HandleFLCHybridOperation(message);
+                        break;
+                    case "flc_script_graduation_analytics":
+                        HandleFLCScriptGraduationAnalytics(message);
+                        break;
                     case "command":
                         // Handle other commands
                         _logger.Log($"📋 Received command: {messageType}");
@@ -468,6 +513,355 @@ namespace TycoonRevitAddin.Communication
             catch (Exception ex)
             {
                 _logger.LogError("Error handling selection command", ex);
+            }
+        }
+
+        /// <summary>
+        /// Handle query command (like getting element parameters)
+        /// </summary>
+        private void HandleQueryCommand(dynamic message)
+        {
+            try
+            {
+                string commandId = message.id?.ToString();
+                var payload = message.payload;
+
+                _logger.Log($"🔍 Handling query command ({commandId})");
+
+                // Execute on UI thread
+                if (_currentUIDocument?.Application != null)
+                {
+                    _currentUIDocument.Application.Idling += (sender, e) =>
+                    {
+                        try
+                        {
+                            var doc = _currentUIDocument?.Document;
+                            var uidoc = _currentUIDocument;
+
+                        if (doc == null)
+                        {
+                            SendCommandResponse(commandId, false, "No active document", null);
+                            return;
+                        }
+
+                        // Handle GetElementsByIds or GetSelection
+                        string result;
+                        if (payload?.elementIds != null)
+                        {
+                            result = _parameterCommands.GetElementParameters(doc, uidoc, payload);
+                        }
+                        else
+                        {
+                            result = _parameterCommands.GetElementParameters(doc, uidoc, payload);
+                        }
+
+                        var response = JsonConvert.DeserializeObject<dynamic>(result);
+                        SendCommandResponse(commandId, response.success, response.message, response.data);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError($"Error in query command execution: {ex.Message}");
+                        SendCommandResponse(commandId, false, ex.Message, null);
+                    }
+                    };
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError("Error handling query command", ex);
+                SendCommandResponse(message.id?.ToString(), false, ex.Message, null);
+            }
+        }
+
+        /// <summary>
+        /// Handle modify command (like modifying element parameters)
+        /// </summary>
+        private void HandleModifyCommand(dynamic message)
+        {
+            try
+            {
+                string commandId = message.id?.ToString();
+                var payload = message.payload;
+
+                _logger.Log($"🔧 Handling modify command ({commandId})");
+
+                // Execute on UI thread
+                if (_currentUIDocument?.Application != null)
+                {
+                    _currentUIDocument.Application.Idling += (sender, e) =>
+                    {
+                        try
+                        {
+                            var doc = _currentUIDocument?.Document;
+                            var uidoc = _currentUIDocument;
+
+                        if (doc == null)
+                        {
+                            SendCommandResponse(commandId, false, "No active document", null);
+                            return;
+                        }
+
+                        string result = _parameterCommands.ModifyParameters(doc, uidoc, payload);
+                        var response = JsonConvert.DeserializeObject<dynamic>(result);
+                        SendCommandResponse(commandId, response.success, response.message, response.data);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError($"Error in modify command execution: {ex.Message}");
+                        SendCommandResponse(commandId, false, ex.Message, null);
+                    }
+                    };
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError("Error handling modify command", ex);
+                SendCommandResponse(message.id?.ToString(), false, ex.Message, null);
+            }
+        }
+
+        /// <summary>
+        /// Handle AI rename panel elements command
+        /// </summary>
+        private void HandleAIRenamePanelElements(dynamic message)
+        {
+            string operationId = $"rename_{DateTime.UtcNow:yyyy-MM-ddTHH:mm:ss.fffZ}";
+            var startTime = DateTime.UtcNow;
+
+            try
+            {
+                string commandId = message.id?.ToString();
+                var payload = message.payload;
+                int payloadSize = JsonConvert.SerializeObject(payload).Length;
+
+                _logger.Log($"🎯 [OP:{operationId}] Starting AI rename panel elements command ({commandId}) | PayloadSize: {payloadSize} bytes | StartTime: {startTime:HH:mm:ss.fff}");
+
+                // Execute using External Event for proper document modification context
+                var doc = _currentUIDocument?.Document;
+                var uidoc = _currentUIDocument;
+
+                if (doc == null || uidoc == null)
+                {
+                    var elapsed = (DateTime.UtcNow - startTime).TotalMilliseconds;
+                    _logger.Log($"❌ [OP:{operationId}] No active document | Elapsed: {elapsed}ms");
+                    SendCommandResponse(commandId, false, "No active document", null);
+                    return;
+                }
+
+                // Set up External Event Handler data with operation tracking
+                _aiParameterHandler.CommandType = "ai_rename_panel_elements";
+                _aiParameterHandler.CommandId = commandId;
+                _aiParameterHandler.OperationId = operationId;
+                _aiParameterHandler.StartTime = startTime;
+                _aiParameterHandler.Payload = payload;
+                _aiParameterHandler.Document = doc;
+                _aiParameterHandler.UIDocument = uidoc;
+                _aiParameterHandler.ResponseCallback = SendCommandResponse;
+
+                var preEventTime = DateTime.UtcNow;
+                _logger.Log($"⚡ [OP:{operationId}] Raising External Event | PreEventTime: {preEventTime:HH:mm:ss.fff}");
+
+                // Raise External Event
+                _aiParameterEvent.Raise();
+
+                var postEventTime = DateTime.UtcNow;
+                var eventRaiseMs = (postEventTime - preEventTime).TotalMilliseconds;
+                _logger.Log($"📤 [OP:{operationId}] External Event raised | EventRaiseTime: {eventRaiseMs}ms");
+            }
+            catch (Exception ex)
+            {
+                var elapsed = (DateTime.UtcNow - startTime).TotalMilliseconds;
+                _logger.LogError($"💥 [OP:{operationId}] Error handling AI rename command | Elapsed: {elapsed}ms", ex);
+                SendCommandResponse(message.id?.ToString(), false, ex.Message, null);
+            }
+        }
+
+        /// <summary>
+        /// Handle AI modify parameters command
+        /// </summary>
+        private void HandleAIModifyParameters(dynamic message)
+        {
+            try
+            {
+                string commandId = message.id?.ToString();
+                var payload = message.payload;
+
+                _logger.Log($"🔧 Handling AI modify parameters command ({commandId})");
+
+                // Execute using External Event for proper document modification context
+                var doc = _currentUIDocument?.Document;
+                var uidoc = _currentUIDocument;
+
+                if (doc == null || uidoc == null)
+                {
+                    SendCommandResponse(commandId, false, "No active document", null);
+                    return;
+                }
+
+                // Set up External Event Handler data
+                _aiParameterHandler.CommandType = "ai_modify_parameters";
+                _aiParameterHandler.CommandId = commandId;
+                _aiParameterHandler.Payload = payload;
+                _aiParameterHandler.Document = doc;
+                _aiParameterHandler.UIDocument = uidoc;
+                _aiParameterHandler.ResponseCallback = SendCommandResponse;
+
+                // Raise External Event
+                _aiParameterEvent.Raise();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError("Error handling AI modify parameters command", ex);
+                SendCommandResponse(message.id?.ToString(), false, ex.Message, null);
+            }
+        }
+
+        /// <summary>
+        /// Handle AI analyze panel structure command
+        /// </summary>
+        private void HandleAIAnalyzePanelStructure(dynamic message)
+        {
+            try
+            {
+                string commandId = message.id?.ToString();
+                var payload = message.payload;
+
+                _logger.Log($"🧠 Handling AI analyze panel structure command ({commandId})");
+
+                // Execute using External Event for proper document modification context
+                var doc = _currentUIDocument?.Document;
+                var uidoc = _currentUIDocument;
+
+                if (doc == null || uidoc == null)
+                {
+                    SendCommandResponse(commandId, false, "No active document", null);
+                    return;
+                }
+
+                // Set up External Event Handler data
+                _aiParameterHandler.CommandType = "ai_analyze_panel_structure";
+                _aiParameterHandler.CommandId = commandId;
+                _aiParameterHandler.Payload = payload;
+                _aiParameterHandler.Document = doc;
+                _aiParameterHandler.UIDocument = uidoc;
+                _aiParameterHandler.ResponseCallback = SendCommandResponse;
+
+                // Raise External Event
+                _aiParameterEvent.Raise();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError("Error handling AI analyze panel structure command", ex);
+                SendCommandResponse(message.id?.ToString(), false, ex.Message, null);
+            }
+        }
+
+        /// <summary>
+        /// 🌉 Handle FLC Hybrid Operation - Phase 0 Implementation
+        /// Routes to FLC Script Bridge for existing script calls or generation
+        /// </summary>
+        private void HandleFLCHybridOperation(dynamic message)
+        {
+            try
+            {
+                var commandId = message.id?.ToString();
+                var payload = message.payload;
+
+                _logger.Log($"🌉 Processing FLC Hybrid Operation command: {commandId}");
+
+                // Get current document and UI context
+                var doc = _currentDocument;
+                var uidoc = _currentUIDocument;
+
+                if (doc == null)
+                {
+                    SendCommandResponse(commandId, false, "No active document", null);
+                    return;
+                }
+
+                // Set up External Event Handler data
+                _aiParameterHandler.CommandType = "flc_hybrid_operation";
+                _aiParameterHandler.CommandId = commandId;
+                _aiParameterHandler.Payload = payload;
+                _aiParameterHandler.Document = doc;
+                _aiParameterHandler.UIDocument = uidoc;
+                _aiParameterHandler.ResponseCallback = SendCommandResponse;
+
+                // Raise External Event
+                _aiParameterEvent.Raise();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError("Error handling FLC Hybrid Operation command", ex);
+                SendCommandResponse(message.id?.ToString(), false, ex.Message, null);
+            }
+        }
+
+        /// <summary>
+        /// 📊 Handle FLC Script Graduation Analytics - Phase 1 Implementation
+        /// Routes to analytics system for script promotion analysis
+        /// </summary>
+        private void HandleFLCScriptGraduationAnalytics(dynamic message)
+        {
+            try
+            {
+                var commandId = message.id?.ToString();
+                var payload = message.payload;
+
+                _logger.Log($"📊 Processing FLC Script Graduation Analytics command: {commandId}");
+
+                // Get current document and UI context
+                var doc = _currentDocument;
+                var uidoc = _currentUIDocument;
+
+                if (doc == null)
+                {
+                    SendCommandResponse(commandId, false, "No active document", null);
+                    return;
+                }
+
+                // Set up External Event Handler data
+                _aiParameterHandler.CommandType = "flc_script_graduation_analytics";
+                _aiParameterHandler.CommandId = commandId;
+                _aiParameterHandler.Payload = payload;
+                _aiParameterHandler.Document = doc;
+                _aiParameterHandler.UIDocument = uidoc;
+                _aiParameterHandler.ResponseCallback = SendCommandResponse;
+
+                // Raise External Event
+                _aiParameterEvent.Raise();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError("Error handling FLC Script Graduation Analytics command", ex);
+                SendCommandResponse(message.id?.ToString(), false, ex.Message, null);
+            }
+        }
+
+        /// <summary>
+        /// Send command response back to MCP server
+        /// </summary>
+        private void SendCommandResponse(string commandId, bool success, string message, object data)
+        {
+            try
+            {
+                var response = new
+                {
+                    id = commandId,
+                    type = "command_response",
+                    success = success,
+                    message = message,
+                    data = data,
+                    timestamp = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss.fffZ")
+                };
+
+                string jsonResponse = JsonConvert.SerializeObject(response);
+                _webSocket?.Send(jsonResponse);
+                _logger.Log($"📤 Sent command response: {commandId} - {(success ? "Success" : "Failed")}");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Error sending command response: {ex.Message}");
             }
         }
 
@@ -1584,6 +1978,367 @@ namespace TycoonRevitAddin.Communication
                        $"{result.Throughput:F0} elem/s, {(result.Success ? "✅" : "❌")} (ID: {correlationId})");
 
             return selectionData;
+        }
+
+        /// <summary>
+        /// Execute AI renaming logic for panel elements
+        /// </summary>
+        private string ExecuteAIRenaming(Document doc, UIDocument uidoc, List<string> elementIds, string namingConvention, string direction, bool dryRun)
+        {
+            try
+            {
+                _logger.Log($"🎯 Executing AI renaming: {elementIds?.Count ?? 0} elements, convention: {namingConvention}, direction: {direction}");
+
+                // Get elements to rename (use selection if no IDs provided)
+                var elements = new List<Element>();
+                if (elementIds != null && elementIds.Count > 0)
+                {
+                    foreach (var idStr in elementIds)
+                    {
+                        if (int.TryParse(idStr, out int id))
+                        {
+                            var element = doc.GetElement(new ElementId(id));
+                            if (element != null) elements.Add(element);
+                        }
+                    }
+                }
+                else
+                {
+                    // Use current selection
+                    var selection = uidoc.Selection.GetElementIds();
+                    foreach (var id in selection)
+                    {
+                        var element = doc.GetElement(id);
+                        if (element != null) elements.Add(element);
+                    }
+                }
+
+                if (elements.Count == 0)
+                {
+                    return JsonConvert.SerializeObject(new { success = false, message = "No elements found to rename", data = (object)null });
+                }
+
+                // Analyze spatial positions and generate renaming plan
+                var renamingPlan = GenerateRenamingPlan(elements, namingConvention, direction);
+
+                if (dryRun)
+                {
+                    return JsonConvert.SerializeObject(new
+                    {
+                        success = true,
+                        message = $"Preview: {renamingPlan.Count} elements would be renamed",
+                        data = new { dryRun = true, renamingPlan = renamingPlan }
+                    });
+                }
+
+                // Apply the renaming
+                using (Transaction trans = new Transaction(doc, "AI Rename Panel Elements"))
+                {
+                    trans.Start();
+
+                    int successCount = 0;
+                    var errors = new List<string>();
+
+                    foreach (var rename in renamingPlan)
+                    {
+                        try
+                        {
+                            var element = doc.GetElement(new ElementId(rename.ElementId));
+                            if (element != null)
+                            {
+                                // Update BIMSF_Label parameter
+                                var bimsf_label = element.LookupParameter("BIMSF_Label");
+                                if (bimsf_label != null && !bimsf_label.IsReadOnly)
+                                {
+                                    bimsf_label.Set(rename.NewName);
+                                }
+
+                                // Update Label parameter
+                                var label = element.LookupParameter("Label");
+                                if (label != null && !label.IsReadOnly)
+                                {
+                                    label.Set(rename.NewName);
+                                }
+
+                                successCount++;
+                                _logger.Log($"✅ Renamed element {rename.ElementId}: '{rename.CurrentName}' → '{rename.NewName}'");
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            errors.Add($"Element {rename.ElementId}: {ex.Message}");
+                            _logger.LogError($"❌ Failed to rename element {rename.ElementId}: {ex.Message}");
+                        }
+                    }
+
+                    trans.Commit();
+
+                    return JsonConvert.SerializeObject(new
+                    {
+                        success = successCount > 0,
+                        message = $"Successfully renamed {successCount} elements" + (errors.Count > 0 ? $", {errors.Count} errors" : ""),
+                        data = new {
+                            applied = true,
+                            successCount = successCount,
+                            errorCount = errors.Count,
+                            errors = errors,
+                            renamingPlan = renamingPlan
+                        }
+                    });
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Error in AI renaming execution: {ex.Message}");
+                return JsonConvert.SerializeObject(new { success = false, message = ex.Message, data = (object)null });
+            }
+        }
+
+        /// <summary>
+        /// Generate renaming plan based on spatial analysis
+        /// </summary>
+        private List<dynamic> GenerateRenamingPlan(List<Element> elements, string namingConvention, string direction)
+        {
+            var plan = new List<dynamic>();
+
+            // Group elements by panel container
+            var panelGroups = elements.GroupBy(e =>
+            {
+                var container = e.LookupParameter("BIMSF_Container")?.AsString() ??
+                               e.LookupParameter("MasterContainer")?.AsString() ??
+                               "Unassigned";
+                return container;
+            });
+
+            foreach (var panelGroup in panelGroups)
+            {
+                var panelElements = panelGroup.ToList();
+
+                // Sort elements spatially based on direction
+                var sortedElements = SortElementsSpatially(panelElements, direction);
+
+                // Generate names based on convention
+                var elementNames = GenerateElementNames(sortedElements, namingConvention);
+
+                // Create renaming entries
+                for (int i = 0; i < sortedElements.Count; i++)
+                {
+                    var element = sortedElements[i];
+                    var newName = elementNames[i];
+                    var currentName = element.LookupParameter("BIMSF_Label")?.AsString() ??
+                                     element.LookupParameter("Label")?.AsString() ??
+                                     "Unnamed";
+
+                    if (newName != currentName)
+                    {
+                        plan.Add(new
+                        {
+                            ElementId = element.Id.IntegerValue,
+                            CurrentName = currentName,
+                            NewName = newName,
+                            ElementType = element.Category?.Name ?? "Unknown",
+                            Panel = panelGroup.Key,
+                            Reason = $"Rename {element.Category?.Name} from '{currentName}' to '{newName}' following {namingConvention} convention"
+                        });
+                    }
+                }
+            }
+
+            return plan;
+        }
+
+        /// <summary>
+        /// Sort elements spatially based on direction
+        /// </summary>
+        private List<Element> SortElementsSpatially(List<Element> elements, string direction)
+        {
+            return elements.OrderBy(element =>
+            {
+                var location = (element.Location as LocationPoint)?.Point ??
+                              (element.Location as LocationCurve)?.Curve?.GetEndPoint(0) ??
+                              XYZ.Zero;
+
+                switch (direction.ToLower())
+                {
+                    case "left_to_right":
+                        return location.X;
+                    case "bottom_to_top":
+                        return location.Z;
+                    case "front_to_back":
+                        return location.Y;
+                    default:
+                        return location.X; // Default to left-to-right
+                }
+            }).ToList();
+        }
+
+        /// <summary>
+        /// Generate element names based on convention
+        /// </summary>
+        private List<string> GenerateElementNames(List<Element> sortedElements, string convention)
+        {
+            var names = new List<string>();
+            var typeCounts = new Dictionary<string, int>();
+
+            foreach (var element in sortedElements)
+            {
+                var category = element.Category?.Name ?? "Unknown";
+                var description = element.LookupParameter("BIMSF_Description")?.AsString() ?? "";
+
+                string name = "";
+
+                switch (convention.ToLower())
+                {
+                    case "flc_standard":
+                        if (category == "Structural Framing")
+                        {
+                            if (description.Contains("TTOP") || description.Contains("TOP"))
+                            {
+                                name = "Top Track";
+                            }
+                            else if (description.Contains("TBOT") || description.Contains("BOT"))
+                            {
+                                name = "Bottom Track";
+                            }
+                            else if (description.Contains("EV") || description.Contains("STUD"))
+                            {
+                                if (!typeCounts.ContainsKey("Stud")) typeCounts["Stud"] = 0;
+                                typeCounts["Stud"]++;
+                                name = $"Stud {typeCounts["Stud"]}";
+                            }
+                            else
+                            {
+                                if (!typeCounts.ContainsKey(category)) typeCounts[category] = 0;
+                                typeCounts[category]++;
+                                name = $"{category} {typeCounts[category]}";
+                            }
+                        }
+                        else
+                        {
+                            if (!typeCounts.ContainsKey(category)) typeCounts[category] = 0;
+                            typeCounts[category]++;
+                            name = $"{category} {typeCounts[category]}";
+                        }
+                        break;
+
+                    case "sequential_numbers":
+                        if (!typeCounts.ContainsKey(category)) typeCounts[category] = 0;
+                        typeCounts[category]++;
+                        name = $"{category} {typeCounts[category]}";
+                        break;
+
+                    default:
+                        name = element.LookupParameter("BIMSF_Label")?.AsString() ?? $"Element {names.Count + 1}";
+                        break;
+                }
+
+                names.Add(name);
+            }
+
+            return names;
+        }
+    }
+
+    /// <summary>
+    /// External Event Handler for AI Parameter Management Commands
+    /// Allows proper document modification from external threads
+    /// </summary>
+    public class AIParameterEventHandler : IExternalEventHandler
+    {
+        private TycoonRevitAddin.Utils.Logger _logger;
+        private ParameterManagementCommands _parameterCommands;
+
+        // Command data storage
+        public string CommandType { get; set; }
+        public string CommandId { get; set; }
+        public string OperationId { get; set; }
+        public DateTime StartTime { get; set; }
+        public dynamic Payload { get; set; }
+        public Document Document { get; set; }
+        public UIDocument UIDocument { get; set; }
+        public Action<string, bool, string, object> ResponseCallback { get; set; }
+
+        public AIParameterEventHandler(TycoonRevitAddin.Utils.Logger logger, ParameterManagementCommands parameterCommands)
+        {
+            _logger = logger;
+            _parameterCommands = parameterCommands;
+        }
+
+        public void Execute(UIApplication app)
+        {
+            var executeStartTime = DateTime.UtcNow;
+            var totalElapsed = (executeStartTime - StartTime).TotalMilliseconds;
+
+            try
+            {
+                _logger.Log($"🤖 [OP:{OperationId}] Executing AI parameter command: {CommandType} ({CommandId}) | QueueTime: {totalElapsed}ms");
+
+                var commandStartTime = DateTime.UtcNow;
+                string result = "";
+
+                switch (CommandType)
+                {
+                    case "ai_rename_panel_elements":
+                        _logger.Log($"🎯 [OP:{OperationId}] Starting RenamePanelElements execution");
+                        result = _parameterCommands.RenamePanelElements(Document, UIDocument, Payload);
+                        break;
+                    case "ai_modify_parameters":
+                        _logger.Log($"🔧 [OP:{OperationId}] Starting ModifyParameters execution");
+                        result = _parameterCommands.ModifyParameters(Document, UIDocument, Payload);
+                        break;
+                    case "ai_analyze_panel_structure":
+                        _logger.Log($"🧠 [OP:{OperationId}] Starting AnalyzePanelStructure execution");
+                        result = _parameterCommands.AnalyzePanelStructure(Document, UIDocument, Payload);
+                        break;
+                    case "flc_hybrid_operation":
+                        _logger.Log($"🌉 [OP:{OperationId}] Starting FLC Hybrid Operation execution");
+                        result = _parameterCommands.ExecuteFLCOperation(Document, UIDocument, Payload);
+                        break;
+                    case "flc_script_graduation_analytics":
+                        _logger.Log($"📊 [OP:{OperationId}] Starting FLC Script Graduation Analytics execution");
+                        result = _parameterCommands.GetFLCScriptGraduationAnalytics(Document, UIDocument, Payload);
+                        break;
+                    default:
+                        _logger.Log($"❌ [OP:{OperationId}] Unknown command type: {CommandType}");
+                        result = JsonConvert.SerializeObject(new
+                        {
+                            success = false,
+                            message = $"Unknown AI parameter command: {CommandType}",
+                            data = (object)null
+                        });
+                        break;
+                }
+
+                var commandEndTime = DateTime.UtcNow;
+                var commandElapsed = (commandEndTime - commandStartTime).TotalMilliseconds;
+                var totalOperationTime = (commandEndTime - StartTime).TotalMilliseconds;
+
+                _logger.Log($"⏱️ [OP:{OperationId}] Command execution completed | CommandTime: {commandElapsed}ms | TotalTime: {totalOperationTime}ms");
+
+                var response = JsonConvert.DeserializeObject<dynamic>(result);
+                bool success = response.success ?? false;
+                string message = response.message?.ToString() ?? "";
+                object data = response.data;
+
+                var responseStartTime = DateTime.UtcNow;
+                ResponseCallback?.Invoke(CommandId, success, message, data);
+                var responseEndTime = DateTime.UtcNow;
+                var responseTime = (responseEndTime - responseStartTime).TotalMilliseconds;
+
+                _logger.Log($"📤 [OP:{OperationId}] Response sent | Success: {success} | ResponseTime: {responseTime}ms | Message: {message}");
+            }
+            catch (Exception ex)
+            {
+                var errorTime = DateTime.UtcNow;
+                var errorElapsed = (errorTime - StartTime).TotalMilliseconds;
+                _logger.LogError($"💥 [OP:{OperationId}] Error executing AI parameter command {CommandType} | ErrorTime: {errorElapsed}ms", ex);
+                ResponseCallback?.Invoke(CommandId, false, ex.Message, null);
+            }
+        }
+
+        public string GetName()
+        {
+            return "AI Parameter Management Event Handler";
         }
     }
 }

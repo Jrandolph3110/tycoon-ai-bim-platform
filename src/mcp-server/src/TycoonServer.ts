@@ -24,6 +24,7 @@ import { BimVectorDatabase } from './core/BimVectorDatabase.js';
 // Import Tycoon-specific components
 import { RevitBridge, RevitSelection } from './revit/RevitBridge.js';
 import { FLCAdapter, FLCFramingOptions, FLCRenumberOptions } from './flc/FLCAdapter.js';
+import { StreamingTools } from './tools/StreamingTools.js';
 
 export class TycoonServer {
     private server: Server;
@@ -32,6 +33,7 @@ export class TycoonServer {
     private revitBridge: RevitBridge;
     private flcAdapter: FLCAdapter;
     private bimVectorDb: BimVectorDatabase;
+    private streamingTools: StreamingTools;
     private isInitialized: boolean = false;
 
     constructor() {
@@ -61,6 +63,7 @@ export class TycoonServer {
             openaiApiKey: process.env.OPENAI_API_KEY,
             collectionName: 'tycoon_bim_elements'
         });
+        this.streamingTools = new StreamingTools();
 
         this.setupToolHandlers();
         this.setupErrorHandling();
@@ -285,6 +288,235 @@ export class TycoonServer {
                         description: 'Get statistics about the BIM vector database',
                         inputSchema: { type: 'object', properties: {} }
                     },
+                    // 🤖 AI Parameter Management Tools
+                    {
+                        name: 'get_element_parameters',
+                        description: '🔍 Get detailed parameter information for selected elements or specific element IDs',
+                        inputSchema: {
+                            type: 'object',
+                            properties: {
+                                elementIds: {
+                                    type: 'array',
+                                    items: { type: 'string' },
+                                    description: 'Specific element IDs to get parameters for (if empty, uses current selection)'
+                                }
+                            }
+                        }
+                    },
+                    {
+                        name: 'analyze_parameters',
+                        description: '🧠 Analyze element parameters and suggest improvements using AI logic',
+                        inputSchema: {
+                            type: 'object',
+                            properties: {
+                                elements: {
+                                    type: 'array',
+                                    description: 'Array of elements with parameters to analyze'
+                                },
+                                analysisType: {
+                                    type: 'string',
+                                    enum: ['general', 'flc', 'steel_framing', 'quality_control'],
+                                    default: 'general',
+                                    description: 'Type of analysis to perform'
+                                }
+                            },
+                            required: ['elements']
+                        }
+                    },
+                    {
+                        name: 'ai_modify_parameters',
+                        description: '🔧 AI-powered parameter modification with validation and safety checks',
+                        inputSchema: {
+                            type: 'object',
+                            properties: {
+                                modifications: {
+                                    type: 'array',
+                                    description: 'Array of parameter modifications to apply',
+                                    items: {
+                                        type: 'object',
+                                        properties: {
+                                            elementId: { type: 'string', description: 'Element ID' },
+                                            parameter: { type: 'string', description: 'Parameter name' },
+                                            newValue: { description: 'New parameter value' },
+                                            reason: { type: 'string', description: 'Reason for modification' }
+                                        },
+                                        required: ['elementId', 'parameter', 'newValue']
+                                    }
+                                },
+                                dryRun: {
+                                    type: 'boolean',
+                                    default: true,
+                                    description: 'Preview mode (true) or actually apply changes (false)'
+                                }
+                            },
+                            required: ['modifications']
+                        }
+                    },
+                    {
+                        name: 'ai_rename_panel_elements',
+                        description: '🎯 Smart renaming of panel elements following FLC left-to-right convention',
+                        inputSchema: {
+                            type: 'object',
+                            properties: {
+                                elementIds: {
+                                    type: 'array',
+                                    items: { type: 'string' },
+                                    description: 'Element IDs to rename (if empty, uses current selection)'
+                                },
+                                namingConvention: {
+                                    type: 'string',
+                                    enum: ['flc_standard', 'sequential_numbers', 'custom'],
+                                    default: 'flc_standard',
+                                    description: 'Naming convention to apply'
+                                },
+                                direction: {
+                                    type: 'string',
+                                    enum: ['left_to_right', 'bottom_to_top', 'auto_detect'],
+                                    default: 'left_to_right',
+                                    description: 'Direction for element ordering'
+                                },
+                                dryRun: {
+                                    type: 'boolean',
+                                    default: true,
+                                    description: 'Preview mode (true) or actually apply changes (false)'
+                                }
+                            }
+                        }
+                    },
+                    {
+                        name: 'ai_analyze_panel_structure',
+                        description: '🧠 Analyze panel structure and detect components, layout, and issues',
+                        inputSchema: {
+                            type: 'object',
+                            properties: {
+                                elementIds: {
+                                    type: 'array',
+                                    items: { type: 'string' },
+                                    description: 'Element IDs to analyze (if empty, uses current selection)'
+                                },
+                                analysisDepth: {
+                                    type: 'string',
+                                    enum: ['basic', 'detailed', 'comprehensive'],
+                                    default: 'detailed',
+                                    description: 'Level of analysis to perform'
+                                },
+                                includeRecommendations: {
+                                    type: 'boolean',
+                                    default: true,
+                                    description: 'Include AI recommendations for improvements'
+                                }
+                            }
+                        }
+                    },
+                    {
+                        name: 'ai_mass_parameter_update',
+                        description: '🚀 Mass parameter processing with FAFB performance for large selections',
+                        inputSchema: {
+                            type: 'object',
+                            properties: {
+                                elementIds: {
+                                    type: 'array',
+                                    items: { type: 'string' },
+                                    description: 'Element IDs to process'
+                                },
+                                operations: {
+                                    type: 'array',
+                                    description: 'Array of operations to perform',
+                                    items: {
+                                        type: 'object',
+                                        properties: {
+                                            type: { type: 'string', enum: ['set_parameter', 'fix_missing_bimsf', 'standardize_naming'] },
+                                            parameter: { type: 'string' },
+                                            value: { description: 'Value to set' },
+                                            convention: { type: 'string' },
+                                            reason: { type: 'string' }
+                                        },
+                                        required: ['type']
+                                    }
+                                },
+                                chunkSize: {
+                                    type: 'number',
+                                    default: 250,
+                                    description: 'Elements per chunk for processing'
+                                },
+                                maxConcurrency: {
+                                    type: 'number',
+                                    default: 3,
+                                    description: 'Maximum concurrent operations'
+                                }
+                            },
+                            required: ['elementIds', 'operations']
+                        }
+                    },
+                    {
+                        name: 'ai_fix_flc_parameters',
+                        description: '🔧 Automatically detect and fix FLC parameter issues',
+                        inputSchema: {
+                            type: 'object',
+                            properties: {
+                                elementIds: {
+                                    type: 'array',
+                                    items: { type: 'string' },
+                                    description: 'Element IDs to fix (if empty, uses current selection)'
+                                },
+                                dryRun: {
+                                    type: 'boolean',
+                                    default: true,
+                                    description: 'Preview mode (true) or actually apply fixes (false)'
+                                }
+                            }
+                        }
+                    },
+                    {
+                        name: 'ai_detect_panel_groups',
+                        description: '🔍 Automatically detect and group panel elements',
+                        inputSchema: {
+                            type: 'object',
+                            properties: {
+                                elementIds: {
+                                    type: 'array',
+                                    items: { type: 'string' },
+                                    description: 'Element IDs to analyze (if empty, uses current selection)'
+                                },
+                                groupingMethod: {
+                                    type: 'string',
+                                    enum: ['container', 'spatial', 'hybrid'],
+                                    default: 'hybrid',
+                                    description: 'Method for grouping elements'
+                                }
+                            }
+                        }
+                    },
+                    {
+                        name: 'execute_ai_parameter_workflow',
+                        description: '🚀 Execute complete AI parameter workflow: Get → Analyze → Recommend → Apply',
+                        inputSchema: {
+                            type: 'object',
+                            properties: {
+                                elementIds: {
+                                    type: 'array',
+                                    items: { type: 'string' },
+                                    description: 'Specific element IDs (if empty, uses current selection)'
+                                },
+                                analysisType: {
+                                    type: 'string',
+                                    enum: ['general', 'flc', 'steel_framing', 'quality_control'],
+                                    default: 'general',
+                                    description: 'Type of analysis to perform'
+                                },
+                                dryRun: {
+                                    type: 'boolean',
+                                    default: true,
+                                    description: 'Preview mode only (true) or allow modifications (false)'
+                                },
+                                autoApply: {
+                                    type: 'boolean',
+                                    default: false,
+                                    description: 'Automatically apply recommended changes (requires dryRun=false)'
+                                }
+                            }
+                        }
+                    },
                     // Include all Temporal Neural Nexus tools here...
                     // (Memory management, search, context, time awareness tools)
                     // These would be imported from the base implementation
@@ -323,10 +555,30 @@ export class TycoonServer {
                     case 'get_bim_database_stats':
                         return await this.getBimDatabaseStats(args);
 
+                    // 🤖 AI Parameter Management Tools
+                    case 'get_element_parameters':
+                        return await this.getElementParameters(args);
+                    case 'analyze_parameters':
+                        return await this.analyzeParameters(args);
+                    case 'ai_modify_parameters':
+                        return await this.modifyParameters(args);
+                    case 'ai_rename_panel_elements':
+                        return await this.renamePanelElements(args);
+                    case 'ai_analyze_panel_structure':
+                        return await this.analyzePanelStructure(args);
+                    case 'ai_mass_parameter_update':
+                        return await this.massParameterUpdate(args);
+                    case 'ai_fix_flc_parameters':
+                        return await this.fixFLCParameters(args);
+                    case 'ai_detect_panel_groups':
+                        return await this.detectPanelGroups(args);
+                    case 'execute_ai_parameter_workflow':
+                        return await this.executeAIParameterWorkflow(args);
+
                     // Temporal Neural Nexus tools would be handled here
                     // case 'create_memory': return await this.createMemory(args);
                     // etc...
-                    
+
                     default:
                         throw new Error(`Unknown tool: ${name}`);
                 }
@@ -863,6 +1115,217 @@ export class TycoonServer {
             const transport = new StdioServerTransport();
             await this.server.connect(transport);
             console.log(chalk.green('🚀 Tycoon AI-BIM Server started (Vector DB disabled)'));
+        }
+    }
+
+    // ==========================================
+    // 🤖 AI PARAMETER MANAGEMENT METHODS
+    // ==========================================
+
+    /**
+     * Get element parameters
+     */
+    private async getElementParameters(args: any): Promise<any> {
+        try {
+            const result = await this.streamingTools.getElementParameters(args.elementIds);
+            return {
+                content: [{
+                    type: 'text',
+                    text: JSON.stringify(result, null, 2)
+                }]
+            };
+        } catch (error) {
+            return {
+                content: [{
+                    type: 'text',
+                    text: `Error getting element parameters: ${error instanceof Error ? error.message : 'Unknown error'}`
+                }],
+                isError: true
+            };
+        }
+    }
+
+    /**
+     * Analyze parameters
+     */
+    private async analyzeParameters(args: any): Promise<any> {
+        try {
+            const result = await this.streamingTools.analyzeParameters(args.elements, args.analysisType);
+            return {
+                content: [{
+                    type: 'text',
+                    text: JSON.stringify(result, null, 2)
+                }]
+            };
+        } catch (error) {
+            return {
+                content: [{
+                    type: 'text',
+                    text: `Error analyzing parameters: ${error instanceof Error ? error.message : 'Unknown error'}`
+                }],
+                isError: true
+            };
+        }
+    }
+
+    /**
+     * Modify parameters
+     */
+    private async modifyParameters(args: any): Promise<any> {
+        try {
+            const result = await this.streamingTools.modifyParameters(args.modifications, args.dryRun);
+            return {
+                content: [{
+                    type: 'text',
+                    text: JSON.stringify(result, null, 2)
+                }]
+            };
+        } catch (error) {
+            return {
+                content: [{
+                    type: 'text',
+                    text: `Error modifying parameters: ${error instanceof Error ? error.message : 'Unknown error'}`
+                }],
+                isError: true
+            };
+        }
+    }
+
+    /**
+     * Execute AI parameter workflow
+     */
+    private async executeAIParameterWorkflow(args: any): Promise<any> {
+        try {
+            const result = await this.streamingTools.executeAIParameterWorkflow(args);
+            return {
+                content: [{
+                    type: 'text',
+                    text: JSON.stringify(result, null, 2)
+                }]
+            };
+        } catch (error) {
+            return {
+                content: [{
+                    type: 'text',
+                    text: `Error in AI parameter workflow: ${error instanceof Error ? error.message : 'Unknown error'}`
+                }],
+                isError: true
+            };
+        }
+    }
+
+    /**
+     * AI-powered panel element renaming
+     */
+    private async renamePanelElements(args: any): Promise<any> {
+        try {
+            const result = await this.streamingTools.renamePanelElements(args);
+            return {
+                content: [{
+                    type: 'text',
+                    text: JSON.stringify(result, null, 2)
+                }]
+            };
+        } catch (error) {
+            return {
+                content: [{
+                    type: 'text',
+                    text: `Error renaming panel elements: ${error instanceof Error ? error.message : 'Unknown error'}`
+                }],
+                isError: true
+            };
+        }
+    }
+
+    /**
+     * AI panel structure analysis
+     */
+    private async analyzePanelStructure(args: any): Promise<any> {
+        try {
+            const result = await this.streamingTools.analyzePanelStructure(args);
+            return {
+                content: [{
+                    type: 'text',
+                    text: JSON.stringify(result, null, 2)
+                }]
+            };
+        } catch (error) {
+            return {
+                content: [{
+                    type: 'text',
+                    text: `Error analyzing panel structure: ${error instanceof Error ? error.message : 'Unknown error'}`
+                }],
+                isError: true
+            };
+        }
+    }
+
+    /**
+     * Mass parameter update
+     */
+    private async massParameterUpdate(args: any): Promise<any> {
+        try {
+            const result = await this.streamingTools.massParameterUpdate(args);
+            return {
+                content: [{
+                    type: 'text',
+                    text: JSON.stringify(result, null, 2)
+                }]
+            };
+        } catch (error) {
+            return {
+                content: [{
+                    type: 'text',
+                    text: `Error in mass parameter update: ${error instanceof Error ? error.message : 'Unknown error'}`
+                }],
+                isError: true
+            };
+        }
+    }
+
+    /**
+     * Fix FLC parameters
+     */
+    private async fixFLCParameters(args: any): Promise<any> {
+        try {
+            const result = await this.streamingTools.fixFLCParameters(args);
+            return {
+                content: [{
+                    type: 'text',
+                    text: JSON.stringify(result, null, 2)
+                }]
+            };
+        } catch (error) {
+            return {
+                content: [{
+                    type: 'text',
+                    text: `Error fixing FLC parameters: ${error instanceof Error ? error.message : 'Unknown error'}`
+                }],
+                isError: true
+            };
+        }
+    }
+
+    /**
+     * Detect panel groups
+     */
+    private async detectPanelGroups(args: any): Promise<any> {
+        try {
+            const result = await this.streamingTools.detectPanelGroups(args);
+            return {
+                content: [{
+                    type: 'text',
+                    text: JSON.stringify(result, null, 2)
+                }]
+            };
+        } catch (error) {
+            return {
+                content: [{
+                    type: 'text',
+                    text: `Error detecting panel groups: ${error instanceof Error ? error.message : 'Unknown error'}`
+                }],
+                isError: true
+            };
         }
     }
 }

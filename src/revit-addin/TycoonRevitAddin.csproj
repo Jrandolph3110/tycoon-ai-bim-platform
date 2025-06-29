@@ -68,18 +68,38 @@
   <ItemGroup>
     <Compile Include="Application.cs" />
     <Compile Include="Commands\TycoonCommand.cs" />
+    <Compile Include="Commands\PluginInfoCommand.cs" />
+    <Compile Include="Commands\PlaceholderCommands.cs" />
     <Compile Include="Communication\TycoonBridge.cs" />
     <Compile Include="Communication\BinaryStreamingManager.cs" />
     <Compile Include="Communication\ConnectionStatus.cs" />
     <Compile Include="Communication\MessageTypes.cs" />
     <Compile Include="Communication\AdvancedSerializationManager.cs" />
     <Compile Include="Communication\PipelineParallelismManager.cs" />
+    <Compile Include="Plugins\IPlugin.cs" />
+    <Compile Include="Plugins\PluginManager.cs" />
+    <Compile Include="Plugins\ScriptsPlugin.cs" />
+    <Compile Include="Plugins\TycoonProFrAimerPlugin.cs" />
+    <Compile Include="Plugins\AIActionsPlugin.cs" />
+    <Compile Include="AIActions\Events\IDomainEvent.cs" />
+    <Compile Include="AIActions\Events\IEventStore.cs" />
+    <Compile Include="AIActions\Events\EventStore.cs" />
+    <Compile Include="AIActions\Commands\IAICommand.cs" />
+    <Compile Include="AIActions\Commands\CreateWallCommand.cs" />
+    <Compile Include="AIActions\Commands\ParameterManagementCommands.cs" />
+    <Compile Include="AIActions\Commands\FLCScriptBridge.cs" />
+    <Compile Include="AIActions\Commands\ScriptHotLoader.cs" />
+    <Compile Include="AIActions\Validation\IValidationEngine.cs" />
+    <Compile Include="AIActions\Workflow\IWorkflowEngine.cs" />
+    <Compile Include="AIActions\Autonomy\IAutonomyManager.cs" />
+    <Compile Include="AIActions\Threading\ITaskQueue.cs" />
     <Compile Include="Resources\StatusIconManager.cs" />
     <Compile Include="Services\StatusPollingService.cs" />
     <Compile Include="UI\ConnectionProgressDialog.xaml.cs">
       <DependentUpon>ConnectionProgressDialog.xaml</DependentUpon>
     </Compile>
     <Compile Include="UI\DynamicRibbonManager.cs" />
+    <Compile Include="UI\PluginSelectorControl.cs" />
     <Compile Include="Utils\Logger.cs" />
     <Compile Include="Storage\StreamingDataVault.cs" />
     <Compile Include="Utils\SelectionManager.cs" />

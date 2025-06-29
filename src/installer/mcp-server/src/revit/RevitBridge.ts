@@ -45,7 +45,7 @@ export interface RevitSelection {
 
 export interface RevitCommand {
     id: string;
-    type: 'selection' | 'create' | 'modify' | 'delete' | 'query';
+    type: 'selection' | 'create' | 'modify' | 'delete' | 'query' | 'ai_rename_panel_elements' | 'ai_modify_parameters' | 'ai_analyze_panel_structure' | 'flc_hybrid_operation' | 'flc_script_graduation_analytics';
     payload: any;
     timestamp: string;
 }
@@ -63,7 +63,19 @@ export class RevitBridge extends EventEmitter {
     private revitConnection: WebSocket | null = null;
     private port: number;
     private isConnected: boolean = false;
-    private pendingCommands: Map<string, { resolve: Function; reject: Function; timeout: NodeJS.Timeout }> = new Map();
+    private pendingCommands: Map<string, {
+        resolve: Function;
+        reject: Function;
+        timeout: NodeJS.Timeout;
+        progressMonitor?: NodeJS.Timeout;
+        updateProgress?: Function;
+    }> = new Map();
+
+    // Expert-recommended timeout configuration (o3 pro insights)
+    private readonly TRANSPORT_TIMEOUT = 5000; // 5s transport timeout
+    private readonly EXECUTION_TIMEOUT = 30000; // 30s execution timeout
+    private readonly PING_INTERVAL = 25000; // 25s ping interval (< 30s recommended)
+    private pingTimer: NodeJS.Timeout | null = null;
     private commandTimeout: number = 30000; // 30 seconds
     private debugMode: boolean = true;
 
@@ -135,10 +147,11 @@ export class RevitBridge extends EventEmitter {
                     }
                 });
 
-                ws.on('close', () => {
-                    this.log('❌ Revit add-in disconnected');
+                ws.on('close', (code, reason) => {
+                    this.log(`❌ Revit add-in disconnected - Code: ${code}, Reason: ${reason}`);
                     this.isConnected = false;
                     this.revitConnection = null;
+                    this.stopPingPong();
                     this.emit('disconnected');
                 });
 
@@ -146,6 +159,14 @@ export class RevitBridge extends EventEmitter {
                     this.logError('WebSocket error', error);
                     this.emit('error', error);
                 });
+
+                // Handle pong responses (expert recommendation)
+                ws.on('pong', () => {
+                    this.log('🏓 Pong received from Revit');
+                });
+
+                // Start ping/pong mechanism (expert recommendation)
+                this.startPingPong();
 
                 this.emit('connected');
             });
@@ -173,22 +194,61 @@ export class RevitBridge extends EventEmitter {
         };
 
         return new Promise((resolve, reject) => {
-            // Set up timeout
-            const timeout = setTimeout(() => {
-                this.pendingCommands.delete(fullCommand.id);
-                reject(new Error(`Command timeout: ${fullCommand.type}`));
-            }, this.commandTimeout);
+            let lastProgressTime = Date.now();
+            let progressPingCount = 0;
 
-            // Store pending command
-            this.pendingCommands.set(fullCommand.id, { resolve, reject, timeout });
+            // Set up progress ping monitoring for long-running commands
+            const progressMonitor = setInterval(() => {
+                const timeSinceProgress = Date.now() - lastProgressTime;
+                if (timeSinceProgress > 5000) { // 5 seconds without progress
+                    progressPingCount++;
+                    this.log(`⏳ [${fullCommand.id}] Waiting for command completion... (${progressPingCount * 5}s elapsed)`);
+
+                    if (progressPingCount > 12) { // 60 seconds total
+                        clearInterval(progressMonitor);
+                        this.pendingCommands.delete(fullCommand.id);
+                        reject(new Error(`Command timeout after 60s: ${fullCommand.type}`));
+                    }
+                }
+            }, 5000); // Check every 5 seconds
+
+            // Set up main timeout (expert-recommended values)
+            const isAICommand = fullCommand.type.startsWith('ai_') || fullCommand.type.startsWith('flc_');
+            const timeoutMs = isAICommand ? this.EXECUTION_TIMEOUT : this.TRANSPORT_TIMEOUT; // 30s for AI/FLC commands, 5s for others
+
+            const timeout = setTimeout(() => {
+                clearInterval(progressMonitor);
+                this.pendingCommands.delete(fullCommand.id);
+                reject(new Error(`Command timeout after ${timeoutMs}ms: ${fullCommand.type}`));
+            }, timeoutMs);
+
+            // Store pending command with progress tracking
+            this.pendingCommands.set(fullCommand.id, {
+                resolve: (response: RevitResponse) => {
+                    clearInterval(progressMonitor);
+                    clearTimeout(timeout);
+                    resolve(response);
+                },
+                reject: (error: Error) => {
+                    clearInterval(progressMonitor);
+                    clearTimeout(timeout);
+                    reject(error);
+                },
+                timeout,
+                progressMonitor,
+                updateProgress: () => {
+                    lastProgressTime = Date.now();
+                }
+            });
 
             // Send command
             try {
                 this.revitConnection!.send(JSON.stringify(fullCommand));
-                this.log(`📤 Sent command: ${fullCommand.type} (${fullCommand.id})`);
+                this.log(`📤 Sent command: ${fullCommand.type} (${fullCommand.id}) | Timeout: ${timeoutMs}ms`);
             } catch (error) {
-                this.pendingCommands.delete(fullCommand.id);
+                clearInterval(progressMonitor);
                 clearTimeout(timeout);
+                this.pendingCommands.delete(fullCommand.id);
                 reject(error);
             }
         });
@@ -216,16 +276,33 @@ export class RevitBridge extends EventEmitter {
     private handleRevitMessage(message: any): void {
         this.log(`📥 Received from Revit: ${message.type || 'unknown'}`);
 
-        if (message.commandId && this.pendingCommands.has(message.commandId)) {
-            // Handle command response
-            const pending = this.pendingCommands.get(message.commandId)!;
-            this.pendingCommands.delete(message.commandId);
+        // Fix: Revit sends "id" but we were looking for "commandId"
+        const commandId = message.commandId || message.id;
+
+        if (commandId && this.pendingCommands.has(commandId)) {
+            const pending = this.pendingCommands.get(commandId)!;
+
+            // Handle progress ping
+            if (message.type === 'progress') {
+                this.log(`⏳ [${commandId}] Progress update: ${message.message || 'Processing...'}`);
+                if (pending.updateProgress) {
+                    pending.updateProgress();
+                }
+                return; // Don't resolve/reject on progress updates
+            }
+
+            // Handle command response (completion)
+            this.log(`✅ [${commandId}] Received response: ${message.success ? 'Success' : 'Failed'}`);
+            this.pendingCommands.delete(commandId);
             clearTimeout(pending.timeout);
+            if (pending.progressMonitor) {
+                clearInterval(pending.progressMonitor);
+            }
 
             if (message.success) {
                 pending.resolve(message);
             } else {
-                pending.reject(new Error(message.error || 'Unknown error'));
+                pending.reject(new Error(message.error || message.message || 'Unknown error'));
             }
         } else if (message.type === 'selection_changed') {
             // Handle selection change notification
@@ -305,5 +382,31 @@ export class RevitBridge extends EventEmitter {
      */
     private logError(message: string, error?: any): void {
         console.error(chalk.red('[RevitBridge Error]'), message, error || '');
+    }
+
+    /**
+     * Start ping/pong mechanism (expert recommendation)
+     */
+    private startPingPong(): void {
+        if (this.pingTimer) {
+            clearInterval(this.pingTimer);
+        }
+
+        this.pingTimer = setInterval(() => {
+            if (this.revitConnection && this.isConnected) {
+                this.log('🏓 Sending ping to Revit');
+                this.revitConnection.ping();
+            }
+        }, this.PING_INTERVAL);
+    }
+
+    /**
+     * Stop ping/pong mechanism
+     */
+    private stopPingPong(): void {
+        if (this.pingTimer) {
+            clearInterval(this.pingTimer);
+            this.pingTimer = null;
+        }
     }
 }

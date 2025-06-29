@@ -8,6 +8,8 @@ using Autodesk.Revit.UI;
 using TycoonRevitAddin.Communication;
 using TycoonRevitAddin.Services;
 using TycoonRevitAddin.UI;
+using TycoonRevitAddin.Plugins;
+using System.Linq;
 using TycoonRevitAddin.Utils;
 
 namespace TycoonRevitAddin
@@ -30,6 +32,7 @@ namespace TycoonRevitAddin
         private static StatusPollingService _statusService;
         private static DynamicRibbonManager _ribbonManager;
         private static PushButton _connectButton;
+        private static PluginManager _pluginManager;
 
         /// <summary>
         /// Public access to logger
@@ -40,6 +43,11 @@ namespace TycoonRevitAddin
         /// Public access to Tycoon bridge
         /// </summary>
         public static TycoonBridge TycoonBridge => _tycoonBridge;
+
+        /// <summary>
+        /// Public access to Plugin Manager
+        /// </summary>
+        public static PluginManager PluginManager => _pluginManager;
 
         /// <summary>
         /// Public access to status service
@@ -60,9 +68,13 @@ namespace TycoonRevitAddin
             {
                 // Initialize logger first (safely)
                 _logger = new Logger("Tycoon", debugMode: true);
-                _logger.Log("🚀 Starting Tycoon AI-BIM Platform v1.2.0.0 (Foundation Complete - Enterprise Ready)...");
+                _logger.Log("🚀 Starting Tycoon AI-BIM Platform v1.4.0.0 (AI Actions System - Revolutionary AI Automation)...");
 
-                // Create ribbon tab and panels
+                // Initialize plugin manager
+                _pluginManager = new PluginManager(_logger);
+                _logger.Log("🔌 PluginManager created");
+
+                // Create ribbon tab and panels with plugin system
                 CreateRibbonInterface(application);
 
                 // Initialize Tycoon bridge (minimal version)
@@ -101,6 +113,9 @@ namespace TycoonRevitAddin
             {
                 _logger?.Log("🛑 Shutting down Tycoon AI-BIM Platform...");
 
+                // Dispose plugin manager
+                _pluginManager?.Dispose();
+
                 // Disconnect from MCP server
                 _tycoonBridge?.Disconnect();
 
@@ -115,7 +130,7 @@ namespace TycoonRevitAddin
         }
 
         /// <summary>
-        /// Create Tycoon ribbon interface
+        /// Create Tycoon ribbon interface with plugin system
         /// </summary>
         private void CreateRibbonInterface(UIControlledApplication application)
         {
@@ -123,9 +138,32 @@ namespace TycoonRevitAddin
             string tabName = "Tycoon AI-BIM";
             application.CreateRibbonTab(tabName);
 
-            // Create main panel
-            RibbonPanel mainPanel = application.CreateRibbonPanel(tabName, "AI Integration");
+            // Create AI Integration panel (always visible)
+            RibbonPanel aiPanel = application.CreateRibbonPanel(tabName, "AI Integration");
+            CreateAIIntegrationButtons(aiPanel);
 
+            // Initialize plugin manager FIRST (this registers the plugins)
+            _pluginManager.Initialize(application, tabName);
+
+            // Create Plugin Control panel AFTER plugins are registered
+            RibbonPanel pluginControlPanel = application.CreateRibbonPanel(tabName, "Plugin Control");
+            CreatePluginControlButtons(pluginControlPanel);
+
+            // Activate the first plugin by default
+            var enabledPlugins = _pluginManager.GetEnabledPlugins();
+            if (enabledPlugins.Any())
+            {
+                _pluginManager.ActivatePlugin(enabledPlugins.First().Id);
+            }
+
+            _logger?.Log("✅ Plugin-based ribbon interface created");
+        }
+
+        /// <summary>
+        /// Create AI Integration buttons (always visible)
+        /// </summary>
+        private void CreateAIIntegrationButtons(RibbonPanel panel)
+        {
             // Add Copy MCP Config button
             PushButtonData copyConfigButtonData = new PushButtonData(
                 "TycoonCopyConfig",
@@ -145,7 +183,7 @@ namespace TycoonRevitAddin
 
             connectButtonData.ToolTip = "Connect to Tycoon AI-BIM Server";
             connectButtonData.LongDescription = "Establish connection to Tycoon MCP Server for real-time AI-Revit integration";
-            
+
             // Set button icons (placeholder paths)
             try
             {
@@ -157,58 +195,76 @@ namespace TycoonRevitAddin
                 // Icons not found, continue without them
             }
 
-            PushButton copyConfigButton = mainPanel.AddItem(copyConfigButtonData) as PushButton;
-            PushButton connectButton = mainPanel.AddItem(connectButtonData) as PushButton;
+            PushButton copyConfigButton = panel.AddItem(copyConfigButtonData) as PushButton;
+            PushButton connectButton = panel.AddItem(connectButtonData) as PushButton;
 
-            _logger?.Log($"📋 Created buttons - Copy Config: {copyConfigButton != null}, Connect: {connectButton != null}");
+            _logger?.Log($"📋 Created AI Integration buttons - Copy Config: {copyConfigButton != null}, Connect: {connectButton != null}");
 
             // Store connect button for later registration with ribbon manager
             _connectButton = connectButton;
-            _logger?.Log($"🔗 Stored connect button: {_connectButton != null}");
-
-            // Create FLC Steel Framing panel
-            RibbonPanel flcPanel = application.CreateRibbonPanel(tabName, "Steel Framing");
-
-            // Add placeholder buttons for FLC workflows
-            AddFLCButtons(flcPanel);
-
-            _logger?.Log("✅ Ribbon interface created");
         }
 
         /// <summary>
-        /// Add FLC steel framing buttons
+        /// Create Plugin Control buttons (always visible)
         /// </summary>
-        private void AddFLCButtons(RibbonPanel panel)
+        private void CreatePluginControlButtons(RibbonPanel panel)
         {
-            // Frame Walls button
-            PushButtonData frameWallsData = new PushButtonData(
-                "FrameWalls",
-                "Frame\nWalls",
-                Assembly.GetExecutingAssembly().Location,
-                "TycoonRevitAddin.Commands.FrameWallsCommand"
-            );
-            frameWallsData.ToolTip = "Create steel framing for selected walls";
-            panel.AddItem(frameWallsData);
+            // Plugin Selector dropdown
+            var pluginSelectorData = new ComboBoxData("PluginSelector");
+            var pluginSelector = panel.AddItem(pluginSelectorData) as ComboBox;
 
-            // Renumber Elements button
-            PushButtonData renumberData = new PushButtonData(
-                "RenumberElements",
-                "Renumber\nElements",
-                Assembly.GetExecutingAssembly().Location,
-                "TycoonRevitAddin.Commands.RenumberCommand"
-            );
-            renumberData.ToolTip = "Renumber selected elements using FLC standards";
-            panel.AddItem(renumberData);
+            // Populate with available plugins
+            var enabledPlugins = _pluginManager.GetEnabledPlugins();
+            _logger?.Log($"🔍 Found {enabledPlugins.Count} enabled plugins for dropdown");
 
-            // Validate Panels button
-            PushButtonData validateData = new PushButtonData(
-                "ValidatePanels",
-                "Validate\nPanels",
+            foreach (var plugin in enabledPlugins)
+            {
+                var memberData = new ComboBoxMemberData(plugin.Id, plugin.Name);
+                memberData.ToolTip = plugin.Description;
+                pluginSelector.AddItem(memberData);
+                _logger?.Log($"➕ Added plugin to dropdown: {plugin.Name} (ID: {plugin.Id})");
+            }
+
+            // Set event handler for plugin selection
+            pluginSelector.CurrentChanged += OnPluginSelectorChanged;
+
+            // Plugin Info button
+            PushButtonData pluginInfoData = new PushButtonData(
+                "PluginInfo",
+                "Plugin\nInfo",
                 Assembly.GetExecutingAssembly().Location,
-                "TycoonRevitAddin.Commands.ValidateCommand"
+                "TycoonRevitAddin.Commands.PluginInfoCommand"
             );
-            validateData.ToolTip = "Validate panel ticket requirements";
-            panel.AddItem(validateData);
+            pluginInfoData.ToolTip = "Show information about the current plugin";
+
+            panel.AddItem(pluginInfoData);
+
+            _logger?.Log($"🎛️ Created Plugin Control buttons with {enabledPlugins.Count} plugins in dropdown");
+        }
+
+        /// <summary>
+        /// Handle plugin selector change event
+        /// </summary>
+        private void OnPluginSelectorChanged(object sender, EventArgs e)
+        {
+            try
+            {
+                var comboBox = sender as ComboBox;
+                var selectedMember = comboBox?.Current;
+
+                if (selectedMember != null)
+                {
+                    var pluginId = selectedMember.Name;
+                    _logger?.Log($"🎯 Plugin selector changed to: {pluginId}");
+
+                    // Activate the selected plugin
+                    _pluginManager.ActivatePlugin(pluginId);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError("Error in plugin selector change", ex);
+            }
         }
 
         /// <summary>
