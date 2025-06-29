@@ -45,9 +45,11 @@ export interface RevitSelection {
 
 export interface RevitCommand {
     id: string;
-    type: 'selection' | 'create' | 'modify' | 'delete' | 'query' | 'ai_rename_panel_elements' | 'ai_modify_parameters' | 'ai_analyze_panel_structure' | 'flc_hybrid_operation' | 'flc_script_graduation_analytics';
+    type: 'selection' | 'create' | 'modify' | 'delete' | 'query' | 'ai_rename_panel_elements' | 'ai_modify_parameters' | 'ai_analyze_panel_structure' | 'flc_hybrid_operation' | 'flc_script_graduation_analytics' | 'ai_create_elements' | 'ai_modify_geometry' | 'generate_hot_script' | 'execute_custom_operation';
     payload: any;
     timestamp: string;
+    schemaVersion: string; // Chat's recommendation: version negotiation
+    priority?: 'low' | 'normal' | 'high'; // For back-pressure handling
 }
 
 export interface RevitResponse {
@@ -56,6 +58,15 @@ export interface RevitResponse {
     data?: any;
     error?: string;
     timestamp: string;
+    schemaVersion: string; // Version negotiation
+    resultSet?: ElementResult[]; // Chat's recommendation: per-element status
+}
+
+export interface ElementResult {
+    elementId: string;
+    status: 'succeeded' | 'skipped' | 'failed';
+    message?: string;
+    warnings?: string[];
 }
 
 export class RevitBridge extends EventEmitter {
@@ -77,6 +88,12 @@ export class RevitBridge extends EventEmitter {
     private readonly PING_INTERVAL = 25000; // 25s ping interval (< 30s recommended)
     private pingTimer: NodeJS.Timeout | null = null;
     private commandTimeout: number = 30000; // 30 seconds
+
+    // Chat's recommendation: Back-pressure handling
+    private messageQueue: RevitCommand[] = [];
+    private isProcessingQueue: boolean = false;
+    private readonly MAX_QUEUE_SIZE = 100;
+    private readonly SCHEMA_VERSION = "1.7.1.0";
     private debugMode: boolean = true;
 
     constructor(preferredPort: number = 8765) {
@@ -182,7 +199,7 @@ export class RevitBridge extends EventEmitter {
     /**
      * Send command to Revit and wait for response
      */
-    async sendCommand(command: Omit<RevitCommand, 'id' | 'timestamp'>): Promise<RevitResponse> {
+    async sendCommand(command: Omit<RevitCommand, 'id' | 'timestamp' | 'schemaVersion'>): Promise<RevitResponse> {
         if (!this.isConnected || !this.revitConnection) {
             throw new Error('Revit add-in not connected');
         }
@@ -190,7 +207,8 @@ export class RevitBridge extends EventEmitter {
         const fullCommand: RevitCommand = {
             ...command,
             id: this.generateCommandId(),
-            timestamp: new Date().toISOString()
+            timestamp: new Date().toISOString(),
+            schemaVersion: this.SCHEMA_VERSION // Chat's recommendation: version negotiation
         };
 
         return new Promise((resolve, reject) => {

@@ -349,6 +349,10 @@ namespace TycoonRevitAddin.Communication
                     case "ai_analyze_panel_structure":
                     case "flc_hybrid_operation":
                     case "flc_script_graduation_analytics":
+                    case "ai_create_elements":
+                    case "ai_modify_geometry":
+                    case "generate_hot_script":
+                    case "execute_custom_operation":
                         HandleCommand(message);
                         break;
                     default:
@@ -468,6 +472,18 @@ namespace TycoonRevitAddin.Communication
                         break;
                     case "flc_script_graduation_analytics":
                         HandleFLCScriptGraduationAnalytics(message);
+                        break;
+                    case "ai_create_elements":
+                        HandleAICreateElements(message);
+                        break;
+                    case "ai_modify_geometry":
+                        HandleAIModifyGeometry(message);
+                        break;
+                    case "generate_hot_script":
+                        HandleGenerateHotScript(message);
+                        break;
+                    case "execute_custom_operation":
+                        HandleExecuteCustomOperation(message);
                         break;
                     case "command":
                         // Handle other commands
@@ -834,6 +850,170 @@ namespace TycoonRevitAddin.Communication
             catch (Exception ex)
             {
                 _logger.LogError("Error handling FLC Script Graduation Analytics command", ex);
+                SendCommandResponse(message.id?.ToString(), false, ex.Message, null);
+            }
+        }
+
+        /// <summary>
+        /// 🏗️ Handle AI Create Elements - Phase 2A Priority 1
+        /// Routes to element creation system with atomic rollback
+        /// </summary>
+        private void HandleAICreateElements(dynamic message)
+        {
+            try
+            {
+                var commandId = message.id?.ToString();
+                var payload = message.payload;
+
+                _logger.Log($"🏗️ Processing AI Create Elements command: {commandId}");
+
+                // Get current document and UI context
+                var doc = _currentDocument;
+                var uidoc = _currentUIDocument;
+
+                if (doc == null)
+                {
+                    SendCommandResponse(commandId, false, "No active document", null);
+                    return;
+                }
+
+                // Set up External Event Handler data
+                _aiParameterHandler.CommandType = "ai_create_elements";
+                _aiParameterHandler.CommandId = commandId;
+                _aiParameterHandler.Payload = payload;
+                _aiParameterHandler.Document = doc;
+                _aiParameterHandler.UIDocument = uidoc;
+                _aiParameterHandler.ResponseCallback = SendCommandResponse;
+
+                // Raise External Event
+                _aiParameterEvent.Raise();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError("Error handling AI Create Elements command", ex);
+                SendCommandResponse(message.id?.ToString(), false, ex.Message, null);
+            }
+        }
+
+        /// <summary>
+        /// 📐 Handle AI Modify Geometry - Phase 2A Priority 3
+        /// Routes to geometry transformation system with spatial validation
+        /// </summary>
+        private void HandleAIModifyGeometry(dynamic message)
+        {
+            try
+            {
+                var commandId = message.id?.ToString();
+                var payload = message.payload;
+
+                _logger.Log($"📐 Processing AI Modify Geometry command: {commandId}");
+
+                // Get current document and UI context
+                var doc = _currentDocument;
+                var uidoc = _currentUIDocument;
+
+                if (doc == null)
+                {
+                    SendCommandResponse(commandId, false, "No active document", null);
+                    return;
+                }
+
+                // Set up External Event Handler data
+                _aiParameterHandler.CommandType = "ai_modify_geometry";
+                _aiParameterHandler.CommandId = commandId;
+                _aiParameterHandler.Payload = payload;
+                _aiParameterHandler.Document = doc;
+                _aiParameterHandler.UIDocument = uidoc;
+                _aiParameterHandler.ResponseCallback = SendCommandResponse;
+
+                // Raise External Event
+                _aiParameterEvent.Raise();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError("Error handling AI Modify Geometry command", ex);
+                SendCommandResponse(message.id?.ToString(), false, ex.Message, null);
+            }
+        }
+
+        /// <summary>
+        /// 🔥 Handle Generate Hot Script - Phase 2B KILLER FEATURE
+        /// Routes to ScriptHotLoader for AI-generated PyRevit code execution
+        /// </summary>
+        private void HandleGenerateHotScript(dynamic message)
+        {
+            try
+            {
+                var commandId = message.id?.ToString();
+                var payload = message.payload;
+
+                _logger.Log($"🔥 Processing Generate Hot Script command: {commandId}");
+
+                // Get current document and UI context
+                var doc = _currentDocument;
+                var uidoc = _currentUIDocument;
+
+                if (doc == null)
+                {
+                    SendCommandResponse(commandId, false, "No active document", null);
+                    return;
+                }
+
+                // Set up External Event Handler data
+                _aiParameterHandler.CommandType = "generate_hot_script";
+                _aiParameterHandler.CommandId = commandId;
+                _aiParameterHandler.Payload = payload;
+                _aiParameterHandler.Document = doc;
+                _aiParameterHandler.UIDocument = uidoc;
+                _aiParameterHandler.ResponseCallback = SendCommandResponse;
+
+                // Raise External Event
+                _aiParameterEvent.Raise();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError("Error handling Generate Hot Script command", ex);
+                SendCommandResponse(message.id?.ToString(), false, ex.Message, null);
+            }
+        }
+
+        /// <summary>
+        /// 🌟 Handle Execute Custom Operation - Phase 2B Advanced Orchestration
+        /// Routes to complex multi-step operation system
+        /// </summary>
+        private void HandleExecuteCustomOperation(dynamic message)
+        {
+            try
+            {
+                var commandId = message.id?.ToString();
+                var payload = message.payload;
+
+                _logger.Log($"🌟 Processing Execute Custom Operation command: {commandId}");
+
+                // Get current document and UI context
+                var doc = _currentDocument;
+                var uidoc = _currentUIDocument;
+
+                if (doc == null)
+                {
+                    SendCommandResponse(commandId, false, "No active document", null);
+                    return;
+                }
+
+                // Set up External Event Handler data
+                _aiParameterHandler.CommandType = "execute_custom_operation";
+                _aiParameterHandler.CommandId = commandId;
+                _aiParameterHandler.Payload = payload;
+                _aiParameterHandler.Document = doc;
+                _aiParameterHandler.UIDocument = uidoc;
+                _aiParameterHandler.ResponseCallback = SendCommandResponse;
+
+                // Raise External Event
+                _aiParameterEvent.Raise();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError("Error handling Execute Custom Operation command", ex);
                 SendCommandResponse(message.id?.ToString(), false, ex.Message, null);
             }
         }
@@ -2297,6 +2477,22 @@ namespace TycoonRevitAddin.Communication
                     case "flc_script_graduation_analytics":
                         _logger.Log($"📊 [OP:{OperationId}] Starting FLC Script Graduation Analytics execution");
                         result = _parameterCommands.GetFLCScriptGraduationAnalytics(Document, UIDocument, Payload);
+                        break;
+                    case "ai_create_elements":
+                        _logger.Log($"🏗️ [OP:{OperationId}] Starting AI Create Elements execution");
+                        result = _parameterCommands.CreateElements(Document, UIDocument, Payload);
+                        break;
+                    case "ai_modify_geometry":
+                        _logger.Log($"📐 [OP:{OperationId}] Starting AI Modify Geometry execution");
+                        result = _parameterCommands.ModifyGeometry(Document, UIDocument, Payload);
+                        break;
+                    case "generate_hot_script":
+                        _logger.Log($"🔥 [OP:{OperationId}] Starting Generate Hot Script execution");
+                        result = _parameterCommands.GenerateHotScript(Document, UIDocument, Payload);
+                        break;
+                    case "execute_custom_operation":
+                        _logger.Log($"🌟 [OP:{OperationId}] Starting Execute Custom Operation execution");
+                        result = _parameterCommands.ExecuteCustomOperation(Document, UIDocument, Payload);
                         break;
                     default:
                         _logger.Log($"❌ [OP:{OperationId}] Unknown command type: {CommandType}");
