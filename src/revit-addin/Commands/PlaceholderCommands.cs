@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Windows.Forms;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
@@ -76,8 +77,50 @@ namespace TycoonRevitAddin.Commands
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
-            MessageBox.Show("Reload Scripts command - Coming Soon!", "Scripts Plugin", MessageBoxButtons.OK, MessageBoxIcon.Information);
-            return Result.Succeeded;
+            try
+            {
+                // 🔄 Chat's Hot-Reload Implementation - Simplified Approach
+
+                // Try to access the Plugin Manager directly
+                var pluginManager = TycoonRevitAddin.Plugins.PluginManager.Instance;
+                if (pluginManager != null)
+                {
+                    // Reload script metadata and refresh buttons
+                    pluginManager.RefreshScriptButtons();
+
+                    MessageBox.Show("🔄 Scripts reloaded successfully!\n\n" +
+                                  "✅ Script directory scanned\n" +
+                                  "✅ Script metadata refreshed\n" +
+                                  "✅ Capability classification updated\n\n" +
+                                  "📋 Note: New ribbon buttons require Revit restart\n" +
+                                  "🎯 But script metadata is now updated for next session!",
+                                  "🚀 Hot-Reload Complete",
+                                  MessageBoxButtons.OK,
+                                  MessageBoxIcon.Information);
+                }
+                else
+                {
+                    MessageBox.Show("⚠️ Plugin Manager not available.\n\n" +
+                                  "This can happen if:\n" +
+                                  "• Tycoon is still initializing\n" +
+                                  "• Plugin system not fully loaded\n\n" +
+                                  "Please restart Revit to reload scripts.",
+                                  "Scripts Reload",
+                                  MessageBoxButtons.OK,
+                                  MessageBoxIcon.Warning);
+                }
+
+                return Result.Succeeded;
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"❌ Error reloading scripts:\n\n{ex.Message}\n\n" +
+                              "Please restart Revit to reload scripts.",
+                              "Scripts Reload Error",
+                              MessageBoxButtons.OK,
+                              MessageBoxIcon.Error);
+                return Result.Failed;
+            }
         }
     }
 

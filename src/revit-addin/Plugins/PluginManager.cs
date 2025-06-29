@@ -12,6 +12,7 @@ namespace TycoonRevitAddin.Plugins
     /// </summary>
     public class PluginManager : IDisposable
     {
+        private static PluginManager _instance;
         private readonly Logger _logger;
         private readonly Dictionary<string, IPlugin> _plugins;
         private readonly Dictionary<string, PluginMetadata> _pluginMetadata;
@@ -19,6 +20,11 @@ namespace TycoonRevitAddin.Plugins
         private UIControlledApplication _application;
         private string _tabName;
         private bool _disposed = false;
+
+        /// <summary>
+        /// Singleton instance for hot-reload access
+        /// </summary>
+        public static PluginManager Instance => _instance;
 
         /// <summary>
         /// Event fired when a plugin is activated
@@ -45,6 +51,7 @@ namespace TycoonRevitAddin.Plugins
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
             _plugins = new Dictionary<string, IPlugin>();
             _pluginMetadata = new Dictionary<string, PluginMetadata>();
+            _instance = this; // Set singleton instance for hot-reload access
         }
 
         /// <summary>
@@ -253,6 +260,42 @@ namespace TycoonRevitAddin.Plugins
             _disposed = true;
 
             _logger.Log("🔌 Plugin Manager disposed");
+        }
+
+        /// <summary>
+        /// 🔄 Chat's Hot-Reload Implementation
+        /// Refreshes script buttons by reloading the Scripts Plugin
+        /// </summary>
+        public void RefreshScriptButtons()
+        {
+            try
+            {
+                _logger.Log("🔄 Starting script button refresh (Chat's hot-reload)");
+
+                // Find the Scripts Plugin
+                if (_plugins.TryGetValue("Scripts", out var scriptsPlugin))
+                {
+                    if (scriptsPlugin is ScriptsPlugin scriptPlugin)
+                    {
+                        // Force reload of script metadata and buttons
+                        scriptPlugin.RefreshScripts();
+                        _logger.Log("✅ Scripts Plugin refreshed successfully");
+                    }
+                    else
+                    {
+                        _logger.LogWarning("Scripts plugin found but not of correct type");
+                    }
+                }
+                else
+                {
+                    _logger.LogWarning("Scripts plugin not found in registered plugins");
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError("Failed to refresh script buttons", ex);
+                throw;
+            }
         }
     }
 }

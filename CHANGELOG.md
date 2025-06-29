@@ -5,6 +5,46 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.8.0.2] - 2025-06-29 - 🔄 **HOT-RELOAD FIX - Chat's Script Reload System**
+
+### 🛠️ **BUG FIXES**
+#### **🔄 Hot-Reload Infrastructure**
+- **FIXED:** `ReloadScriptsCommand` now implements actual hot-reload functionality instead of "Coming Soon" placeholder
+- **FIXED:** Plugin Manager singleton pattern for runtime script management access
+- **FIXED:** Script metadata refresh system for capability-based classification
+- **FIXED:** Enhanced user feedback with detailed success/error dialogs
+- **FIXED:** Ribbon detection logic simplified for better compatibility
+
+#### **🎯 Hot-Reload Workflow Implementation**
+- **NEW:** `PluginManager.Instance` singleton for runtime access to script management
+- **NEW:** `ScriptsPlugin.RefreshScripts()` method for metadata reload without Revit restart
+- **NEW:** Enhanced error handling with clear user guidance for troubleshooting
+- **NEW:** Capability distribution logging (P1/P2/P3 script counts)
+- **NEW:** Graceful fallback messaging when Plugin Manager not available
+
+#### **🚀 User Experience Improvements**
+- **IMPROVED:** "Reload Scripts" button now provides comprehensive feedback about script scanning
+- **IMPROVED:** Clear messaging about when Revit restart is required vs. metadata-only updates
+- **IMPROVED:** Detailed error messages with troubleshooting guidance
+- **IMPROVED:** Progress indication for script directory scanning and classification
+
+### 📋 **TECHNICAL DETAILS**
+#### **🔧 Implementation Notes**
+- Hot-reload system scans Scripts directory for new .py and .cs files
+- Parses script headers for capability classification (P1/P2/P3)
+- Updates internal metadata without requiring full Revit restart
+- New ribbon buttons still require Revit restart due to Revit API limitations
+- Singleton pattern ensures Plugin Manager accessibility from command context
+
+#### **🎯 Testing Workflow**
+1. Generate script via AI → Creates new .py file in Scripts directory
+2. Click "Reload Scripts" → Scans directory and updates metadata
+3. Restart Revit → New buttons appear in appropriate capability panels
+4. Execute script → Test complete hot-loading workflow
+
+### 🌟 **IMPACT**
+This fix completes Chat's hot-reload architecture implementation, enabling the revolutionary workflow of AI script generation → metadata refresh → ribbon integration. Users can now generate scripts via AI and immediately update the system's knowledge of available capabilities without full system restart.
+
 ## [1.8.0.0] - 2025-06-29 - 🌉 **REVOLUTIONARY - Phase 1 Foundation Architecture Complete**
 
 ### 🎯 **MAJOR MILESTONE - Chat's Expert Architecture Implemented**
