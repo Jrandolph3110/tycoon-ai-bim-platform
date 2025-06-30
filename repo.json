@@ -1,9 +1,14 @@
 ﻿{
     "templates":  {
-                      "default-layout.json":  "b6969ec3"
+                      "default-layout.json":  {
+                                                  "size":  3291,
+                                                  "description":  "Layout template for ribbon organization",
+                                                  "hash":  "b6969ec3",
+                                                  "lastModified":  "2025-06-30T13:00:09Z"
+                                              }
                   },
-    "generated":  "2025-06-30T13:00:19Z",
-    "build":  "2025.06.30-g77a38bd",
+    "generated":  "2025-06-30T15:41:44Z",
+    "build":  "2025.06.30-g5ec95ea",
     "version":  "2025.06.30",
     "scripts":  {
                     "SelectionHelper.py":  {

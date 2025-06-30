@@ -127,8 +127,17 @@ if (Test-Path $templatesPath) {
     $templateFiles = Get-ChildItem -Path $templatesPath -Filter "*.json"
     foreach ($templateFile in $templateFiles) {
         $templateHash = Get-FileHashString -FilePath $templateFile.FullName
-        $manifest.templates[$templateFile.Name] = $templateHash
-        Write-Host "  Template: $($templateFile.Name)" -ForegroundColor Magenta
+
+        # Create TemplateInfo object to match C# model
+        $templateInfo = @{
+            hash = $templateHash
+            description = "Layout template for ribbon organization"
+            lastModified = $templateFile.LastWriteTime.ToString("yyyy-MM-ddTHH:mm:ssZ")
+            size = $templateFile.Length
+        }
+
+        $manifest.templates[$templateFile.Name] = $templateInfo
+        Write-Host "  Template: $($templateFile.Name) (Hash: $templateHash)" -ForegroundColor Magenta
     }
 }
 
