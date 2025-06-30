@@ -1,6 +1,6 @@
 {
   "name": "tycoon-ai-bim-server",
-  "version": "0.10.0.0",
+  "version": "0.10.1.0",
   "description": "Tycoon AI-BIM MCP Server - Revolutionary AI-powered construction automation with live Revit integration",
   "type": "module",
   "main": "dist/index.js",
