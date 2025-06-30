@@ -69,29 +69,51 @@ namespace TycoonRevitAddin.Layout
         {
             try
             {
+                _logger.Log($"🔍 DIAGNOSTIC: Checking layout file path: {_layoutFilePath}");
+
                 if (!File.Exists(_layoutFilePath))
                 {
                     _logger.Log("📂 No user layout found - using auto mode");
                     return null;
                 }
 
+                _logger.Log($"🔍 DIAGNOSTIC: Layout file exists, reading content...");
                 var json = File.ReadAllText(_layoutFilePath);
+                _logger.Log($"🔍 DIAGNOSTIC: User layout bytes: {json.Length}");
+
+                if (string.IsNullOrWhiteSpace(json))
+                {
+                    _logger.LogWarning("🔍 DIAGNOSTIC: Layout file is empty");
+                    return null;
+                }
+
+                _logger.Log($"🔍 DIAGNOSTIC: Deserializing JSON...");
                 var layout = JsonConvert.DeserializeObject<RibbonLayoutSchema>(json);
 
+                if (layout == null)
+                {
+                    _logger.LogWarning("🔍 DIAGNOSTIC: Deserialized layout is null");
+                    return null;
+                }
+
+                _logger.Log($"🔍 DIAGNOSTIC: Layout deserialized, validating...");
                 if (LayoutValidator.IsValidLayout(layout))
                 {
                     _logger.Log($"📂 Loaded user layout: {layout.Panels.Sum(p => p.Stacks.Count)} custom stacks");
+                    _logger.Log($"🔍 DIAGNOSTIC: Layout validation passed - returning layout");
                     return layout;
                 }
                 else
                 {
                     _logger.LogWarning("📂 Invalid user layout - falling back to auto mode");
+                    _logger.LogWarning("🔍 DIAGNOSTIC: Layout validation failed");
                     return null;
                 }
             }
             catch (Exception ex)
             {
                 _logger.LogWarning($"📂 Failed to load user layout: {ex.Message}");
+                _logger.LogWarning($"🔍 DIAGNOSTIC: Exception details: {ex}");
                 return null;
             }
         }

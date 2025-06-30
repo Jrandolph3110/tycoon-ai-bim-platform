@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Net.Http;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Text;
 using Newtonsoft.Json;
@@ -41,6 +42,7 @@ namespace TycoonRevitAddin.Services
         {
             _logger = logger;
             _httpClient = new HttpClient();
+            _httpClient.Timeout = TimeSpan.FromSeconds(30); // 30-second timeout to prevent hanging
             _httpClient.DefaultRequestHeaders.Add("User-Agent", "Tycoon-AI-BIM-Platform/1.0");
 
             // Set up GitHub authentication with readonly token
@@ -121,7 +123,7 @@ namespace TycoonRevitAddin.Services
         /// Download and cache scripts from GitHub repository
         /// Returns true if successful, false if offline mode should be used
         /// </summary>
-        public async Task<bool> RefreshCacheAsync(bool forceRefresh = false, IProgress<string> progress = null)
+        public async Task<bool> RefreshCacheAsync(bool forceRefresh = false, IProgress<string> progress = null, CancellationToken cancellationToken = default)
         {
             try
             {
@@ -137,7 +139,7 @@ namespace TycoonRevitAddin.Services
 
                 // Download manifest from GitHub
                 progress?.Report("📋 Downloading manifest from GitHub...");
-                var manifest = await DownloadManifestAsync();
+                var manifest = await DownloadManifestAsync(cancellationToken);
                 if (manifest == null)
                 {
                     _logger.LogWarning("❌ Failed to download manifest - using offline mode");
@@ -180,14 +182,30 @@ namespace TycoonRevitAddin.Services
         }
 
         /// <summary>
+        /// Remove BOM (Byte Order Mark) from JSON string if present
+        /// </summary>
+        private static string RemoveBOM(string json)
+        {
+            if (string.IsNullOrEmpty(json)) return json;
+
+            // Remove UTF-8 BOM if present - this causes JSON parsing errors
+            if (json.StartsWith("\uFEFF"))
+            {
+                return json.Substring(1);
+            }
+
+            return json;
+        }
+
+        /// <summary>
         /// Download manifest (repo.json) from GitHub
         /// </summary>
-        private async Task<ScriptManifest> DownloadManifestAsync()
+        private async Task<ScriptManifest> DownloadManifestAsync(CancellationToken cancellationToken = default)
         {
             try
             {
                 var url = $"https://api.github.com/repos/{_repositoryOwner}/{_repositoryName}/contents/repo.json?ref={_branch}";
-                var response = await _httpClient.GetAsync(url);
+                var response = await _httpClient.GetAsync(url, cancellationToken);
                 
                 if (!response.IsSuccessStatusCode)
                 {
@@ -206,6 +224,10 @@ namespace TycoonRevitAddin.Services
                 
                 // Decode base64 content
                 var manifestJson = Encoding.UTF8.GetString(Convert.FromBase64String(githubFile.Content.Replace("\n", "")));
+
+                // Remove BOM (Byte Order Mark) if present - this causes JSON parsing errors
+                manifestJson = RemoveBOM(manifestJson);
+
                 var manifest = JsonConvert.DeserializeObject<ScriptManifest>(manifestJson);
                 
                 _logger.Log($"📋 Downloaded manifest: {manifest.Scripts?.Count ?? 0} scripts, version {manifest.Version}");

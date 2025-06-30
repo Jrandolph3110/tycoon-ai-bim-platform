@@ -1,12 +1,17 @@
 @echo off
-REM Tycoon AI-BIM Platform Build Script (Batch Version)
-REM Simple wrapper for the PowerShell build script
+REM Tycoon AI-BIM Platform Build Script (Batch Wrapper)
+REM This is just a wrapper that calls Build.ps1
+REM Build.ps1 is the ONLY supported build method
 
 echo.
 echo ========================================
 echo   TYCOON AI-BIM PLATFORM BUILDER
 echo   F.L. Crane ^& Sons Development Team
+echo   (Wrapper for Build.ps1)
 echo ========================================
+echo.
+echo This batch file just calls Build.ps1
+echo Build.ps1 is the ONLY supported build method
 echo.
 
 REM Check if PowerShell is available

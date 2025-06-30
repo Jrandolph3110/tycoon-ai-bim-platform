@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Threading;
+using System.Threading.Tasks;
 using Autodesk.Revit.UI;
 using TycoonRevitAddin.Utils;
 using TycoonRevitAddin.Layout;
@@ -143,28 +145,36 @@ namespace TycoonRevitAddin.Plugins
         {
             try
             {
+                _logger.Log("🔍 DIAGNOSTIC: Starting LoadScriptMetadata");
+
+                // 1. Load local scripts
                 if (!Directory.Exists(_scriptsPath))
                 {
                     _logger.LogWarning($"Scripts directory not found: {_scriptsPath}");
-                    return;
                 }
-
-                var scriptFiles = Directory.GetFiles(_scriptsPath, "*.py", SearchOption.AllDirectories)
-                    .Concat(Directory.GetFiles(_scriptsPath, "*.cs", SearchOption.AllDirectories))
-                    .ToArray();
-
-                _logger.Log($"🎯 Scanning {scriptFiles.Length} scripts for capability metadata");
-
-                // Parse all script metadata for capability-based segregation
-                foreach (var scriptFile in scriptFiles)
+                else
                 {
-                    // 🎯 Parse script metadata (Chat's capability system)
-                    var metadata = ParseScriptMetadata(scriptFile);
-                    _scriptMetadata[scriptFile] = metadata;
+                    var scriptFiles = Directory.GetFiles(_scriptsPath, "*.py", SearchOption.AllDirectories)
+                        .Concat(Directory.GetFiles(_scriptsPath, "*.cs", SearchOption.AllDirectories))
+                        .ToArray();
 
-                    // Track modification time for hot-reload
-                    _scriptModificationTimes[scriptFile] = File.GetLastWriteTime(scriptFile);
+                    _logger.Log($"🎯 Scanning {scriptFiles.Length} local scripts for capability metadata");
+
+                    // Parse all script metadata for capability-based segregation
+                    foreach (var scriptFile in scriptFiles)
+                    {
+                        // 🎯 Parse script metadata (Chat's capability system)
+                        var metadata = ParseScriptMetadata(scriptFile);
+                        _scriptMetadata[scriptFile] = metadata;
+
+                        // Track modification time for hot-reload
+                        _scriptModificationTimes[scriptFile] = File.GetLastWriteTime(scriptFile);
+                    }
                 }
+
+                // 2. Load GitHub scripts (Chat's cache validation)
+                _logger.Log("🔍 DIAGNOSTIC: Loading GitHub scripts from cache");
+                LoadGitHubScriptsIntoMetadata();
 
                 // 📊 Log capability distribution
                 var p1Count = _scriptMetadata.Count(kvp => kvp.Value.CapabilityLevel == ScriptCapabilityLevel.P1_Deterministic);
@@ -172,6 +182,10 @@ namespace TycoonRevitAddin.Plugins
                 var p3Count = _scriptMetadata.Count(kvp => kvp.Value.CapabilityLevel == ScriptCapabilityLevel.P3_Adaptive);
 
                 _logger.Log($"🎯 Script Capability Distribution: P1={p1Count}, P2={p2Count}, P3={p3Count}");
+
+                // Chat's diagnostic: Log all script names for debugging
+                var allScriptNames = _scriptMetadata.Values.Select(s => s.Name).OrderBy(n => n);
+                _logger.Log($"🔍 DIAGNOSTIC: All loaded script names: {string.Join(", ", allScriptNames)}");
             }
             catch (Exception ex)
             {
@@ -753,7 +767,7 @@ public class WallAnalyzer
                     capabilityList.Clear();
                 }
 
-                // 3. Reload script metadata
+                // 3. Reload script metadata (includes GitHub scripts)
                 LoadScriptMetadata();
 
                 // 4. 🔥 CREATE NEW BUTTONS INSTANTLY (PyRevit-style)
@@ -891,6 +905,7 @@ public class WallAnalyzer
         {
             try
             {
+                _logger.Log($"🔍 CreateStackFromLayout called for stack '{stackLayout.Name}' with {stackLayout.Items.Count} items");
                 var scripts = new List<ScriptMetadata>();
 
                 // Find script metadata for items in this stack
@@ -900,6 +915,17 @@ public class WallAnalyzer
                     if (script != null)
                     {
                         scripts.Add(script);
+                        _logger.Log($"✅ Found script '{itemName}' for stack '{stackLayout.Name}'");
+                    }
+                    else
+                    {
+                        _logger.LogWarning($"❌ Script '{itemName}' not found in metadata for stack '{stackLayout.Name}'");
+                        // Chat's recommendation: Log available script names for debugging
+                        var availableNames = string.Join(", ", _scriptMetadata.Values.Select(s => s.Name).Take(10));
+                        _logger.Log($"📋 Available script names ({_scriptMetadata.Count} total): {availableNames}");
+
+                        // Chat's guard: Still add placeholder to keep stack position stable
+                        _logger.Log($"🔧 Adding placeholder for missing script '{itemName}' to maintain stack structure");
                     }
                 }
 
@@ -1297,33 +1323,56 @@ public class WallAnalyzer
             {
                 _logger.Log("📥 Attempting background script download...");
 
-                // Try to refresh cache in background
-                var success = await _gitCacheManager.RefreshCacheAsync(forceRefresh: false);
-
-                if (success)
+                // Start background download without blocking UI
+                _ = Task.Run(async () =>
                 {
-                    _logger.Log("✅ Background script download completed successfully");
+                    try
+                    {
+                        // Create cancellation token with 60-second timeout for background downloads
+                        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(60));
 
-                    // Refresh the ribbon to show downloaded scripts
-                    RefreshRibbonWithGitHubScripts();
+                        // Try to refresh cache in background
+                        var success = await _gitCacheManager.RefreshCacheAsync(forceRefresh: false, cancellationToken: cts.Token);
 
-                    // Show subtle notification to user
-                    System.Windows.MessageBox.Show(
-                        "✅ GitHub Scripts Downloaded!\n\n" +
-                        "Scripts have been downloaded from your configured repository.\n" +
-                        "The latest scripts are now available in the ribbon.",
-                        "🚀 Tycoon AI-BIM Platform",
-                        System.Windows.MessageBoxButton.OK,
-                        System.Windows.MessageBoxImage.Information);
-                }
-                else
-                {
-                    _logger.LogWarning("⚠️ Background script download failed - will use offline mode");
-                }
+                        if (success)
+                        {
+                            _logger.Log("✅ Background script download completed successfully");
+
+                            // Refresh the ribbon to show downloaded scripts (on UI thread)
+                            System.Windows.Threading.Dispatcher.CurrentDispatcher.BeginInvoke(
+                                System.Windows.Threading.DispatcherPriority.Background,
+                                new Action(() => RefreshRibbonWithGitHubScripts()));
+
+                            // Show subtle notification to user (on UI thread)
+                            System.Windows.Threading.Dispatcher.CurrentDispatcher.BeginInvoke(
+                                System.Windows.Threading.DispatcherPriority.Background,
+                                new Action(() =>
+                                {
+                                    System.Windows.MessageBox.Show(
+                                        "✅ GitHub Scripts Downloaded!\n\n" +
+                                        "Scripts have been downloaded from your configured repository.\n" +
+                                        "The latest scripts are now available in the ribbon.",
+                                        "🚀 Tycoon AI-BIM Platform",
+                                        System.Windows.MessageBoxButton.OK,
+                                        System.Windows.MessageBoxImage.Information);
+                                }));
+                        }
+                        else
+                        {
+                            _logger.LogWarning("⚠️ Background script download failed - will use offline mode");
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError($"Error during background download task: {ex.Message}");
+                    }
+                });
+
+                _logger.Log("📥 Background download task started - UI will remain responsive");
             }
             catch (Exception ex)
             {
-                _logger.LogError($"Error during background download: {ex.Message}");
+                _logger.LogError($"Error starting background download: {ex.Message}");
             }
         }
 
@@ -1365,7 +1414,60 @@ public class WallAnalyzer
         }
 
         /// <summary>
-        /// 📋 Load metadata for GitHub scripts
+        /// 🔍 Load GitHub scripts into metadata (Chat's cache validation)
+        /// </summary>
+        private void LoadGitHubScriptsIntoMetadata()
+        {
+            try
+            {
+                var cachedScriptsPath = _gitCacheManager?.GetCachedScriptsPath();
+                if (string.IsNullOrEmpty(cachedScriptsPath) || !Directory.Exists(cachedScriptsPath))
+                {
+                    _logger.Log("🔍 DIAGNOSTIC: No GitHub cache found or cache directory doesn't exist");
+                    return;
+                }
+
+                _logger.Log($"🔍 DIAGNOSTIC: GitHub cache path: {cachedScriptsPath}");
+
+                var scriptFiles = Directory.GetFiles(cachedScriptsPath, "*.py", SearchOption.AllDirectories)
+                    .Concat(Directory.GetFiles(cachedScriptsPath, "*.cs", SearchOption.AllDirectories))
+                    .ToArray();
+
+                _logger.Log($"🔍 DIAGNOSTIC: Found {scriptFiles.Length} GitHub script files");
+
+                foreach (var scriptFile in scriptFiles)
+                {
+                    var fileName = Path.GetFileNameWithoutExtension(scriptFile);
+                    var relativePath = scriptFile.Substring(cachedScriptsPath.Length).TrimStart('\\', '/');
+
+                    // Create metadata for GitHub script
+                    var metadata = new ScriptMetadata
+                    {
+                        Name = fileName, // CRITICAL: Use clean name without prefix
+                        Description = $"GitHub script: {relativePath}",
+                        Author = "GitHub Repository",
+                        Version = "Latest",
+                        CapabilityLevel = ScriptCapabilityLevel.P2_Analytic,
+                        FilePath = scriptFile,
+                        IsGitHubScript = true
+                    };
+
+                    // CRITICAL FIX: Use clean filename as key, not github_ prefix
+                    // This matches what the layout expects
+                    _scriptMetadata[fileName] = metadata;
+                    _logger.Log($"🔍 DIAGNOSTIC: Added GitHub script '{fileName}' to metadata");
+                }
+
+                _logger.Log($"📋 Loaded metadata for {scriptFiles.Length} GitHub scripts");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Error loading GitHub script metadata: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// 📋 Load metadata for GitHub scripts (LEGACY - kept for compatibility)
         /// </summary>
         private void LoadGitHubScriptMetadata(string scriptsPath)
         {
@@ -1399,6 +1501,13 @@ public class WallAnalyzer
                 }
 
                 _logger.Log($"📋 Loaded metadata for {scriptFiles.Length} GitHub scripts");
+
+                // Debug: Log the first few script names for troubleshooting
+                if (scriptFiles.Length > 0)
+                {
+                    var sampleNames = scriptFiles.Take(5).Select(f => Path.GetFileNameWithoutExtension(f));
+                    _logger.LogDebug($"Sample GitHub script names: {string.Join(", ", sampleNames)}");
+                }
             }
             catch (Exception ex)
             {

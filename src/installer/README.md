@@ -2,6 +2,19 @@
 
 Professional WiX MSI installer for the revolutionary AI-powered construction automation platform.
 
+## ⚠️ **CRITICAL BUILD INSTRUCTIONS**
+
+**ONLY USE Build.ps1 FOR ALL BUILDS**
+- ✅ **Correct**: `.\Build.ps1` (in src/installer directory)
+- ❌ **Wrong**: `dotnet build`, `msbuild`, `nuget restore`, or any manual commands
+- ❌ **Wrong**: Building individual projects separately
+
+**Why Build.ps1 is required:**
+- Handles NuGet package restoration for old-style .csproj files
+- Builds components in correct dependency order
+- Manages MSBuild vs dotnet CLI compatibility issues
+- Produces final MSI installer correctly
+
 ## 🏗️ **What This Installer Provides**
 
 ### **Complete Professional Installation**
@@ -28,7 +41,7 @@ Professional WiX MSI installer for the revolutionary AI-powered construction aut
 4. **Launch Revit** - Look for "Tycoon AI-BIM" tab in ribbon
 
 ### **For Developers**
-1. **Build the installer**: Run `Build.bat` or `Build.ps1`
+1. **Build the installer**: Run `Build.ps1` (ONLY method supported)
 2. **Test installation**: Install on clean test machine
 3. **Verify functionality**: Test Revit integration
 4. **Deploy**: Distribute the setup executable
@@ -43,37 +56,22 @@ Professional WiX MSI installer for the revolutionary AI-powered construction aut
 
 ### **Build Commands**
 
-#### **Simple Build (Recommended)**
-```batch
-Build.bat
-```
-
-#### **Advanced Build (PowerShell)**
+#### **ONLY Build Method - Use Build.ps1**
 ```powershell
-# Release build
-.\Build.ps1 -Configuration Release
-
-# Debug build with clean
-.\Build.ps1 -Configuration Debug -Clean
-
-# Specific platform
-.\Build.ps1 -Platform x64
+# Standard release build (RECOMMENDED)
+.\Build.ps1
 ```
 
-#### **Manual Build (MSBuild)**
-```batch
-# Build Revit Add-in
-msbuild ..\revit-addin\TycoonRevitAddin.csproj /p:Configuration=Release
+**⚠️ IMPORTANT: Build.ps1 is the ONLY supported build method.**
+- ✅ **Use Build.ps1** - Handles all dependencies, NuGet packages, and build order correctly
+- ❌ **Do NOT use** `dotnet build`, `msbuild`, or `nuget restore` directly
+- ❌ **Do NOT use** manual build commands - they will fail with package dependency issues
 
-# Build MCP Server
-cd ..\mcp-server
-npm install
-npm run build
-cd ..\installer
-
-# Build Installer
-msbuild TycoonInstaller.sln /p:Configuration=Release
-```
+The Build.ps1 script:
+- Automatically restores NuGet packages using MSBuild restore
+- Builds all components in the correct order
+- Handles old-style .csproj dependencies properly
+- Produces the final MSI installer ready for deployment
 
 ## 📦 **Output Files**
 
