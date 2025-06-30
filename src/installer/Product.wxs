@@ -6,7 +6,7 @@
   <Product Id="*"
            Name="Tycoon AI-BIM Platform"
            Language="1033"
-           Version="1.8.0.2"
+           Version="0.10.0.0"
            Manufacturer="Joseph Randolph - F.L. Crane &amp; Sons"
            UpgradeCode="12345678-1234-1234-1234-123456789012">
     
@@ -41,89 +41,105 @@
             <Directory Id="AddinsFolder" Name="Addins">
               <!-- Revit 2022 -->
               <Directory Id="Revit2022Folder" Name="2022">
-                <Component Id="Revit2022Addin" Guid="33333333-3333-3333-3333-333333333333">
-                  <File Id="TycoonRevitAddin2022.addin" 
-                        Source="..\revit-addin\TycoonRevitAddin.addin" 
+                <Component Id="Revit2022AddinFile" Guid="33333333-3333-3333-3333-333333333334">
+                  <File Id="TycoonRevitAddin2022.addin"
+                        Source="..\revit-addin\TycoonRevitAddin.addin"
                         Name="TycoonRevitAddin.addin" />
-                  <File Id="TycoonRevitAddin2022.dll"
-                        Source="..\revit-addin\bin\Release\TycoonRevitAddin.dll"
-                        Name="TycoonRevitAddin.dll" />
-                  <File Id="Newtonsoft2022.Json.dll"
-                        Source="..\revit-addin\bin\Release\Newtonsoft.Json.dll"
-                        Name="Newtonsoft.Json.dll" />
-                  <File Id="WebSocketSharp2022.dll"
-                        Source="..\revit-addin\bin\Release\websocket-sharp.dll"
-                        Name="websocket-sharp.dll" />
                 </Component>
+                <Directory Id="TycoonAI2022Folder" Name="TycoonAI">
+                  <Component Id="Revit2022Dlls" Guid="33333333-3333-3333-3333-333333333335">
+                    <File Id="TycoonRevitAddin2022.dll"
+                          Source="..\revit-addin\bin\Release\TycoonRevitAddin.dll"
+                          Name="TycoonRevitAddin.dll" />
+                    <File Id="Newtonsoft2022.Json.dll"
+                          Source="..\revit-addin\bin\Release\Newtonsoft.Json.dll"
+                          Name="Newtonsoft.Json.dll" />
+                    <File Id="WebSocketSharp2022.dll"
+                          Source="..\revit-addin\bin\Release\websocket-sharp.dll"
+                          Name="websocket-sharp.dll" />
+                  </Component>
+                </Directory>
               </Directory>
               
               <!-- Revit 2023 -->
               <Directory Id="Revit2023Folder" Name="2023">
-                <Component Id="Revit2023Addin" Guid="44444444-4444-4444-4444-444444444444">
-                  <File Id="TycoonRevitAddin2023.addin" 
-                        Source="..\revit-addin\TycoonRevitAddin.addin" 
+                <Component Id="Revit2023AddinFile" Guid="44444444-4444-4444-4444-444444444445">
+                  <File Id="TycoonRevitAddin2023.addin"
+                        Source="..\revit-addin\TycoonRevitAddin.addin"
                         Name="TycoonRevitAddin.addin" />
-                  <File Id="TycoonRevitAddin2023.dll"
-                        Source="..\revit-addin\bin\Release\TycoonRevitAddin.dll"
-                        Name="TycoonRevitAddin.dll" />
-                  <File Id="Newtonsoft2023.Json.dll"
-                        Source="..\revit-addin\bin\Release\Newtonsoft.Json.dll"
-                        Name="Newtonsoft.Json.dll" />
-                  <File Id="WebSocketSharp2023.dll"
-                        Source="..\revit-addin\bin\Release\websocket-sharp.dll"
-                        Name="websocket-sharp.dll" />
                 </Component>
+                <Directory Id="TycoonAI2023Folder" Name="TycoonAI">
+                  <Component Id="Revit2023Dlls" Guid="44444444-4444-4444-4444-444444444446">
+                    <File Id="TycoonRevitAddin2023.dll"
+                          Source="..\revit-addin\bin\Release\TycoonRevitAddin.dll"
+                          Name="TycoonRevitAddin.dll" />
+                    <File Id="Newtonsoft2023.Json.dll"
+                          Source="..\revit-addin\bin\Release\Newtonsoft.Json.dll"
+                          Name="Newtonsoft.Json.dll" />
+                    <File Id="WebSocketSharp2023.dll"
+                          Source="..\revit-addin\bin\Release\websocket-sharp.dll"
+                          Name="websocket-sharp.dll" />
+                  </Component>
+                </Directory>
               </Directory>
               
               <!-- Revit 2024 -->
               <Directory Id="Revit2024Folder" Name="2024">
-                <Component Id="Revit2024Addin" Guid="55555555-5555-5555-5555-555555555555">
-                  <File Id="TycoonRevitAddin2024.addin" 
-                        Source="..\revit-addin\TycoonRevitAddin.addin" 
+                <Component Id="Revit2024AddinFile" Guid="55555555-5555-5555-5555-555555555556">
+                  <File Id="TycoonRevitAddin2024.addin"
+                        Source="..\revit-addin\TycoonRevitAddin.addin"
                         Name="TycoonRevitAddin.addin" />
-                  <File Id="TycoonRevitAddin2024.dll"
-                        Source="..\revit-addin\bin\Release\TycoonRevitAddin.dll"
-                        Name="TycoonRevitAddin.dll" />
-                  <File Id="Newtonsoft2024.Json.dll"
-                        Source="..\revit-addin\bin\Release\Newtonsoft.Json.dll"
-                        Name="Newtonsoft.Json.dll" />
-                  <File Id="WebSocketSharp2024.dll"
-                        Source="..\revit-addin\bin\Release\websocket-sharp.dll"
-                        Name="websocket-sharp.dll" />
-                  <File Id="MessagePack2024.dll"
-                        Source="..\revit-addin\bin\Release\MessagePack.dll"
-                        Name="MessagePack.dll" />
-                  <File Id="MessagePackAnnotations2024.dll"
-                        Source="..\revit-addin\bin\Release\MessagePack.Annotations.dll"
-                        Name="MessagePack.Annotations.dll" />
-                  <File Id="SystemMemory2024.dll"
-                        Source="..\revit-addin\bin\Release\System.Memory.dll"
-                        Name="System.Memory.dll" />
-                  <File Id="SystemBuffers2024.dll"
-                        Source="..\revit-addin\bin\Release\System.Buffers.dll"
-                        Name="System.Buffers.dll" />
-                  <File Id="SystemThreadingTasksDataflow2024.dll"
-                        Source="..\revit-addin\bin\Release\System.Threading.Tasks.Dataflow.dll"
-                        Name="System.Threading.Tasks.Dataflow.dll" />
                 </Component>
+                <Directory Id="TycoonAI2024Folder" Name="TycoonAI">
+                  <Component Id="Revit2024Dlls" Guid="55555555-5555-5555-5555-555555555557">
+                    <File Id="TycoonRevitAddin2024.dll"
+                          Source="..\revit-addin\bin\Release\TycoonRevitAddin.dll"
+                          Name="TycoonRevitAddin.dll" />
+                    <File Id="Newtonsoft2024.Json.dll"
+                          Source="..\revit-addin\bin\Release\Newtonsoft.Json.dll"
+                          Name="Newtonsoft.Json.dll" />
+                    <File Id="WebSocketSharp2024.dll"
+                          Source="..\revit-addin\bin\Release\websocket-sharp.dll"
+                          Name="websocket-sharp.dll" />
+                    <File Id="MessagePack2024.dll"
+                          Source="..\revit-addin\bin\Release\MessagePack.dll"
+                          Name="MessagePack.dll" />
+                    <File Id="MessagePackAnnotations2024.dll"
+                          Source="..\revit-addin\bin\Release\MessagePack.Annotations.dll"
+                          Name="MessagePack.Annotations.dll" />
+                    <File Id="SystemMemory2024.dll"
+                          Source="..\revit-addin\bin\Release\System.Memory.dll"
+                          Name="System.Memory.dll" />
+                    <File Id="SystemBuffers2024.dll"
+                          Source="..\revit-addin\bin\Release\System.Buffers.dll"
+                          Name="System.Buffers.dll" />
+                    <File Id="SystemThreadingTasksDataflow2024.dll"
+                          Source="..\revit-addin\bin\Release\System.Threading.Tasks.Dataflow.dll"
+                          Name="System.Threading.Tasks.Dataflow.dll" />
+                  </Component>
+                </Directory>
               </Directory>
               
               <!-- Revit 2025 -->
               <Directory Id="Revit2025Folder" Name="2025">
-                <Component Id="Revit2025Addin" Guid="66666666-6666-6666-6666-666666666666">
-                  <File Id="TycoonRevitAddin2025.addin" 
-                        Source="..\revit-addin\TycoonRevitAddin.addin" 
+                <Component Id="Revit2025AddinFile" Guid="66666666-6666-6666-6666-666666666667">
+                  <File Id="TycoonRevitAddin2025.addin"
+                        Source="..\revit-addin\TycoonRevitAddin.addin"
                         Name="TycoonRevitAddin.addin" />
-                  <File Id="TycoonRevitAddin2025.dll"
-                        Source="..\revit-addin\bin\Release\TycoonRevitAddin.dll"
-                        Name="TycoonRevitAddin.dll" />
-                  <File Id="Newtonsoft2025.Json.dll"
-                        Source="..\revit-addin\bin\Release\Newtonsoft.Json.dll"
-                        Name="Newtonsoft.Json.dll" />
-                  <File Id="WebSocketSharp2025.dll"
-                        Source="..\revit-addin\bin\Release\websocket-sharp.dll"
-                        Name="websocket-sharp.dll" />
                 </Component>
+                <Directory Id="TycoonAI2025Folder" Name="TycoonAI">
+                  <Component Id="Revit2025Dlls" Guid="66666666-6666-6666-6666-666666666668">
+                    <File Id="TycoonRevitAddin2025.dll"
+                          Source="..\revit-addin\bin\Release\TycoonRevitAddin.dll"
+                          Name="TycoonRevitAddin.dll" />
+                    <File Id="Newtonsoft2025.Json.dll"
+                          Source="..\revit-addin\bin\Release\Newtonsoft.Json.dll"
+                          Name="Newtonsoft.Json.dll" />
+                    <File Id="WebSocketSharp2025.dll"
+                          Source="..\revit-addin\bin\Release\websocket-sharp.dll"
+                          Name="websocket-sharp.dll" />
+                  </Component>
+                </Directory>
               </Directory>
             </Directory>
           </Directory>
@@ -196,10 +212,14 @@
     <!-- Features -->
     <Feature Id="RevitIntegration" Title="Tycoon AI-BIM Platform" Level="1"
              Description="Tycoon AI-BIM Platform Revit add-in">
-      <ComponentRef Id="Revit2022Addin" />
-      <ComponentRef Id="Revit2023Addin" />
-      <ComponentRef Id="Revit2024Addin" />
-      <ComponentRef Id="Revit2025Addin" />
+      <ComponentRef Id="Revit2022AddinFile" />
+      <ComponentRef Id="Revit2022Dlls" />
+      <ComponentRef Id="Revit2023AddinFile" />
+      <ComponentRef Id="Revit2023Dlls" />
+      <ComponentRef Id="Revit2024AddinFile" />
+      <ComponentRef Id="Revit2024Dlls" />
+      <ComponentRef Id="Revit2025AddinFile" />
+      <ComponentRef Id="Revit2025Dlls" />
       <ComponentRef Id="TycoonMcpServer" />
       <ComponentRef Id="TycoonMcpServerDist" />
       <ComponentRef Id="TycoonMcpServerRevit" />

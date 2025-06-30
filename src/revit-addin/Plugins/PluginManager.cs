@@ -273,7 +273,7 @@ namespace TycoonRevitAddin.Plugins
                 _logger.Log("🔄 Starting script button refresh (Chat's hot-reload)");
 
                 // Find the Scripts Plugin
-                if (_plugins.TryGetValue("Scripts", out var scriptsPlugin))
+                if (_plugins.TryGetValue("scripts", out var scriptsPlugin))
                 {
                     if (scriptsPlugin is ScriptsPlugin scriptPlugin)
                     {

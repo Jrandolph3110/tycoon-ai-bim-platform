@@ -98,8 +98,21 @@
     <Compile Include="UI\ConnectionProgressDialog.xaml.cs">
       <DependentUpon>ConnectionProgressDialog.xaml</DependentUpon>
     </Compile>
+    <Compile Include="UI\StackManagerDialog.xaml.cs">
+      <DependentUpon>StackManagerDialog.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="UI\FirstRunWizard.xaml.cs">
+      <DependentUpon>FirstRunWizard.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="UI\GitHubSettingsDialog.xaml.cs">
+      <DependentUpon>GitHubSettingsDialog.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="UI\TestLayoutDialog.xaml.cs">
+      <DependentUpon>TestLayoutDialog.xaml</DependentUpon>
+    </Compile>
     <Compile Include="UI\DynamicRibbonManager.cs" />
     <Compile Include="UI\PluginSelectorControl.cs" />
+    <Compile Include="Converters\LayoutConverters.cs" />
     <Compile Include="Utils\Logger.cs" />
     <Compile Include="Storage\StreamingDataVault.cs" />
     <Compile Include="Utils\SelectionManager.cs" />
@@ -109,6 +122,11 @@
     <Compile Include="Utils\ILogger.cs" />
     <Compile Include="Utils\IntelligentCache.cs" />
     <Compile Include="Utils\StreamingCompressor.cs" />
+    <Compile Include="Layout\RibbonLayoutSchema.cs" />
+    <Compile Include="Layout\RibbonLayoutManager.cs" />
+    <Compile Include="Models\LayoutModels.cs" />
+    <Compile Include="Services\GitCacheManager.cs" />
+    <Compile Include="Services\VersionTracker.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   
@@ -123,6 +141,22 @@
 
   <ItemGroup>
     <Page Include="UI\ConnectionProgressDialog.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="UI\StackManagerDialog.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="UI\FirstRunWizard.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="UI\GitHubSettingsDialog.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="UI\TestLayoutDialog.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>

@@ -5,6 +5,76 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.10.0.0] - 2025-06-30 - 🚀 **GITHUB-DRIVEN SCRIPT SYSTEM - Complete Implementation**
+
+### 🎯 **MAJOR FEATURES**
+#### **🚀 GitHub-Driven Script Architecture**
+- **NEW:** Complete transformation from bundled scripts to GitHub-driven system
+- **NEW:** Manifest-based selective updates with SHA256 hash tracking (8-char truncated)
+- **NEW:** GitCacheManager with GitHub REST API integration and local caching
+- **NEW:** Automatic script downloads with progress reporting and error handling
+- **NEW:** Offline mode support with cached script fallback capability
+
+#### **⚙️ Enhanced Layout Manager (4-Panel System)**
+- **NEW:** GitHub Scripts panel for managing repository-sourced scripts
+- **NEW:** Conflict resolution UI for script renames, moves, and removals
+- **NEW:** Refresh functionality to sync with GitHub repository updates
+- **NEW:** Gray-out strategy for removed scripts with user-friendly notifications
+- **NEW:** Separation between GitHub defaults and user customizations
+
+#### **🔧 Settings & Configuration Management**
+- **NEW:** GitHub Settings Dialog for repository configuration
+- **NEW:** Connection testing and validation before script downloads
+- **NEW:** Cache management with clear and refresh operations
+- **NEW:** Update frequency configuration and last updated tracking
+- **NEW:** Persistent settings storage in %APPDATA%\Tycoon\github-settings.json
+
+#### **🚀 First-Run Experience**
+- **NEW:** First-Run Wizard for initial GitHub repository setup
+- **NEW:** Automatic detection of first-run vs. existing installations
+- **NEW:** Background script download when settings exist but no cache
+- **NEW:** Progress reporting during initial script synchronization
+- **NEW:** User notifications for successful script downloads
+
+### 🛠️ **TECHNICAL IMPROVEMENTS**
+#### **📦 Repository Structure**
+- **NEW:** /scripts/ folder organization by functionality (Analysis, Management, Utilities)
+- **NEW:** repo.json manifest system with script metadata and version tracking
+- **NEW:** /templates/default-layout.json for 4-panel ribbon structure
+- **NEW:** PowerShell automation for hash generation and manifest creation
+
+#### **💾 Caching & Version Control**
+- **NEW:** %APPDATA%\Tycoon\GitCache\ structure with rollback capability
+- **NEW:** .meta files with commit SHA, timestamps, and troubleshooting metadata
+- **NEW:** Selective update system - only download changed files
+- **NEW:** Version tracking with commit SHA and build timestamps
+
+#### **🔌 Integration & API**
+- **NEW:** GitHub REST API integration with authentication headers
+- **NEW:** Rate limiting and retry logic for robust downloads
+- **NEW:** ScriptMetadata.IsGitHubScript property for script source identification
+- **NEW:** Enhanced ribbon button integration for GitHub Settings command
+
+### 🚀 **USER EXPERIENCE**
+#### **⚡ Performance & Reliability**
+- **IMPROVED:** Non-blocking GitHub operations with async/await patterns
+- **IMPROVED:** Proper WPF threading with Dispatcher.BeginInvoke for UI updates
+- **IMPROVED:** Comprehensive error handling with user-friendly messages
+- **IMPROVED:** Graceful fallback to offline mode when GitHub unavailable
+
+#### **🎯 Workflow Integration**
+- **NEW:** Automatic script metadata loading for GitHub-sourced scripts
+- **NEW:** Integration with existing capability-based classification (P1/P2/P3)
+- **NEW:** Seamless ribbon refresh after script downloads
+- **NEW:** Management panel integration with GitHub Settings button
+
+### 📋 **ARCHITECTURE NOTES**
+- **BREAKING:** Installer no longer bundles scripts - GitHub-first approach
+- **BREAKING:** Scripts now sourced from repository instead of local installation
+- **ENHANCED:** 4-phase implementation completed: Repository → GitCache → Layout Manager → Installer
+- **ENHANCED:** Clean separation between auto-updates and user customizations
+- **ENHANCED:** Distributed MCP memory architecture for knowledge sharing
+
 ## [1.8.0.2] - 2025-06-29 - 🔄 **HOT-RELOAD FIX - Chat's Script Reload System**
 
 ### 🛠️ **BUG FIXES**

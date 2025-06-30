@@ -2,7 +2,7 @@
 <RevitAddIns>
   <AddIn Type="Application">
     <Name>Tycoon AI-BIM Platform</Name>
-    <Assembly>TycoonRevitAddin.dll</Assembly>
+    <Assembly>TycoonAI\TycoonRevitAddin.dll</Assembly>
     <AddInId>A1B2C3D4-E5F6-4890-ABCD-EF1234567890</AddInId>
     <FullClassName>TycoonRevitAddin.Application</FullClassName>
     <ClientId>A1B2C3D4-E5F6-4890-ABCD-EF1234567890</ClientId>
@@ -14,7 +14,7 @@
   <AddIn Type="Command">
     <Text>Tycoon Connect</Text>
     <Description>Connect to Tycoon AI-BIM Server</Description>
-    <Assembly>TycoonRevitAddin.dll</Assembly>
+    <Assembly>TycoonAI\TycoonRevitAddin.dll</Assembly>
     <AddInId>B2C3D4E5-A6B7-4901-BCDE-F12345678901</AddInId>
     <FullClassName>TycoonRevitAddin.Commands.TycoonCommand</FullClassName>
     <CommandId>TycoonConnect</CommandId>

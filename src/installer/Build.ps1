@@ -265,7 +265,13 @@ foreach ($obj in $WixObjects) {
 }
 $LightArgs += @("-ext", "WixUIExtension", "-ext", "WixUtilExtension", "-ext", "WixNetFxExtension", "-sval")
 
-& "$LightPath" $LightArgs
+# Change to installer directory for linking to resolve relative paths correctly
+Push-Location $ScriptDir
+try {
+    & "$LightPath" $LightArgs
+} finally {
+    Pop-Location
+}
 
 if ($LASTEXITCODE -ne 0) {
     Write-Error "Failed to build WiX Installer"

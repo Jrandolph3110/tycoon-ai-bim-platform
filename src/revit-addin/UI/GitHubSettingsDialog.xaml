@@ -1,0 +1,237 @@
+<Window x:Class="TycoonRevitAddin.UI.GitHubSettingsDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="⚙️ GitHub Repository Settings"
+        Width="550" Height="450"
+        WindowStartupLocation="CenterScreen"
+        ResizeMode="NoResize"
+        Background="#F8F9FA">
+
+    <Window.Resources>
+        <!-- Modern Button Style -->
+        <Style x:Key="ModernButton" TargetType="Button">
+            <Setter Property="Background" Value="#007ACC"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="12,6"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" 
+                                CornerRadius="3"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" 
+                                            VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="#005A9E"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter Property="Background" Value="#004578"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Secondary Button Style -->
+        <Style x:Key="SecondaryButton" TargetType="Button" BasedOn="{StaticResource ModernButton}">
+            <Setter Property="Background" Value="#6C757D"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#5A6268"/>
+                </Trigger>
+                <Trigger Property="IsPressed" Value="True">
+                    <Setter Property="Background" Value="#495057"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- Danger Button Style -->
+        <Style x:Key="DangerButton" TargetType="Button" BasedOn="{StaticResource ModernButton}">
+            <Setter Property="Background" Value="#DC3545"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#C82333"/>
+                </Trigger>
+                <Trigger Property="IsPressed" Value="True">
+                    <Setter Property="Background" Value="#BD2130"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- Modern TextBox Style -->
+        <Style x:Key="ModernTextBox" TargetType="TextBox">
+            <Setter Property="Padding" Value="8,6"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="BorderBrush" Value="#CED4DA"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TextBox">
+                        <Border Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="3">
+                            <ScrollViewer x:Name="PART_ContentHost" 
+                                        Margin="{TemplateBinding Padding}"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsFocused" Value="True">
+                                <Setter Property="BorderBrush" Value="#007ACC"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+
+    <Grid Margin="25">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Header -->
+        <StackPanel Grid.Row="0" Margin="0,0,0,20">
+            <TextBlock Text="⚙️ GitHub Repository Settings" 
+                       FontSize="20" FontWeight="Bold" 
+                       Foreground="#2C3E50"/>
+            <TextBlock Text="Configure your GitHub repository for script updates" 
+                       FontSize="14" 
+                       Foreground="#6C757D" 
+                       Margin="0,5,0,0"/>
+        </StackPanel>
+
+        <!-- Settings Form -->
+        <Border Grid.Row="1" Background="White" 
+                BorderBrush="#DEE2E6" BorderThickness="1" 
+                CornerRadius="6" Padding="20">
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <StackPanel>
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="140"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+
+                        <!-- Repository URL -->
+                        <TextBlock Grid.Row="0" Grid.Column="0" Text="Repository URL:" 
+                                   VerticalAlignment="Center" FontWeight="SemiBold" Margin="0,0,0,12"/>
+                        <TextBox Grid.Row="0" Grid.Column="1" x:Name="RepositoryUrlTextBox"
+                                 Style="{StaticResource ModernTextBox}"
+                                 Margin="10,0,0,12"/>
+
+                        <!-- Branch -->
+                        <TextBlock Grid.Row="1" Grid.Column="0" Text="Branch:" 
+                                   VerticalAlignment="Center" FontWeight="SemiBold" Margin="0,0,0,12"/>
+                        <TextBox Grid.Row="1" Grid.Column="1" x:Name="BranchTextBox"
+                                 Style="{StaticResource ModernTextBox}"
+                                 Text="main"
+                                 Margin="10,0,0,12"/>
+
+                        <!-- Access Token -->
+                        <TextBlock Grid.Row="2" Grid.Column="0" Text="Access Token:" 
+                                   VerticalAlignment="Center" FontWeight="SemiBold" Margin="0,0,0,12"/>
+                        <StackPanel Grid.Row="2" Grid.Column="1" Margin="10,0,0,12">
+                            <PasswordBox x:Name="AccessTokenPasswordBox"
+                                         Padding="8,6" FontSize="13"
+                                         BorderBrush="#CED4DA" BorderThickness="1"/>
+                            <TextBlock Text="(Optional - for private repositories)" 
+                                       FontSize="11" Foreground="#6C757D" Margin="0,2,0,0"/>
+                        </StackPanel>
+
+                        <!-- Update Frequency -->
+                        <TextBlock Grid.Row="3" Grid.Column="0" Text="Update Check:" 
+                                   VerticalAlignment="Center" FontWeight="SemiBold" Margin="0,0,0,12"/>
+                        <ComboBox Grid.Row="3" Grid.Column="1" x:Name="UpdateFrequencyComboBox"
+                                  Margin="10,0,0,12" Padding="8,6" FontSize="13"
+                                  SelectedIndex="1">
+                            <ComboBoxItem Content="Never (Manual only)"/>
+                            <ComboBoxItem Content="Daily"/>
+                            <ComboBoxItem Content="Weekly"/>
+                            <ComboBoxItem Content="Monthly"/>
+                        </ComboBox>
+
+                        <!-- Test Connection -->
+                        <TextBlock Grid.Row="4" Grid.Column="0" Text="Connection:" 
+                                   VerticalAlignment="Center" FontWeight="SemiBold" Margin="0,0,0,12"/>
+                        <StackPanel Grid.Row="4" Grid.Column="1" Margin="10,0,0,12">
+                            <Button x:Name="TestConnectionButton"
+                                    Content="🔗 Test Connection"
+                                    Style="{StaticResource SecondaryButton}"
+                                    Click="TestConnection_Click"
+                                    HorizontalAlignment="Left"/>
+                            <TextBlock x:Name="ConnectionStatusTextBlock"
+                                       Margin="0,5,0,0" FontSize="12"/>
+                        </StackPanel>
+
+                        <!-- Cache Management -->
+                        <TextBlock Grid.Row="5" Grid.Column="0" Text="Cache:" 
+                                   VerticalAlignment="Center" FontWeight="SemiBold" Margin="0,0,0,12"/>
+                        <StackPanel Grid.Row="5" Grid.Column="1" Margin="10,0,0,12" Orientation="Horizontal">
+                            <Button x:Name="RefreshCacheButton"
+                                    Content="🔄 Refresh Cache"
+                                    Style="{StaticResource ModernButton}"
+                                    Click="RefreshCache_Click"
+                                    Margin="0,0,10,0"/>
+                            <Button x:Name="ClearCacheButton"
+                                    Content="🗑️ Clear Cache"
+                                    Style="{StaticResource DangerButton}"
+                                    Click="ClearCache_Click"/>
+                        </StackPanel>
+
+                        <!-- Cache Status -->
+                        <TextBlock Grid.Row="6" Grid.Column="1" 
+                                   x:Name="CacheStatusTextBlock"
+                                   Margin="10,0,0,12" FontSize="12"
+                                   Foreground="#6C757D"/>
+
+                        <!-- Last Updated -->
+                        <TextBlock Grid.Row="7" Grid.Column="0" Text="Last Updated:" 
+                                   VerticalAlignment="Center" FontWeight="SemiBold"/>
+                        <TextBlock Grid.Row="7" Grid.Column="1" 
+                                   x:Name="LastUpdatedTextBlock"
+                                   Margin="10,0,0,0" FontSize="12"
+                                   Foreground="#6C757D"/>
+                    </Grid>
+                </StackPanel>
+            </ScrollViewer>
+        </Border>
+
+        <!-- Progress Bar -->
+        <ProgressBar Grid.Row="2" x:Name="ProgressBar" 
+                     Height="4" Margin="0,15,0,0"
+                     Visibility="Collapsed"/>
+
+        <!-- Action Buttons -->
+        <StackPanel Grid.Row="3" Orientation="Horizontal" 
+                    HorizontalAlignment="Right" Margin="0,15,0,0">
+            <Button x:Name="CancelButton" Content="Cancel" 
+                    Style="{StaticResource SecondaryButton}"
+                    Click="Cancel_Click" Margin="0,0,10,0"/>
+            <Button x:Name="SaveButton" Content="💾 Save Settings" 
+                    Style="{StaticResource ModernButton}"
+                    Click="Save_Click"/>
+        </StackPanel>
+    </Grid>
+</Window>
