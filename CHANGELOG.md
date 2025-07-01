@@ -5,6 +5,35 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.11.0.1] - 2025-01-01 - 🎯 **CRITICAL FIX - Layout Manager Integration**
+
+### 🛠️ **BUG FIXES**
+#### **🎯 Ribbon Initialization Architecture**
+- **FIXED:** Eliminated dual button creation system that caused persistent hardcoded buttons
+- **FIXED:** `CreatePanels()` now calls Layout Manager immediately after creating panels instead of creating hardcoded buttons
+- **FIXED:** Layout Manager now applies user's saved layout during initialization, not just on "Reload Scripts"
+- **FIXED:** Removed hardcoded `CreateProductionScriptButtons()` and `CreateSmartToolsButtons()` calls from initialization
+- **FIXED:** Added fallback to hardcoded buttons if Layout Manager fails during initialization
+
+#### **🔄 Button Management System**
+- **ENHANCED:** `CreateDynamicButtons()` now calls `HideDynamicButtons()` first for proper button reuse
+- **ENHANCED:** Comprehensive logging for initialization vs reload scenarios
+- **ENHANCED:** Graceful error handling with fallback to hardcoded buttons if Layout Manager fails
+
+### 🏗️ **ARCHITECTURAL CHANGES**
+#### **🎯 Single Source of Truth for Button Creation**
+- **BREAKING:** Layout Manager is now the **only** system that creates script buttons
+- **BREAKING:** Hardcoded button creation is now **fallback only** for error scenarios
+- **BREAKING:** User's saved layout is applied **immediately** during Revit startup, not just on manual reload
+
+### 📊 **IMPACT**
+- **✅ RESOLVES:** Persistent buttons that couldn't be moved or removed via Layout Manager
+- **✅ RESOLVES:** Dual button creation causing layout changes to be ignored
+- **✅ RESOLVES:** "Scripts won't go away" issue reported by user
+- **✅ RESOLVES:** Layout Manager changes not being reflected in ribbon after reload
+
+---
+
 ## [0.11.0.0] - 2025-01-01 - 🔧 **RIBBON INTEGRATION FIX - Critical Layout Manager Issue**
 
 ### 🎯 **CRITICAL RIBBON INTEGRATION FIX**

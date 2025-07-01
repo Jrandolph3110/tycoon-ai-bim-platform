@@ -124,17 +124,34 @@ namespace TycoonRevitAddin.Plugins
             // 🟢 Panel 1: "Production" - P1 Dedicated Scripts (Green Theme)
             _productionPanel = CreatePanel("🟢 Production");
             _activePanels["Production"] = _productionPanel;
-            CreateProductionScriptButtons(_productionPanel);
+            // NOTE: No hardcoded buttons - Layout Manager will handle all script buttons
 
             // 🟡 Panel 2: "Smart Tools β" - P2/P3 AI-Assisted Scripts (Yellow/Orange Theme)
             _smartToolsPanel = CreatePanel("🧠 Smart Tools β");
             _activePanels["SmartTools"] = _smartToolsPanel;
-            CreateSmartToolsButtons(_smartToolsPanel);
+            // NOTE: No hardcoded buttons - Layout Manager will handle all script buttons
 
             // ⚙️ Panel 3: "Script Management" - Development and Management Tools
             _managementPanel = CreatePanel("⚙️ Management");
             _activePanels["Management"] = _managementPanel;
             CreateScriptManagementButtons(_managementPanel);
+
+            // 🎯 CRITICAL FIX: Apply Layout Manager immediately after creating panels
+            // This ensures user's saved layout is applied instead of hardcoded buttons
+            try
+            {
+                _logger.Log("🎯 Applying Layout Manager during initialization");
+                CreateDynamicButtons();
+                _logger.Log("✅ Layout Manager applied successfully during initialization");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError("Failed to apply Layout Manager during initialization", ex);
+                // Fallback to hardcoded buttons if Layout Manager fails
+                _logger.Log("⚠️ Falling back to hardcoded buttons");
+                CreateProductionScriptButtons(_productionPanel);
+                CreateSmartToolsButtons(_smartToolsPanel);
+            }
         }
 
         /// <summary>
@@ -853,6 +870,9 @@ public class WallAnalyzer
             try
             {
                 _logger.Log("🔥 Creating dynamic stacked buttons (Chat's layout system)");
+
+                // 🔄 Hide existing buttons first (for reuse strategy)
+                HideDynamicButtons();
 
                 // 🎯 Use Chat's Layout Manager to merge user preferences with auto layout
                 _logger.Log("🔍 DIAGNOSTIC: Calling MergeLayouts with script metadata");
