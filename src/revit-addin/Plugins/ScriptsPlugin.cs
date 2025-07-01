@@ -757,8 +757,8 @@ public class WallAnalyzer
             {
                 _logger.Log("🔥 Starting PyRevit-style hot-reload (instant button creation)");
 
-                // 1. Remove existing dynamic buttons
-                RemoveDynamicButtons();
+                // 1. Hide existing dynamic buttons (but keep them for reuse)
+                HideDynamicButtons();
 
                 // 2. Clear existing metadata and reload
                 _scriptMetadata.Clear();
@@ -788,63 +788,59 @@ public class WallAnalyzer
         }
 
         /// <summary>
-        /// 🔥 PyRevit-Style Dynamic Button Removal
-        /// Removes all dynamically created buttons and stacks from ribbon panels
+        /// 🔄 Hide All Dynamic Buttons for Layout Reorganization
+        /// Hides existing buttons but keeps tracking collections for reuse
         /// </summary>
-        private void RemoveDynamicButtons()
+        private void HideDynamicButtons()
         {
             try
             {
-                _logger.Log("🗑️ Removing existing dynamic buttons and stacks");
+                _logger.Log("🗑️ Clearing all dynamic buttons for layout reorganization");
 
-                // Remove individual buttons
+                // Hide all tracked dynamic buttons
                 foreach (var buttonPair in _dynamicButtons.ToList())
                 {
-                    var buttonId = buttonPair.Key;
-                    var button = buttonPair.Value;
-
                     try
                     {
-                        // Note: Revit API doesn't have direct RemoveItem, but we can hide/disable
-                        // For true removal, we'd need to track button data and recreate panels
-                        button.Enabled = false;
-                        button.Visible = false;
+                        buttonPair.Value.Visible = false;
+                        buttonPair.Value.Enabled = false;
                     }
                     catch (Exception ex)
                     {
-                        _logger.LogWarning($"Could not remove button {buttonId}: {ex.Message}");
+                        _logger.LogWarning($"Could not hide button {buttonPair.Key}: {ex.Message}");
                     }
                 }
 
-                // Remove stacked items
+                // Hide all stacked items
                 foreach (var stack in _dynamicStacks)
                 {
                     foreach (var item in stack)
                     {
                         try
                         {
+                            item.Visible = false;
                             if (item is PushButton button)
                             {
                                 button.Enabled = false;
-                                button.Visible = false;
                             }
                         }
                         catch (Exception ex)
                         {
-                            _logger.LogWarning($"Could not remove stacked item: {ex.Message}");
+                            _logger.LogWarning($"Could not hide stacked item: {ex.Message}");
                         }
                     }
                 }
 
-                var removedCount = _dynamicButtons.Count + _dynamicStacks.Sum(s => s.Count);
-                _dynamicButtons.Clear();
+                var hiddenCount = _dynamicButtons.Count + _dynamicStacks.Sum(s => s.Count);
+
+                // Clear only stack tracking (buttons will be re-stacked)
                 _dynamicStacks.Clear();
 
-                _logger.Log($"🗑️ Removed {removedCount} dynamic buttons and stacks");
+                _logger.Log($"🔄 Hidden {hiddenCount} dynamic buttons - keeping button tracking for reuse");
             }
             catch (Exception ex)
             {
-                _logger.LogError("Failed to remove dynamic buttons", ex);
+                _logger.LogError("Failed to clear dynamic buttons", ex);
             }
         }
 
@@ -859,13 +855,32 @@ public class WallAnalyzer
                 _logger.Log("🔥 Creating dynamic stacked buttons (Chat's layout system)");
 
                 // 🎯 Use Chat's Layout Manager to merge user preferences with auto layout
+                _logger.Log("🔍 DIAGNOSTIC: Calling MergeLayouts with script metadata");
                 var mergedLayout = _layoutManager.MergeLayouts(_scriptMetadata);
+
+                _logger.Log($"🔍 DIAGNOSTIC: MergeLayouts returned {mergedLayout.Panels.Count} panels, mode: {mergedLayout.Mode}");
+
+                // Log detailed layout structure for debugging
+                foreach (var panelLayout in mergedLayout.Panels)
+                {
+                    _logger.Log($"🔍 DIAGNOSTIC: Panel '{panelLayout.Id}' has {panelLayout.Stacks.Count} stacks");
+                    foreach (var stackLayout in panelLayout.Stacks)
+                    {
+                        _logger.Log($"🔍 DIAGNOSTIC: Stack '{stackLayout.Name}' has {stackLayout.Items.Count} items: {string.Join(", ", stackLayout.Items)}");
+                    }
+                }
 
                 // Create buttons based on merged layout
                 foreach (var panelLayout in mergedLayout.Panels)
                 {
                     var ribbonPanel = GetRibbonPanelById(panelLayout.Id);
-                    if (ribbonPanel == null) continue;
+                    if (ribbonPanel == null)
+                    {
+                        _logger.LogWarning($"🔍 DIAGNOSTIC: No ribbon panel found for layout panel '{panelLayout.Id}'");
+                        continue;
+                    }
+
+                    _logger.Log($"🔍 DIAGNOSTIC: Processing panel '{panelLayout.Id}' with {panelLayout.Stacks.Count} stacks");
 
                     foreach (var stackLayout in panelLayout.Stacks.OrderBy(s => s.Order))
                     {
@@ -939,18 +954,61 @@ public class WallAnalyzer
 
                 if (scripts.Count == 1)
                 {
-                    // Single button
-                    var button = CreateDynamicScriptButton(panel, scripts[0]);
-                    if (button != null)
+                    // Single button - reuse existing or create new
+                    var scriptName = scripts[0].Name;
+                    PushButton button = null;
+
+                    if (_dynamicButtons.ContainsKey(scriptName))
                     {
-                        _dynamicButtons[scripts[0].Name] = button;
-                        _buttonsByCapability[scripts[0].CapabilityLevel].Add(button);
+                        // Reuse existing button
+                        button = _dynamicButtons[scriptName];
+                        button.Visible = true;
+                        button.Enabled = true;
+                        _logger.Log($"🔄 Reusing existing button for '{scriptName}'");
+                    }
+                    else
+                    {
+                        // Create new button
+                        button = CreateDynamicScriptButton(panel, scripts[0]);
+                        if (button != null)
+                        {
+                            _dynamicButtons[scriptName] = button;
+                            _buttonsByCapability[scripts[0].CapabilityLevel].Add(button);
+                            _logger.Log($"🆕 Created new button for '{scriptName}'");
+                        }
                     }
                 }
                 else
                 {
-                    // Create stacked buttons (PyRevit-style)
-                    CreateStackedButtonGroup(panel, scripts, stackLayout);
+                    // For layout reorganization, use individual buttons (easier to reuse)
+                    // TODO: Implement true stacked button reuse in future version
+                    _logger.Log($"🔄 Creating individual buttons for stack '{stackLayout.Name}' (layout reorganization mode)");
+
+                    foreach (var script in scripts)
+                    {
+                        var scriptName = script.Name;
+                        PushButton button = null;
+
+                        if (_dynamicButtons.ContainsKey(scriptName))
+                        {
+                            // Reuse existing button
+                            button = _dynamicButtons[scriptName];
+                            button.Visible = true;
+                            button.Enabled = true;
+                            _logger.Log($"🔄 Reusing existing button for '{scriptName}'");
+                        }
+                        else
+                        {
+                            // Create new button
+                            button = CreateDynamicScriptButton(panel, script);
+                            if (button != null)
+                            {
+                                _dynamicButtons[scriptName] = button;
+                                _buttonsByCapability[script.CapabilityLevel].Add(button);
+                                _logger.Log($"🆕 Created new button for '{scriptName}'");
+                            }
+                        }
+                    }
                 }
             }
             catch (Exception ex)
