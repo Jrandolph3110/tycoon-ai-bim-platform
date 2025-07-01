@@ -59,9 +59,9 @@ namespace TycoonRevitAddin.UI
             }
             else
             {
-                // Fall back to creating default panels with user scripts
-                CreateDefaultPanelsWithUserScripts();
-                _logger.Log("🎯 Created default layout with user scripts");
+                // Fall back to creating default panels using script metadata (includes GitHub scripts)
+                CreateDefaultPanelsFromMetadata();
+                _logger.Log("🎯 Created default layout from script metadata");
             }
 
             DataContext = _viewModel;
@@ -145,9 +145,9 @@ namespace TycoonRevitAddin.UI
         }
 
         /// <summary>
-        /// Create default panels and load real user scripts from Scripts folder
+        /// Create default panels using script metadata (includes both local and GitHub scripts)
         /// </summary>
-        private void CreateDefaultPanelsWithUserScripts()
+        private void CreateDefaultPanelsFromMetadata()
         {
             // Create default panels with proper colors
             var productionPanel = new PanelViewModel
@@ -182,11 +182,8 @@ namespace TycoonRevitAddin.UI
                 Order = 3
             };
 
-            // Load real user scripts from Scripts folder
-            LoadRealUserScripts(productionPanel, smartToolsPanel, managementPanel);
-
-            // Load GitHub scripts
-            LoadGitHubScripts(githubScriptsPanel);
+            // Load scripts from metadata instead of scanning files
+            LoadScriptsFromMetadata(productionPanel, smartToolsPanel, managementPanel, githubScriptsPanel);
 
             _viewModel.Panels.Add(productionPanel);
             _viewModel.Panels.Add(smartToolsPanel);
@@ -195,123 +192,70 @@ namespace TycoonRevitAddin.UI
         }
 
         /// <summary>
-        /// Load real user scripts from Scripts folder and organize them
+        /// Load scripts from metadata (includes both local and GitHub scripts)
         /// </summary>
-        private void LoadRealUserScripts(PanelViewModel productionPanel, PanelViewModel smartToolsPanel, PanelViewModel managementPanel)
+        private void LoadScriptsFromMetadata(PanelViewModel productionPanel, PanelViewModel smartToolsPanel, PanelViewModel managementPanel, PanelViewModel githubScriptsPanel)
         {
             try
             {
-                // Get the Scripts folder path
-                var scriptsPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Tycoon", "Scripts");
+                _logger.Log($"🎯 Loading scripts from metadata: {_scriptMetadata.Count} total scripts");
 
-                if (!Directory.Exists(scriptsPath))
+                // Separate local and GitHub scripts
+                var localScripts = new List<ScriptMetadata>();
+                var githubScripts = new List<ScriptMetadata>();
+
+                foreach (var script in _scriptMetadata.Values)
                 {
-                    _logger.Log("🎯 Scripts folder doesn't exist, creating empty layout");
-                    CreateEmptyDefaultLayout(productionPanel, smartToolsPanel, managementPanel);
-                    return;
-                }
-
-                var scriptFiles = Directory.GetFiles(scriptsPath, "*.py", SearchOption.AllDirectories);
-
-                if (scriptFiles.Length == 0)
-                {
-                    _logger.Log("🎯 No scripts found in Scripts folder, creating empty layout");
-                    CreateEmptyDefaultLayout(productionPanel, smartToolsPanel, managementPanel);
-                    return;
-                }
-
-                _logger.Log($"🎯 Found {scriptFiles.Length} user scripts in {scriptsPath}");
-
-                // Get actual script names that exist
-                var existingScripts = new HashSet<string>();
-                foreach (var scriptFile in scriptFiles)
-                {
-                    var scriptName = Path.GetFileNameWithoutExtension(scriptFile);
-                    if (!scriptName.StartsWith("_") && !scriptName.ToLower().Contains("system"))
+                    if (script.IsGitHubScript)
                     {
-                        existingScripts.Add(scriptName);
-                    }
-                }
-
-                // Clean up saved layout to remove phantom scripts
-                CleanupSavedLayout(existingScripts);
-
-                // Create "User Scripts" stack in Production panel for all discovered scripts
-                var userScriptsStack = productionPanel.AddStack("User Scripts", StackLayoutType.Vertical);
-
-                foreach (var scriptName in existingScripts)
-                {
-                    userScriptsStack.AddScript(scriptName, $"User script: {scriptName}", ButtonSize.Medium);
-                }
-
-                // If we found scripts, mark the first one as recently used
-                if (userScriptsStack.Scripts.Count > 0)
-                {
-                    userScriptsStack.Scripts[0].MarkAsUsed();
-                    _logger.Log($"🎯 Loaded {userScriptsStack.Scripts.Count} user scripts into layout");
-                }
-                else
-                {
-                    _logger.Log("🎯 No valid user scripts found after filtering");
-                    CreateEmptyDefaultLayout(productionPanel, smartToolsPanel, managementPanel);
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError("Failed to load real user scripts", ex);
-                CreateEmptyDefaultLayout(productionPanel, smartToolsPanel, managementPanel);
-            }
-        }
-
-        /// <summary>
-        /// Create empty default layout when no scripts are found
-        /// </summary>
-        private void CreateEmptyDefaultLayout(PanelViewModel productionPanel, PanelViewModel smartToolsPanel, PanelViewModel managementPanel)
-        {
-            var instructionsStack = productionPanel.AddStack("Getting Started", StackLayoutType.Vertical);
-            instructionsStack.AddScript("📁 No User Scripts Found", "Add .py files to your Scripts folder to organize them here", ButtonSize.Large);
-            instructionsStack.AddScript("💡 How to Add Scripts", "Use 'Add Script' button or 'Open Scripts Folder' to add scripts", ButtonSize.Medium);
-
-            _logger.Log("🎯 Created empty default layout with instructions");
-        }
-
-        /// <summary>
-        /// Load GitHub scripts from cache into the GitHub Scripts panel
-        /// </summary>
-        private void LoadGitHubScripts(PanelViewModel githubPanel)
-        {
-            try
-            {
-                if (_gitCacheManager != null)
-                {
-                    // Try to load cached scripts
-                    var cachedScriptsPath = _gitCacheManager.GetCachedScriptsPath();
-
-                    if (!string.IsNullOrEmpty(cachedScriptsPath) && Directory.Exists(cachedScriptsPath))
-                    {
-                        LoadCachedGitHubScripts(githubPanel, cachedScriptsPath);
+                        githubScripts.Add(script);
                     }
                     else
                     {
-                        CreateGitHubPlaceholderContent(githubPanel, "No cached scripts found");
+                        localScripts.Add(script);
                     }
                 }
-                else
+
+                _logger.Log($"🎯 Found {localScripts.Count} local scripts and {githubScripts.Count} GitHub scripts");
+
+                // Add local scripts to Production panel if any exist
+                if (localScripts.Count > 0)
                 {
-                    CreateGitHubPlaceholderContent(githubPanel, "GitCache not available");
+                    var userScriptsStack = productionPanel.AddStack("User Scripts", StackLayoutType.Vertical);
+                    foreach (var script in localScripts)
+                    {
+                        userScriptsStack.AddScript(script.Name, script.Description ?? $"Local script: {script.Name}", ButtonSize.Medium);
+                    }
+                    _logger.Log($"🎯 Added {localScripts.Count} local scripts to Production panel");
                 }
 
-                _logger.Log("🎯 Loaded GitHub Scripts panel");
+                // Add GitHub scripts to GitHub panel
+                if (githubScripts.Count > 0)
+                {
+                    var githubScriptsStack = githubScriptsPanel.AddStack("Available Scripts", StackLayoutType.Vertical);
+                    foreach (var script in githubScripts)
+                    {
+                        githubScriptsStack.AddScript(script.Name, script.Description ?? $"GitHub script: {script.Name}", ButtonSize.Medium);
+                    }
+                    _logger.Log($"🎯 Added {githubScripts.Count} GitHub scripts to GitHub panel");
+                }
+
+                // No placeholder buttons - if no scripts exist, just leave panels empty
+                if (localScripts.Count == 0 && githubScripts.Count == 0)
+                {
+                    _logger.Log("🎯 No scripts found in metadata - panels will remain empty");
+                }
             }
             catch (Exception ex)
             {
-                _logger.LogError("Failed to load GitHub scripts", ex);
-
-                // Create error stack
-                var errorStack = githubPanel.AddStack("GitHub Error", StackLayoutType.Vertical);
-                errorStack.AddScript("❌ GitHub Unavailable", "Check network connection and try again", ButtonSize.Medium);
+                _logger.LogError("Failed to load scripts from metadata", ex);
+                // Don't create placeholder buttons on error - just leave panels empty
             }
         }
+
+
+
+
 
         /// <summary>
         /// Load actual cached GitHub scripts
@@ -678,16 +622,25 @@ namespace TycoonRevitAddin.UI
 
                 if (githubPanel != null)
                 {
-                    // Handle conflicts before refreshing
-                    HandleScriptConflicts(githubPanel);
-
                     // Clear existing stacks
                     githubPanel.Stacks.Clear();
 
-                    // Reload GitHub scripts
-                    LoadGitHubScripts(githubPanel);
+                    // Reload GitHub scripts from metadata
+                    var githubScripts = _scriptMetadata.Values.Where(s => s.IsGitHubScript).ToList();
 
-                    _logger.Log("🔄 GitHub Scripts panel refreshed");
+                    if (githubScripts.Count > 0)
+                    {
+                        var githubScriptsStack = githubPanel.AddStack("Available Scripts", StackLayoutType.Vertical);
+                        foreach (var script in githubScripts)
+                        {
+                            githubScriptsStack.AddScript(script.Name, script.Description ?? $"GitHub script: {script.Name}", ButtonSize.Medium);
+                        }
+                        _logger.Log($"🔄 Refreshed GitHub Scripts panel with {githubScripts.Count} scripts");
+                    }
+                    else
+                    {
+                        _logger.Log("🔄 No GitHub scripts found in metadata during refresh");
+                    }
                 }
             }
             catch (Exception ex)

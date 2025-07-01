@@ -5,6 +5,39 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.11.0.4] - 2025-07-01
+
+### 🎯 CRITICAL FIX - Layout Manager UI Placeholder System
+**ELIMINATED INAPPROPRIATE PLACEHOLDER BUTTONS IN PURE GITHUB SYSTEM**
+
+#### Root Cause
+The Layout Manager UI was creating "No User Scripts Found" and "How to Add Scripts" placeholder buttons because the `CreateDefaultPanelsWithUserScripts()` method only scanned for local `.py` files using `Directory.GetFiles(scriptsPath, "*.py")` instead of using the passed `_scriptMetadata` dictionary that includes GitHub scripts. This caused the UI to think no scripts existed when only GitHub scripts were available.
+
+#### Technical Implementation
+- **Replaced File-Scanning Logic**: Eliminated `LoadRealUserScripts()` method that scanned for `.py` files
+- **Implemented Metadata-Based Loading**: Created new `LoadScriptsFromMetadata()` method that processes both local and GitHub scripts from the `_scriptMetadata` dictionary
+- **Removed Placeholder System**: Deleted `CreateEmptyDefaultLayout()` method that created instructional buttons
+- **Updated Initialization**: Changed `CreateDefaultPanelsWithUserScripts()` to `CreateDefaultPanelsFromMetadata()`
+- **Enhanced GitHub Refresh**: Updated `RefreshGitHubScriptsPanel()` to use metadata-based approach
+
+#### Architecture Improvements
+- **Unified Script Detection**: Layout Manager UI now uses consistent script metadata approach across all panels
+- **Clean Empty State**: When no scripts exist, panels remain cleanly empty without placeholder content
+- **GitHub Script Separation**: GitHub scripts properly appear in "GitHub Scripts" panel using metadata
+- **Metadata Consistency**: All script loading uses the same `_scriptMetadata` dictionary with consistent key formats
+
+#### Files Modified
+- `UI/StackManagerDialog.xaml.cs`: Complete refactor of script loading logic
+  - Removed: `LoadRealUserScripts()`, `CreateEmptyDefaultLayout()`, legacy `LoadGitHubScripts()`
+  - Added: `LoadScriptsFromMetadata()`, enhanced `RefreshGitHubScriptsPanel()`
+  - Updated: `CreateDefaultPanelsFromMetadata()` initialization method
+
+#### Expected Behavior
+- Fresh install: Clean Layout Manager with no placeholder buttons
+- GitHub scripts: Appear in "GitHub Scripts" panel from metadata, not as placeholders
+- Empty state: Panels remain empty without instructional content
+- Pure GitHub system: Full functionality without local script dependencies
+
 ## [0.11.0.3] - 2025-06-30
 
 ### 🎯 CRITICAL FIX - Pure GitHub-Driven System
