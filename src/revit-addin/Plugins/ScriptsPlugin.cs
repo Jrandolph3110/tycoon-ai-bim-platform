@@ -613,8 +613,9 @@ namespace TycoonRevitAddin.Plugins
                     Directory.CreateDirectory(_scriptsPath);
                     _logger.Log($"📁 Created scripts directory: {_scriptsPath}");
 
-                    // Create sample scripts
-                    CreateSampleScripts();
+                    // 🎯 GITHUB-ONLY SYSTEM: No sample scripts created
+                    // All scripts now come from GitHub repository only
+                    _logger.Log("🔄 Pure GitHub-driven system - no local sample scripts created");
                 }
             }
             catch (Exception ex)
@@ -623,80 +624,9 @@ namespace TycoonRevitAddin.Plugins
             }
         }
 
-        /// <summary>
-        /// Create sample scripts for demonstration
-        /// </summary>
-        private void CreateSampleScripts()
-        {
-            try
-            {
-                // Sample Python script
-                var pythonSample = @"# Sample Tycoon Script - Element Counter
-# This script counts selected elements
-
-import clr
-clr.AddReference('RevitAPI')
-from Autodesk.Revit.DB import *
-
-# Get current selection
-selection = __revit__.ActiveUIDocument.Selection
-elements = [__revit__.ActiveUIDocument.Document.GetElement(id) for id in selection.GetElementIds()]
-
-# Count by category
-categories = {}
-for element in elements:
-    cat_name = element.Category.Name if element.Category else 'No Category'
-    categories[cat_name] = categories.get(cat_name, 0) + 1
-
-# Display results
-result = f'Selected {len(elements)} elements:\n'
-for cat, count in categories.items():
-    result += f'  {cat}: {count}\n'
-
-print(result)
-";
-
-                var pythonPath = Path.Combine(_scriptsPath, "ElementCounter.py");
-                File.WriteAllText(pythonPath, pythonSample);
-
-                // Sample C# script
-                var csharpSample = @"// Sample Tycoon C# Script - Wall Analyzer
-using System;
-using System.Linq;
-using Autodesk.Revit.DB;
-using Autodesk.Revit.UI;
-
-public class WallAnalyzer
-{
-    public static void Execute(UIApplication uiApp)
-    {
-        var doc = uiApp.ActiveUIDocument.Document;
-        var walls = new FilteredElementCollector(doc)
-            .OfClass(typeof(Wall))
-            .Cast<Wall>()
-            .ToList();
-
-        var totalLength = walls.Sum(w => w.get_Parameter(BuiltInParameter.CURVE_ELEM_LENGTH).AsDouble());
-        var totalArea = walls.Sum(w => w.get_Parameter(BuiltInParameter.HOST_AREA_COMPUTED).AsDouble());
-
-        TaskDialog.Show(""Wall Analysis"", 
-            $""Found {walls.Count} walls\n"" +
-            $""Total Length: {totalLength:F2} ft\n"" +
-            $""Total Area: {totalArea:F2} sq ft"");
-    }
-}
-";
-
-                var csharpPath = Path.Combine(_scriptsPath, "WallAnalyzer.cs");
-                File.WriteAllText(csharpPath, csharpSample);
-
-                _logger.Log("📝 Created sample scripts");
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError("Failed to create sample scripts", ex);
-            }
-        }
+        // 🎯 REMOVED: CreateSampleScripts() method
+        // Pure GitHub-driven system - no local sample scripts created
+        // All scripts now come from GitHub repository only
 
         public override void OnUpdate()
         {

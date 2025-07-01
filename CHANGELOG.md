@@ -5,6 +5,42 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.11.0.3] - 2025-06-30
+
+### 🎯 CRITICAL FIX - Pure GitHub-Driven System
+**ELIMINATED HARDCODED SAMPLE SCRIPTS**
+
+#### Root Cause
+The system was still creating hardcoded ElementCounter.py and WallAnalyzer.cs scripts on fresh installs via the `CreateSampleScripts()` method, violating the pure GitHub-driven architecture.
+
+#### Changes Made
+- **REMOVED**: `CreateSampleScripts()` method call from `EnsureScriptsDirectory()`
+- **REMOVED**: Entire `CreateSampleScripts()` method (74 lines of hardcoded script creation)
+- **UPDATED**: Default layout template to have empty stacks for all panels
+- **ENHANCED**: Logging to indicate pure GitHub-driven system activation
+
+#### Technical Details
+- **File**: `ScriptsPlugin.cs` line 617 - Removed `CreateSampleScripts()` call
+- **File**: `ScriptsPlugin.cs` lines 627-700 - Removed entire method
+- **File**: `templates/default-layout.json` - Cleaned all hardcoded script references
+- **Architecture**: Now 100% GitHub-driven with no local script creation
+
+#### Issues Resolved
+✅ **No more hardcoded scripts on fresh install**
+✅ **ElementCounter and WallAnalyzer no longer appear by default**
+✅ **Pure GitHub-driven system as intended**
+✅ **Clean slate for Layout Manager on first run**
+✅ **All scripts must come from GitHub repository only**
+
+#### Expected Behavior
+- Fresh install: Empty ribbon panels (except management buttons)
+- User downloads GitHub scripts via popup
+- Scripts appear in Layout Manager's "GitHub Scripts" panel
+- User can organize scripts into any panel configuration
+- Layout changes persist and work correctly
+
+This completes the transition to a pure GitHub-driven script system with no hardcoded defaults.
+
 ## [0.11.0.2] - 2025-01-01 - 🎯 **CRITICAL FIX - GitHub Script Integration**
 
 ### 🛠️ **BUG FIXES**

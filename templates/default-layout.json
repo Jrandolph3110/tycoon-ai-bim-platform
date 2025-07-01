@@ -8,67 +8,19 @@
       "id": "Production",
       "name": "🟢 Production",
       "enabled": true,
-      "stacks": [
-        {
-          "id": "production-analysis-stack",
-          "name": "Analysis Tools",
-          "items": [
-            "ElementCounter.py"
-          ],
-          "stackType": "Vertical",
-          "maxItems": 3,
-          "order": 1,
-          "capability": "P1"
-        }
-      ]
+      "stacks": []
     },
     {
       "id": "SmartTools",
       "name": "🧠 Smart Tools β",
       "enabled": true,
-      "stacks": [
-        {
-          "id": "smart-analysis-stack",
-          "name": "AI Analysis",
-          "items": [
-            "WallAnalyzer.py"
-          ],
-          "stackType": "Vertical",
-          "maxItems": 3,
-          "order": 1,
-          "capability": "P2"
-        }
-      ]
+      "stacks": []
     },
     {
       "id": "Management",
       "name": "⚙️ Management",
       "enabled": true,
-      "stacks": [
-        {
-          "id": "management-panels-stack",
-          "name": "Panel Management",
-          "items": [
-            "PanelManager.py"
-          ],
-          "stackType": "Vertical",
-          "maxItems": 3,
-          "order": 1,
-          "capability": "P3"
-        },
-        {
-          "id": "management-utilities-stack",
-          "name": "Utilities",
-          "items": [
-            "SelectionHelper.py",
-            "ParameterManager.py"
-          ],
-          "stackType": "Vertical",
-          "maxItems": 3,
-          "order": 2,
-          "capability": "P1"
-        }
-      ]
+      "stacks": []
     },
     {
       "id": "GitHubScripts",
