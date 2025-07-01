@@ -5,6 +5,35 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.11.0.2] - 2025-01-01 - 🎯 **CRITICAL FIX - GitHub Script Integration**
+
+### 🛠️ **BUG FIXES**
+#### **🎯 GitHub Script Metadata Conflict Resolution**
+- **FIXED:** Eliminated dual GitHub script metadata loading that caused key format conflicts
+- **FIXED:** Removed `LoadGitHubScriptMetadata()` method that used "github_" prefixed keys
+- **FIXED:** All GitHub scripts now use clean script names as keys, matching Layout Manager expectations
+- **FIXED:** GitHub scripts (PanelManager, ParameterManager, SelectionHelper) now appear in ribbon after layout changes
+- **FIXED:** Moving scripts from "GitHub Scripts" panel to other panels now works correctly
+- **FIXED:** Layout Manager changes are immediately reflected in ribbon without scripts disappearing
+
+#### **🔍 Enhanced Diagnostics**
+- **ENHANCED:** Added diagnostic logging to verify GitHub script metadata loading with IsGitHubScript flag
+- **ENHANCED:** Removed redundant GitHub script loading calls that caused metadata overwrites
+- **ENHANCED:** Unified script metadata approach for consistent key handling
+
+#### **📋 Root Cause Analysis**
+The issue was caused by two methods loading GitHub script metadata with different key formats:
+- `LoadGitHubScriptsIntoMetadata()` used clean script names (correct for Layout Manager)
+- `LoadGitHubScriptMetadata()` used "github_" prefixed keys (conflicting)
+- Layout Manager saved scripts with clean names but ribbon lookup failed due to key mismatch
+- This caused GitHub scripts to disappear from ribbon after layout changes
+
+#### **✅ Issues Resolved**
+- GitHub scripts now integrate seamlessly with Layout Manager
+- User can move any script between any panel and changes persist correctly
+- Eliminates fundamental disconnect between Layout Manager and ribbon button creation
+- No more "scripts won't go away" or "scripts disappearing after reload" issues
+
 ## [0.11.0.1] - 2025-01-01 - 🎯 **CRITICAL FIX - Layout Manager Integration**
 
 ### 🛠️ **BUG FIXES**

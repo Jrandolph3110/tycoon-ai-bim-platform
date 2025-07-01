@@ -1473,12 +1473,10 @@ public class WallAnalyzer
 
                     _logger.Log($"📊 Found {scriptFiles.Length} GitHub scripts ready for use");
 
-                    // Update script metadata with GitHub scripts
-                    LoadGitHubScriptMetadata(cachedScriptsPath);
-
-                    // Note: Full ribbon refresh would require Revit restart
-                    // The Layout Manager will show these scripts when opened
-                    _logger.Log("🔄 GitHub scripts integrated - available in Layout Manager");
+                    // 🎯 CRITICAL FIX: Use consistent metadata loading (clean names only)
+                    // Remove duplicate LoadGitHubScriptMetadata call that uses "github_" prefix
+                    // GitHub scripts are already loaded by LoadGitHubScriptsIntoMetadata() with clean names
+                    _logger.Log("🔄 GitHub scripts already integrated with clean names - available in Layout Manager");
                 }
                 else
                 {
@@ -1533,7 +1531,7 @@ public class WallAnalyzer
                     // CRITICAL FIX: Use clean filename as key, not github_ prefix
                     // This matches what the layout expects
                     _scriptMetadata[fileName] = metadata;
-                    _logger.Log($"🔍 DIAGNOSTIC: Added GitHub script '{fileName}' to metadata");
+                    _logger.Log($"🔍 DIAGNOSTIC: Added GitHub script '{fileName}' to metadata (IsGitHub: {metadata.IsGitHubScript})");
                 }
 
                 _logger.Log($"📋 Loaded metadata for {scriptFiles.Length} GitHub scripts");
@@ -1544,54 +1542,9 @@ public class WallAnalyzer
             }
         }
 
-        /// <summary>
-        /// 📋 Load metadata for GitHub scripts (LEGACY - kept for compatibility)
-        /// </summary>
-        private void LoadGitHubScriptMetadata(string scriptsPath)
-        {
-            try
-            {
-                var scriptFiles = Directory.GetFiles(scriptsPath, "*.py", SearchOption.AllDirectories)
-                    .Concat(Directory.GetFiles(scriptsPath, "*.cs", SearchOption.AllDirectories))
-                    .ToArray();
-
-                foreach (var scriptFile in scriptFiles)
-                {
-                    var fileName = Path.GetFileNameWithoutExtension(scriptFile);
-                    // Create relative path manually for .NET Framework compatibility
-                    var relativePath = scriptFile.Substring(scriptsPath.Length).TrimStart('\\', '/');
-
-                    // Create metadata for GitHub script
-                    var metadata = new ScriptMetadata
-                    {
-                        Name = fileName,
-                        Description = $"GitHub script: {relativePath}",
-                        Author = "GitHub Repository",
-                        Version = "Latest",
-                        CapabilityLevel = ScriptCapabilityLevel.P2_Analytic, // Default to P2
-                        FilePath = scriptFile,
-                        IsGitHubScript = true
-                    };
-
-                    // Add to metadata collection with GitHub prefix
-                    var key = $"github_{fileName}";
-                    _scriptMetadata[key] = metadata;
-                }
-
-                _logger.Log($"📋 Loaded metadata for {scriptFiles.Length} GitHub scripts");
-
-                // Debug: Log the first few script names for troubleshooting
-                if (scriptFiles.Length > 0)
-                {
-                    var sampleNames = scriptFiles.Take(5).Select(f => Path.GetFileNameWithoutExtension(f));
-                    _logger.LogDebug($"Sample GitHub script names: {string.Join(", ", sampleNames)}");
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError($"Error loading GitHub script metadata: {ex.Message}");
-            }
-        }
+        // 🎯 REMOVED: LoadGitHubScriptMetadata() method that used "github_" prefix
+        // This was causing conflicts with Layout Manager which expects clean script names
+        // All GitHub script metadata is now handled by LoadGitHubScriptsIntoMetadata() with clean names
 
     }
 }
