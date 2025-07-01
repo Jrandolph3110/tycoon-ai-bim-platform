@@ -70,32 +70,41 @@ namespace TycoonRevitAddin.UI
         }
 
         /// <summary>
-        /// Try to load existing layout from LayoutManager
+        /// Try to load current working layout from LayoutManager
+        /// This shows what's actually on the ribbon, not just saved user customizations
         /// </summary>
         private bool TryLoadExistingLayout()
         {
             try
             {
-                // Use reflection to access the private LoadUserLayout method
-                // This gets ONLY the user's saved layout without merging with script metadata
-                var loadUserLayoutMethod = typeof(RibbonLayoutManager).GetMethod("LoadUserLayout",
-                    System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+                // CRITICAL FIX: Get the current merged layout (what's actually working on the ribbon)
+                // instead of just the saved user layout
+                _logger.Log("🔍 DIAGNOSTIC: Getting current working layout from LayoutManager");
+                var currentLayout = _layoutManager.MergeLayouts(_scriptMetadata);
 
-                if (loadUserLayoutMethod != null)
+                if (currentLayout != null && currentLayout.Panels.Count > 0)
                 {
-                    var existingLayout = loadUserLayoutMethod.Invoke(_layoutManager, null) as RibbonLayoutSchema;
-                    if (existingLayout != null && existingLayout.Panels.Count > 0)
+                    // Convert current working layout to ViewModel
+                    ConvertLayoutToViewModel(currentLayout);
+                    _logger.Log($"🎯 Loaded current working layout with {currentLayout.Panels.Count} panels, mode: {currentLayout.Mode}");
+
+                    // Log panel contents for debugging
+                    foreach (var panel in currentLayout.Panels)
                     {
-                        // Convert LayoutManager data to ViewModel
-                        ConvertLayoutToViewModel(existingLayout);
-                        _logger.Log($"🎯 Loaded pure user layout with {existingLayout.Panels.Count} panels");
-                        return true;
+                        var scriptCount = panel.Stacks.Sum(s => s.Items.Count);
+                        _logger.Log($"🔍 DIAGNOSTIC: Panel '{panel.Name}' has {panel.Stacks.Count} stacks with {scriptCount} total scripts");
                     }
+
+                    return true;
+                }
+                else
+                {
+                    _logger.LogWarning("🔍 DIAGNOSTIC: MergeLayouts returned null or empty layout");
                 }
             }
             catch (Exception ex)
             {
-                _logger.LogError("Failed to load existing layout", ex);
+                _logger.LogError("Failed to load current working layout", ex);
             }
             return false;
         }
@@ -143,6 +152,64 @@ namespace TycoonRevitAddin.UI
                 }
 
                 _viewModel.Panels.Add(panelVM);
+            }
+        }
+
+        /// <summary>
+        /// Convert current ViewModel state to RibbonLayoutSchema for saving
+        /// </summary>
+        private RibbonLayoutSchema ConvertViewModelToLayout()
+        {
+            try
+            {
+                var layout = new RibbonLayoutSchema
+                {
+                    Mode = TycoonRevitAddin.Layout.LayoutMode.Manual, // User has customized the layout
+                    LastModified = DateTime.UtcNow,
+                    Panels = new List<PanelLayout>()
+                };
+
+                foreach (var panelVM in _viewModel.Panels.OrderBy(p => p.Order))
+                {
+                    // Skip GitHub Scripts panel - it's not part of the main layout
+                    if (panelVM.Id.Equals("githubscripts", StringComparison.OrdinalIgnoreCase))
+                        continue;
+
+                    var panelLayout = new PanelLayout
+                    {
+                        Id = panelVM.Id,
+                        Name = panelVM.Name,
+                        Stacks = new List<StackLayout>()
+                    };
+
+                    int stackOrder = 0;
+                    foreach (var stackVM in panelVM.Stacks)
+                    {
+                        // Only save stacks that have scripts
+                        if (stackVM.Scripts.Any())
+                        {
+                            var stackLayout = new StackLayout
+                            {
+                                Id = stackVM.Id,
+                                Name = stackVM.Name,
+                                Items = stackVM.Scripts.Select(s => s.Name).ToList(),
+                                Order = stackOrder++
+                            };
+
+                            panelLayout.Stacks.Add(stackLayout);
+                        }
+                    }
+
+                    layout.Panels.Add(panelLayout);
+                }
+
+                _logger.Log($"🔄 Converted ViewModel to layout: {layout.Panels.Count} panels, {layout.Panels.Sum(p => p.Stacks.Count)} stacks");
+                return layout;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError("Failed to convert ViewModel to layout", ex);
+                return null;
             }
         }
 
@@ -546,8 +613,39 @@ namespace TycoonRevitAddin.UI
         /// </summary>
         private void SaveLayout_Click(object sender, RoutedEventArgs e)
         {
-            // TODO: Implement layout saving
-            MessageBox.Show("Layout saved successfully!", "Save Layout", MessageBoxButton.OK, MessageBoxImage.Information);
+            try
+            {
+                _logger.Log("💾 User clicked Save Layout - converting ViewModel to layout schema");
+
+                // Convert current ViewModel state to RibbonLayoutSchema
+                var layoutToSave = ConvertViewModelToLayout();
+
+                if (layoutToSave != null)
+                {
+                    // Save the layout using the LayoutManager
+                    _layoutManager.SaveUserLayout(layoutToSave);
+                    _logger.Log($"💾 Layout saved successfully with {layoutToSave.Panels.Count} panels");
+
+                    // Log what was saved for debugging
+                    foreach (var panel in layoutToSave.Panels)
+                    {
+                        var scriptCount = panel.Stacks.Sum(s => s.Items.Count);
+                        _logger.Log($"💾 Saved panel '{panel.Name}': {panel.Stacks.Count} stacks, {scriptCount} scripts");
+                    }
+
+                    MessageBox.Show("Layout saved successfully!", "Save Layout", MessageBoxButton.OK, MessageBoxImage.Information);
+                }
+                else
+                {
+                    _logger.LogError("Failed to convert ViewModel to layout schema");
+                    MessageBox.Show("Failed to save layout. Please check the logs.", "Save Layout", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError("Error saving layout", ex);
+                MessageBox.Show($"Error saving layout: {ex.Message}", "Save Layout", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
         }
 
         /// <summary>

@@ -5,6 +5,39 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.11.0.6] - 2025-07-01
+
+### 🎯 CRITICAL FIX: Layout Manager UI Integration
+**RESOLVED: Layout Manager shows current working arrangement instead of empty panels**
+
+#### Root Cause Analysis
+The Layout Manager UI was fundamentally disconnected from the working ribbon system. While the auto layout system successfully placed GitHub scripts in Smart Tools panel, the Layout Manager UI only showed saved user layouts, not the current working arrangement. This caused users to see empty panels and inadvertently break working scripts by saving empty layouts.
+
+#### Technical Implementation
+- **FIXED Layout Display Logic**: Modified `TryLoadExistingLayout()` to call `_layoutManager.MergeLayouts(_scriptMetadata)` instead of only loading saved user layouts
+- **IMPLEMENTED Save Layout Functionality**: Replaced placeholder `SaveLayout_Click()` with actual layout saving using `ConvertViewModelToLayout()` and `_layoutManager.SaveUserLayout()`
+- **ADDED ViewModel to Schema Conversion**: Created `ConvertViewModelToLayout()` method to properly convert UI state back to `RibbonLayoutSchema` for persistence
+- **ENHANCED Diagnostic Logging**: Added comprehensive logging to track layout loading, panel contents, and save operations
+
+#### User Experience Impact
+- **Layout Manager now shows current working scripts**: Users can see the actual arrangement that appears on the ribbon
+- **Save Layout actually works**: Users can now save their customizations and they persist properly
+- **No more empty panel confusion**: Layout Manager displays the working auto layout when no user customizations exist
+- **Script movement integration**: Moving scripts in Layout Manager now properly integrates with ribbon creation system
+
+#### Files Modified
+- `UI/StackManagerDialog.xaml.cs`: Complete refactor of layout loading and saving logic
+  - Modified: `TryLoadExistingLayout()` to show current working layout
+  - Implemented: `SaveLayout_Click()` with actual save functionality
+  - Added: `ConvertViewModelToLayout()` for UI-to-schema conversion
+  - Fixed: LayoutMode namespace ambiguity and StackViewModel property access
+
+#### Testing Validation Required
+This fix should resolve the user's testing sequence:
+1. Layout Manager should show current working arrangement (GitHub scripts in Smart Tools)
+2. Saving layout should preserve working scripts instead of removing them
+3. Moving scripts between panels should create proper ribbon buttons after save
+
 ## [0.11.0.5] - 2025-07-01
 
 ### 🔧 CRITICAL BUG FIX - Layout Manager Constructor Metadata Discard
