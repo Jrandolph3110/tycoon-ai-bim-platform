@@ -36,9 +36,11 @@ namespace TycoonRevitAddin.UI
         {
             InitializeComponent();
             _layoutManager = layoutManager;
-            _scriptMetadata = null; // Don't use script metadata to avoid duplicates
+            _scriptMetadata = scriptMetadata ?? new Dictionary<string, ScriptMetadata>(); // Use the passed script metadata
             _logger = logger;
             _gitCacheManager = gitCacheManager;
+
+            _logger.Log($"🔍 DIAGNOSTIC: StackManagerDialog initialized with {_scriptMetadata.Count} scripts");
 
             InitializeViewModel();
         }

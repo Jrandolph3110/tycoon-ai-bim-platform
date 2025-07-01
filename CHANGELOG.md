@@ -5,6 +5,45 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.11.0.5] - 2025-07-01
+
+### 🔧 CRITICAL BUG FIX - Layout Manager Constructor Metadata Discard
+**RESOLVED COMPLETE LAYOUT MANAGER UI DISCONNECT FROM SCRIPT SYSTEM**
+
+#### Root Cause Analysis
+The Layout Manager UI was completely disconnected from the working script system due to a single critical line in the `StackManagerDialog` constructor:
+```csharp
+_scriptMetadata = null; // Don't use script metadata to avoid duplicates ← THIS BROKE EVERYTHING
+```
+
+This line immediately discarded the populated `scriptMetadata` parameter passed from `ScriptsPlugin`, causing:
+- Layout Manager to show empty panels even when scripts were loaded and working on ribbon
+- GitHub script refresh to fail (no metadata to refresh into)
+- Script movement between panels to fail (no scripts visible to move)
+- Layout saving to create empty layouts that broke the ribbon
+
+#### Technical Implementation
+- **FIXED Constructor Bug**: Changed `_scriptMetadata = null` to `_scriptMetadata = scriptMetadata ?? new Dictionary<string, ScriptMetadata>()`
+- **Verified Integration Chain**: Confirmed `LayoutManagerCommand` → `ScriptsPlugin.GetScriptMetadata()` → `StackManagerDialog` integration works correctly
+- **Enhanced Diagnostic Logging**: Added script count logging in constructor to track metadata initialization
+- **Preserved All Previous Fixes**: Maintained LoadScriptsFromMetadata(), metadata-based refresh logic, and placeholder elimination
+
+#### Impact Resolution
+- **Layout Manager Now Shows Scripts**: Panels display loaded scripts instead of appearing empty
+- **GitHub Integration Restored**: Scripts appear in "GitHub Scripts" panel after download
+- **Script Movement Works**: Users can move scripts between panels with proper ribbon updates
+- **Layout Persistence Fixed**: Saved layouts preserve script positions without breaking ribbon
+- **Seamless UI Integration**: Layout Manager now properly integrates with working ScriptsPlugin system
+
+#### User Experience Restored
+The complete testing sequence now works as expected:
+1. Fresh install → Empty ribbon (correct)
+2. Reload Scripts → Scripts appear in Smart Tools (working)
+3. **Layout Manager → Now shows scripts in panels** (FIXED - was broken)
+4. **Move scripts between panels → Now works** (FIXED - was broken)
+5. **Save Layout → Now preserves positions** (FIXED - was broken)
+6. **Reload Scripts → Now applies saved layout** (FIXED - was broken)
+
 ## [0.11.0.4] - 2025-07-01
 
 ### 🎯 CRITICAL FIX - Layout Manager UI Placeholder System
