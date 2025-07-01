@@ -95,6 +95,9 @@ namespace TycoonRevitAddin.UI
                         _logger.Log($"🔍 DIAGNOSTIC: Panel '{panel.Name}' has {panel.Stacks.Count} stacks with {scriptCount} total scripts");
                     }
 
+                    // CRITICAL FIX: Always add GitHub Scripts panel to show unplaced scripts
+                    AddGitHubScriptsPanel(currentLayout);
+
                     return true;
                 }
                 else
@@ -107,6 +110,52 @@ namespace TycoonRevitAddin.UI
                 _logger.LogError("Failed to load current working layout", ex);
             }
             return false;
+        }
+
+        /// <summary>
+        /// Add GitHub Scripts panel showing ALL GitHub scripts for user organization
+        /// </summary>
+        private void AddGitHubScriptsPanel(RibbonLayoutSchema currentLayout)
+        {
+            try
+            {
+                // Get ALL GitHub scripts for user organization
+                var allGitHubScripts = _scriptMetadata.Values
+                    .Where(s => s.IsGitHubScript)
+                    .ToList();
+
+                _logger.Log($"🔍 DIAGNOSTIC: Found {allGitHubScripts.Count} total GitHub scripts for organization");
+
+                // Create GitHub Scripts panel
+                var githubScriptsPanel = new PanelViewModel
+                {
+                    Id = "githubscripts",
+                    Name = "📦 GitHub Scripts",
+                    Color = new SolidColorBrush(Color.FromRgb(33, 150, 243)), // #2196F3
+                    Order = 3
+                };
+
+                // Add ALL GitHub scripts to the panel for user organization
+                if (allGitHubScripts.Count > 0)
+                {
+                    var githubScriptsStack = githubScriptsPanel.AddStack("Available Scripts", StackLayoutType.Vertical);
+                    foreach (var script in allGitHubScripts)
+                    {
+                        githubScriptsStack.AddScript(script.Name, script.Description ?? $"GitHub script: {script.Name}", ButtonSize.Medium);
+                    }
+                    _logger.Log($"🎯 Added {allGitHubScripts.Count} GitHub scripts to GitHub panel for organization");
+                }
+                else
+                {
+                    _logger.Log("🎯 No GitHub scripts found - GitHub panel will be empty");
+                }
+
+                _viewModel.Panels.Add(githubScriptsPanel);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError("Failed to add GitHub Scripts panel", ex);
+            }
         }
 
         /// <summary>

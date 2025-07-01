@@ -5,6 +5,36 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.11.0.7] - 2025-07-01
+
+### 🎯 CRITICAL FIX: GitHub Scripts Panel Visibility
+**RESOLVED: GitHub Scripts panel now shows ALL GitHub scripts for user organization**
+
+#### Root Cause Analysis
+The GitHub Scripts panel was designed to show only "unplaced" scripts, but on fresh load, the auto layout places ALL GitHub scripts in Smart Tools, leaving the GitHub Scripts panel empty. Users couldn't see or organize GitHub scripts because they were all considered "placed" by the auto layout system.
+
+#### Technical Implementation
+- **FIXED GitHub Scripts Panel Logic**: Modified `AddGitHubScriptsPanel()` to show ALL GitHub scripts instead of only unplaced ones
+- **ENHANCED User Organization**: GitHub Scripts panel now serves as the source for all GitHub scripts that users can drag to organize
+- **IMPROVED Script Discovery**: Users can now see all available GitHub scripts regardless of their current placement in the auto layout
+
+#### User Experience Impact
+- **GitHub Scripts panel now visible**: Panel appears with all GitHub scripts on fresh load
+- **Complete script organization**: Users can see and move all GitHub scripts between panels
+- **Intuitive workflow**: GitHub Scripts panel serves as the "source" for organizing scripts into main panels
+
+#### Files Modified
+- `UI/StackManagerDialog.xaml.cs`:
+  - Modified: `AddGitHubScriptsPanel()` to show all GitHub scripts instead of only unplaced ones
+  - Enhanced: Logging to track GitHub script loading and panel population
+
+#### Testing Validation Required
+- Fresh install should show GitHub Scripts panel with all downloaded scripts
+- Moving scripts from GitHub Scripts panel to main panels should work properly
+- Save Layout should preserve script movements and reload correctly
+
+---
+
 ## [0.11.0.6] - 2025-07-01
 
 ### 🎯 CRITICAL FIX: Layout Manager UI Integration

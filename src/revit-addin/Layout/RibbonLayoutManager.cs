@@ -193,10 +193,13 @@ namespace TycoonRevitAddin.Layout
             if (userLayout == null)
             {
                 _logger.Log("🎯 No user layout - using pure auto layout");
+                _logger.Log($"🔍 DIAGNOSTIC: Auto layout has {autoLayout.Panels.Count} panels with {autoLayout.Panels.Sum(p => p.Stacks.Count)} total stacks");
                 return autoLayout;
             }
 
             _logger.Log("🎯 Merging user layout with auto layout");
+            _logger.Log($"🔍 DIAGNOSTIC: User layout has {userLayout.Panels.Count} panels with {userLayout.Panels.Sum(p => p.Stacks.Count)} total stacks");
+
             var mergedLayout = JsonConvert.DeserializeObject<RibbonLayoutSchema>(JsonConvert.SerializeObject(userLayout));
             mergedLayout.Mode = LayoutMode.Manual;
             mergedLayout.LastModified = DateTime.UtcNow;
@@ -205,15 +208,18 @@ namespace TycoonRevitAddin.Layout
             var userScripts = GetAllScriptsInLayout(userLayout);
             var newScripts = scriptMetadata.Values.Where(s => !userScripts.Contains(s.Name)).ToList();
 
+            _logger.Log($"🔍 DIAGNOSTIC: User layout contains {userScripts.Count} scripts, found {newScripts.Count} new scripts to add");
+
             if (newScripts.Any())
             {
-                _logger.Log($"🎯 Adding {newScripts.Count} new scripts to user layout");
+                _logger.Log($"🎯 Adding {newScripts.Count} new scripts to user layout: {string.Join(", ", newScripts.Select(s => s.Name))}");
                 AddNewScriptsToLayout(mergedLayout, newScripts);
             }
 
             // Remove scripts that no longer exist
             RemoveObsoleteScriptsFromLayout(mergedLayout, scriptMetadata);
 
+            _logger.Log($"🔍 DIAGNOSTIC: Final merged layout has {mergedLayout.Panels.Count} panels with {mergedLayout.Panels.Sum(p => p.Stacks.Count)} total stacks");
             return mergedLayout;
         }
 
