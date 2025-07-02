@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
+  <Import Project="obj\TycoonRevitAddin.csproj.nuget.g.props" Condition="Exists('obj\TycoonRevitAddin.csproj.nuget.g.props')" />
   
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
@@ -70,6 +71,9 @@
     <Compile Include="Commands\TycoonCommand.cs" />
     <Compile Include="Commands\PluginInfoCommand.cs" />
     <Compile Include="Commands\PlaceholderCommands.cs" />
+
+    <Compile Include="Events\EventBus.cs" />
+    <Compile Include="Events\LayoutChangedEvent.cs" />
     <Compile Include="Communication\TycoonBridge.cs" />
     <Compile Include="Communication\BinaryStreamingManager.cs" />
     <Compile Include="Communication\ConnectionStatus.cs" />
@@ -127,6 +131,9 @@
     <Compile Include="Models\LayoutModels.cs" />
     <Compile Include="Services\GitCacheManager.cs" />
     <Compile Include="Services\VersionTracker.cs" />
+    <Compile Include="Services\ScriptService.cs" />
+    <Compile Include="Services\ScriptParser.cs" />
+    <Compile Include="Services\BundledScriptProvider.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   
@@ -137,6 +144,12 @@
     <None Include="app.config">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="Resources\BundledScripts\ElementCounter.py" />
+    <EmbeddedResource Include="Resources\BundledScripts\ModelInfo.py" />
+    <EmbeddedResource Include="Resources\BundledScripts\RefreshViews.py" />
   </ItemGroup>
 
   <ItemGroup>
@@ -193,7 +206,8 @@
   </ItemGroup>
   
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
-  
+  <Import Project="obj\TycoonRevitAddin.csproj.nuget.g.targets" Condition="Exists('obj\TycoonRevitAddin.csproj.nuget.g.targets')" />
+
   <!-- Post-build event removed - deployment handled by MSI installer -->
-  
+
 </Project>

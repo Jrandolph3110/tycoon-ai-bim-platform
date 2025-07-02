@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="UTF-8"?>
+﻿<?xml version="1.0" encoding="UTF-8"?>
 <Wix xmlns="http://schemas.microsoft.com/wix/2006/wi" 
      xmlns:util="http://schemas.microsoft.com/wix/UtilExtension">
   
@@ -6,7 +6,7 @@
   <Product Id="*"
            Name="Tycoon AI-BIM Platform"
            Language="1033"
-           Version="0.11.0.7"
+           Version="0.13.0.0"
            Manufacturer="Joseph Randolph - F.L. Crane &amp; Sons"
            UpgradeCode="12345678-1234-1234-1234-123456789012">
     

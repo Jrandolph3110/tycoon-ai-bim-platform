@@ -173,14 +173,14 @@ namespace TycoonRevitAddin.Models
         /// <summary>
         /// Add a new script to this stack
         /// </summary>
-        public ScriptViewModel AddScript(string name, string description = "", ButtonSize size = ButtonSize.Medium)
+        public ScriptViewModel AddScript(string name, string description = "", string iconPath = null)
         {
             var script = new ScriptViewModel
             {
                 Id = Guid.NewGuid().ToString(),
                 Name = name,
                 Description = description,
-                Size = size,
+                IconPath = iconPath,
                 ParentStack = this
             };
             Scripts.Add(script);
@@ -212,7 +212,6 @@ namespace TycoonRevitAddin.Models
         private string _name;
         private string _id;
         private string _description;
-        private ButtonSize _size = ButtonSize.Medium;
         private bool _isFavorite;
         private DateTime _lastUsed;
         private bool _isDragOver;
@@ -238,12 +237,6 @@ namespace TycoonRevitAddin.Models
         {
             get => _description;
             set { _description = value; OnPropertyChanged(); }
-        }
-
-        public ButtonSize Size
-        {
-            get => _size;
-            set { _size = value; OnPropertyChanged(); OnPropertyChanged(nameof(SizeDescription)); }
         }
 
         public bool IsFavorite
@@ -295,21 +288,6 @@ namespace TycoonRevitAddin.Models
         }
 
         // Computed properties
-        public string SizeDescription
-        {
-            get
-            {
-                return Size switch
-                {
-                    ButtonSize.Small => "Small",
-                    ButtonSize.Medium => "Medium",
-                    ButtonSize.Large => "Large",
-                    ButtonSize.Full => "Full Width",
-                    _ => "Custom"
-                };
-            }
-        }
-
         public string FavoriteIcon => IsFavorite ? "⭐" : "☆";
 
         public bool IsRecent => (DateTime.Now - LastUsed).TotalDays <= 7;

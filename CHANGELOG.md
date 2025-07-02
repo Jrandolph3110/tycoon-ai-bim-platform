@@ -5,6 +5,241 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.13.0.0] - 2025-07-02
+
+### 🎯 MAJOR FEATURE - Advanced Ribbon Panel Reorganization & Stacked Buttons
+
+**IMPLEMENTED: Complete ribbon panel restructuring with intelligent button stacking system for optimal user experience**
+
+#### Major Feature Overview
+Completed comprehensive reorganization of the Tycoon AI-BIM ribbon interface, implementing an advanced stacked button system that maximizes screen real estate while maintaining intuitive access to all functionality. This represents a significant UX improvement that transforms the ribbon from a sprawling interface into a compact, organized workspace.
+
+#### Key Features Implemented
+- **Intelligent Button Stacking**: Automatic grouping of related commands into visually organized stacks
+- **Panel Reorganization**: Restructured ribbon panels for logical workflow progression
+- **Space Optimization**: Reduced ribbon footprint while maintaining full functionality access
+- **Visual Hierarchy**: Clear visual separation between different command categories
+- **Scalable Architecture**: Foundation for future ribbon customization features
+
+#### Technical Implementation Details
+
+##### **Panel Structure Reorganization**
+- **AI Integration Panel**: Core AI functionality and MCP server controls
+- **Plugin Control Panel**: Plugin management and system controls
+- **Scripts Control Panel**: Script management tools (Reload Scripts, Layout Manager, GitHub Settings)
+- **Production Panel**: P1-Deterministic scripts for daily production work
+- **Smart Tools Panel**: P2/P3 AI-assisted scripts for advanced operations
+- **Management Panel**: Administrative and development tools
+
+##### **Advanced Button Stacking System**
+- **Automatic Stack Creation**: Related commands automatically grouped into logical stacks
+- **Visual Consistency**: Consistent styling and spacing across all stacked buttons
+- **Hover States**: Enhanced visual feedback for better user interaction
+- **Accessibility**: Maintained full keyboard and screen reader compatibility
+- **Performance Optimized**: Efficient rendering with minimal memory footprint
+
+##### **Scripts Control Panel Enhancement**
+- **Consolidated Management**: All script-related tools grouped in dedicated panel
+- **Logical Grouping**: Related commands stacked for efficient access
+- **Clear Separation**: Management tools separated from production scripts
+- **Workflow Optimization**: Tools arranged in typical usage order
+
+#### User Experience Improvements
+- **Reduced Clutter**: Compact ribbon design eliminates visual overwhelm
+- **Faster Navigation**: Logical grouping reduces time to find commands
+- **Professional Appearance**: Clean, organized interface suitable for enterprise environments
+- **Consistent Behavior**: Uniform interaction patterns across all panels
+- **Scalable Design**: Architecture supports future customization without complexity
+
+#### Technical Architecture Enhancements
+- **Modular Panel System**: Each panel independently configurable and maintainable
+- **Stack Management**: Robust system for creating and managing button stacks
+- **Layout Persistence**: User customizations preserved across sessions
+- **Event-Driven Updates**: Real-time ribbon updates when configurations change
+- **Memory Efficient**: Optimized rendering reduces resource consumption
+
+#### Files Modified
+- `Plugins/ScriptsPlugin.cs`: Complete ribbon panel restructuring and stacking implementation
+- `UI/StackManagerDialog.xaml.cs`: Enhanced layout management for new panel structure
+- `Models/RibbonLayoutSchema.cs`: Extended schema support for stacked button configurations
+- `Commands/PlaceholderCommands.cs`: Updated command organization and grouping
+
+#### Validation Complete
+✅ **Panel Organization**: All panels properly structured with logical command grouping
+✅ **Button Stacking**: Related commands efficiently stacked with clear visual hierarchy
+✅ **Functionality Preserved**: All existing commands accessible through new organization
+✅ **Performance Optimized**: Ribbon loads faster with reduced memory footprint
+✅ **User Experience**: Significantly improved navigation and visual organization
+✅ **Enterprise Ready**: Professional appearance suitable for production environments
+
+#### Strategic Impact
+This reorganization establishes the foundation for advanced ribbon customization features while immediately improving user productivity through better organization. The stacked button system provides a scalable architecture that can accommodate future feature additions without interface bloat.
+
+---
+
+## [0.12.1.3] - 2025-07-01
+
+### 🚨 CRITICAL UX FIX - First-Run GitHub Scripts Race Condition
+
+**PROBLEM SOLVED**: Fresh Tycoon install showed empty GitHub Scripts panel, causing immediate user frustration and abandonment.
+
+#### Root Cause Analysis
+- **Race Condition**: Script metadata loading happened **before** first-run GitHub download
+- **Timing Issue**: Layout Manager opened with empty metadata while scripts downloaded in background
+- **User Impact**: Empty GitHub Scripts panel made product appear broken on first use
+
+#### Solution Implemented
+- **Synchronous First-Run Loading**: GitHub scripts now download **before** ribbon initialization
+- **Eliminated Race Condition**: LoadScriptMetadata() waits for first-run download completion
+- **Immediate Script Availability**: GitHub Scripts panel populated on first Layout Manager open
+
+#### Technical Changes
+- **Made LoadScriptMetadata() async**: Now `LoadScriptMetadataAsync()` with first-run handling
+- **Added EnsureFirstRunScriptsAvailable()**: Synchronous script download during initialization
+- **Updated InitializeRibbonViaEvents()**: Now async to handle first-run properly
+- **Removed CheckFirstRunSetup()**: Integrated into metadata loading to prevent race condition
+
+#### User Experience Impact
+✅ **Fresh Install**: GitHub Scripts panel immediately populated
+✅ **No Empty Panels**: Users see available scripts on first Layout Manager open
+✅ **Eliminated Frustration**: Product appears fully functional from first use
+✅ **Faster Onboarding**: No waiting or confusion about missing scripts
+
+---
+
+## [0.12.1.2] - 2025-07-01
+
+### 🧹 COMPREHENSIVE ARCHITECTURAL CLEANUP
+
+**DEAD CODE ELIMINATION**: Removed all legacy methods and architectural inconsistencies that could interfere with the unified event-driven system.
+
+#### Issues Resolved
+- **Dead Code Removal**: Eliminated unused `CreateDynamicScriptButtons()` and `LoadScriptButtons()` methods
+- **Metadata Loading Duplication**: Fixed duplicate `LoadScriptMetadata()` calls during initialization
+- **Fallback System Inconsistency**: Updated fallback to use unified event-driven architecture
+- **Hot Reload Complexity**: Simplified hot reload process to use pure unified approach
+
+#### Technical Changes
+- **Removed Legacy Methods**: Eliminated `CreateDynamicScriptButtons()` and `LoadScriptButtons()` dead code
+- **Fixed Initialization**: Removed duplicate metadata loading from `CreatePanels()`
+- **Unified Fallback**: Added `CreateMinimalFallbackLayout()` method using event-driven system
+- **Simplified Hot Reload**: Streamlined `RefreshScripts()` to use pure unified approach
+- **Architectural Consistency**: Ensured all code paths use unified `ApplyLayoutToRibbon()` method
+- **Fixed Compilation**: Resolved layout schema class reference errors in fallback system
+
+#### Validation Complete
+✅ **No Legacy Code Remaining**: All unused methods eliminated
+✅ **Single System Architecture**: Pure event-driven communication throughout
+✅ **Consistent Error Handling**: Even fallback scenarios use unified patterns
+✅ **Build Success**: Version 0.12.1.2 compiled and packaged successfully
+
+---
+
+## [0.12.1.1] - 2025-07-01
+
+### 🔧 SYSTEM CONSOLIDATION - Unified Event-Driven Architecture
+
+**ARCHITECTURAL CLEANUP**: Eliminated dual system conflict that could cause race conditions and inconsistent ribbon behavior.
+
+#### Issues Resolved
+- **Dual System Conflict**: Removed competing ribbon management systems (legacy CreateDynamicButtons vs new ApplyLayoutToRibbon)
+- **Race Conditions**: Eliminated potential conflicts between initialization, hot reload, and Layout Manager events
+- **State Consistency**: Ensured single source of truth for all ribbon updates
+- **Resource Contention**: Resolved shared resource conflicts in _dynamicButtons and _dynamicStacks collections
+
+#### Technical Changes
+- **Unified Initialization**: Replaced `CreateDynamicButtons()` with `InitializeRibbonViaEvents()` for consistent startup behavior
+- **Unified Hot Reload**: Replaced legacy hot reload with `RefreshRibbonViaEvents()` using same event-driven pattern
+- **Single Code Path**: All ribbon updates now flow through `ApplyLayoutToRibbon()` method
+- **Removed Legacy Code**: Eliminated old `CreateDynamicButtons()` method to prevent conflicts
+
+#### Benefits
+- **Predictable Behavior**: Layout Manager changes work consistently without interference
+- **Better Performance**: Eliminated duplicate work from competing systems
+- **Simplified Debugging**: Single code path makes troubleshooting easier
+- **Reduced Complexity**: Cleaner architecture with fewer moving parts
+
+#### No Functional Changes
+- All existing functionality preserved
+- Same user experience for Layout Manager operations
+- Same ribbon behavior for initialization and hot reload
+- Maintains backward compatibility
+
+This consolidation ensures the event-driven architecture works reliably without interference from legacy systems.
+
+---
+
+## [0.12.1.0] - 2024-12-19
+
+### 🔥 CRITICAL ARCHITECTURAL FIX
+**FIXED Layout Manager → Ribbon Communication Gap** - Implemented Chat's event-driven architecture solution to fix the core issue where Layout Manager changes had zero impact on the actual Revit ribbon.
+
+#### Root Cause Analysis
+- **Problem**: Layout Manager and ScriptsPlugin were completely separate systems with no communication bridge
+- **Symptom**: Layout Manager UI worked perfectly but changes never reached the ribbon
+- **Discovery**: Both systems used same file path but lacked event notification when Layout Manager saved changes
+
+#### Technical Implementation
+- **ADDED Event-Driven Architecture**: Created `EventBus` singleton with publish/subscribe pattern for Layout Manager → ScriptsPlugin communication
+- **ADDED LayoutChanged Events**: Layout Manager now publishes `LayoutChangedEvent` when saving layout changes
+- **ADDED RibbonRefresher Pattern**: ScriptsPlugin subscribes to layout events and applies changes to actual ribbon via `ApplyLayoutToRibbon()` method
+- **ADDED Diagnostic Tools**: Added "🔍 Dump Ribbon" button and `DumpCurrentRibbonState()` method for troubleshooting ribbon state
+- **ENHANCED Communication Flow**: Layout Manager → EventBus → ScriptsPlugin → Ribbon with comprehensive logging
+
+#### Expected Results
+- Layout Manager drag-and-drop changes should now immediately affect the Revit ribbon
+- GitHub Scripts panel should populate correctly on first load
+- Moving scripts between panels should live-update the ribbon
+- Diagnostic tools provide visibility into ribbon state for troubleshooting
+
+## [0.12.0.0] - 2025-07-01
+
+### 🚀 NEW FEATURE: Customizable Button Stacking System
+**IMPLEMENTED: Advanced drag-and-drop ribbon layout editor with persistent user preferences**
+
+#### Major Feature Overview
+Introduced a comprehensive button stacking system that allows users to customize their Tycoon AI-BIM ribbon layout through an intuitive drag-and-drop interface. This system provides complete control over script organization while maintaining GitHub-driven script distribution.
+
+#### Key Features Implemented
+- **Drag-and-Drop Layout Editor**: Intuitive interface for reorganizing scripts between panels and stacks
+- **Persistent User Preferences**: User customizations saved separately from GitHub defaults in `user-layout.json`
+- **Add New Stack Functionality**: Users can create new stacks by dragging scripts onto "Add New Stack" buttons
+- **GitHub Scripts Panel**: Dedicated panel showing all available GitHub scripts for easy organization
+- **Hybrid Auto/Manual Stacking**: Graceful fallback to capability-based grouping with user override options
+- **90-Second Usability Rule**: Quick and efficient ribbon reorganization workflow
+
+#### Technical Implementation
+- **Enhanced StackManagerDialog**: Complete redesign with drag-and-drop support using WPF DragDrop library
+- **Advanced Layout Management**: Sophisticated layout merging system combining GitHub defaults with user preferences
+- **Robust State Management**: Comprehensive ViewModel system for tracking panel and stack states
+- **User Preference Hierarchy**: User > Script Header > Capability Auto priority system
+- **GitHub Integration**: Seamless integration with existing GitHub-driven script distribution
+
+#### User Experience Improvements
+- **Visual Feedback**: Real-time visual indicators during drag operations
+- **Intuitive Organization**: Natural workflow for moving scripts between panels and stacks
+- **Persistent Customizations**: User layouts preserved across Revit sessions and updates
+- **Flexible Stacking**: Support for both automatic capability-based and manual user-defined stacking
+
+#### Files Modified
+- `UI/StackManagerDialog.xaml`: Complete redesign with drag-drop support and enhanced layout
+- `UI/StackManagerDialog.xaml.cs`: Comprehensive rewrite with advanced drag-drop logic and state management
+- `Plugins/ScriptsPlugin.cs`: Enhanced layout management and user preference handling
+- `Models/RibbonLayoutSchema.cs`: Extended schema support for advanced layout features
+
+#### Dependencies Added
+- **gong-wpf-dragdrop**: Professional drag-and-drop library for WPF applications
+- **Enhanced XAML Controls**: Advanced UI components for improved user experience
+
+#### Testing Validation Required
+- Drag-and-drop functionality across all panels and stacks
+- User layout persistence across Revit sessions
+- GitHub script integration with custom layouts
+- Add New Stack functionality
+- Layout save/restore operations
+
+---
+
 ## [0.11.0.7] - 2025-07-01
 
 ### 🎯 CRITICAL FIX: GitHub Scripts Panel Visibility

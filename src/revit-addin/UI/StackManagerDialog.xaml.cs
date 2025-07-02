@@ -12,6 +12,7 @@ using TycoonRevitAddin.Models;
 using TycoonRevitAddin.Plugins;
 using TycoonRevitAddin.Services;
 using TycoonRevitAddin.Utils;
+using TycoonRevitAddin.Events;
 
 namespace TycoonRevitAddin.UI
 {
@@ -24,7 +25,7 @@ namespace TycoonRevitAddin.UI
         private readonly RibbonLayoutManager _layoutManager;
         private readonly Dictionary<string, ScriptMetadata> _scriptMetadata;
         private readonly Logger _logger;
-        private readonly GitCacheManager _gitCacheManager;
+        private GitCacheManager _gitCacheManager;
         private LayoutManagerViewModel _viewModel;
         private object _draggedItem;
         private Point _dragStartPoint;
@@ -32,15 +33,24 @@ namespace TycoonRevitAddin.UI
         private RibbonLayoutSchema _currentLayout;
         private bool _hasChanges = false;
 
-        public StackManagerDialog(RibbonLayoutManager layoutManager, Dictionary<string, ScriptMetadata> scriptMetadata, Logger logger, GitCacheManager gitCacheManager = null)
+        public StackManagerDialog(RibbonLayoutManager layoutManager, Logger logger)
         {
             InitializeComponent();
             _layoutManager = layoutManager;
-            _scriptMetadata = scriptMetadata ?? new Dictionary<string, ScriptMetadata>(); // Use the passed script metadata
             _logger = logger;
-            _gitCacheManager = gitCacheManager;
 
-            _logger.Log($"🔍 DIAGNOSTIC: StackManagerDialog initialized with {_scriptMetadata.Count} scripts");
+            // 🎯 NEW: Get GitCacheManager from ScriptService
+            _gitCacheManager = ScriptService.Instance.GetGitCacheManager();
+
+            // 🎯 NEW: Initialize script metadata from ScriptService
+            _scriptMetadata = new Dictionary<string, ScriptMetadata>();
+            LoadScriptMetadataFromScriptService();
+
+            // 🎯 NEW: Subscribe to ScriptService events for real-time updates
+            ScriptService.Instance.LocalScriptsUpdated += OnScriptServiceLocalScriptsUpdated;
+            ScriptService.Instance.GitHubScriptsUpdated += OnScriptServiceGitHubScriptsUpdated;
+
+            _logger.Log($"🎯 StackManagerDialog initialized with ScriptService - {_scriptMetadata.Count} scripts loaded");
 
             InitializeViewModel();
         }
@@ -91,7 +101,9 @@ namespace TycoonRevitAddin.UI
                     // Log panel contents for debugging
                     foreach (var panel in currentLayout.Panels)
                     {
-                        var scriptCount = panel.Stacks.Sum(s => s.Items.Count);
+                        // Count scripts from ScriptItems
+                        var scriptCount = panel.Stacks.Sum(s =>
+                            s.ScriptItems?.Count ?? 0);
                         _logger.Log($"🔍 DIAGNOSTIC: Panel '{panel.Name}' has {panel.Stacks.Count} stacks with {scriptCount} total scripts");
                     }
 
@@ -113,49 +125,83 @@ namespace TycoonRevitAddin.UI
         }
 
         /// <summary>
-        /// Add GitHub Scripts panel showing ALL GitHub scripts for user organization
+        /// Add GitHub Scripts panel showing ONLY unplaced GitHub scripts for user organization
         /// </summary>
         private void AddGitHubScriptsPanel(RibbonLayoutSchema currentLayout)
         {
             try
             {
-                // Get ALL GitHub scripts for user organization
-                var allGitHubScripts = _scriptMetadata.Values
-                    .Where(s => s.IsGitHubScript)
+                // CRITICAL FIX: Check if GitHub Scripts panel already exists to prevent duplicates
+                var existingGitHubPanel = _viewModel.Panels.FirstOrDefault(p => p.Id == "GitHubScripts");  // 🔧 FIX: PascalCase
+                if (existingGitHubPanel != null)
+                {
+                    _logger.Log("🔍 DIAGNOSTIC: GitHub Scripts panel already exists - skipping duplicate creation");
+                    return;
+                }
+
+                // Get scripts that are already placed in other panels
+                var placedScripts = GetScriptsAlreadyPlacedInPanels();
+
+                // Get ONLY unplaced GitHub scripts for user organization
+                var unplacedGitHubScripts = _scriptMetadata.Values
+                    .Where(s => s.IsGitHubScript && !placedScripts.Contains(s.Name))
                     .ToList();
 
-                _logger.Log($"🔍 DIAGNOSTIC: Found {allGitHubScripts.Count} total GitHub scripts for organization");
+                _logger.Log($"🔍 DIAGNOSTIC: Found {_scriptMetadata.Values.Count(s => s.IsGitHubScript)} total GitHub scripts, {placedScripts.Count} already placed, {unplacedGitHubScripts.Count} unplaced");
 
                 // Create GitHub Scripts panel
                 var githubScriptsPanel = new PanelViewModel
                 {
-                    Id = "githubscripts",
+                    Id = "GitHubScripts",  // 🔧 FIX: Use PascalCase to match layout templates
                     Name = "📦 GitHub Scripts",
                     Color = new SolidColorBrush(Color.FromRgb(33, 150, 243)), // #2196F3
                     Order = 3
                 };
 
-                // Add ALL GitHub scripts to the panel for user organization
-                if (allGitHubScripts.Count > 0)
+                // Add ONLY unplaced GitHub scripts to the panel for user organization
+                if (unplacedGitHubScripts.Count > 0)
                 {
                     var githubScriptsStack = githubScriptsPanel.AddStack("Available Scripts", StackLayoutType.Vertical);
-                    foreach (var script in allGitHubScripts)
+                    foreach (var script in unplacedGitHubScripts)
                     {
-                        githubScriptsStack.AddScript(script.Name, script.Description ?? $"GitHub script: {script.Name}", ButtonSize.Medium);
+                        githubScriptsStack.AddScript(script.Name, script.Description ?? $"GitHub script: {script.Name}");
                     }
-                    _logger.Log($"🎯 Added {allGitHubScripts.Count} GitHub scripts to GitHub panel for organization");
+                    _logger.Log($"🎯 Added {unplacedGitHubScripts.Count} unplaced GitHub scripts to GitHub panel for organization");
                 }
                 else
                 {
-                    _logger.Log("🎯 No GitHub scripts found - GitHub panel will be empty");
+                    _logger.Log("🎯 No unplaced GitHub scripts found - GitHub panel will be empty");
                 }
 
                 _viewModel.Panels.Add(githubScriptsPanel);
+                _logger.Log("🎯 Successfully created new GitHub Scripts panel");
             }
             catch (Exception ex)
             {
                 _logger.LogError("Failed to add GitHub Scripts panel", ex);
             }
+        }
+
+        /// <summary>
+        /// Get list of script names that are already placed in non-GitHub panels
+        /// </summary>
+        private HashSet<string> GetScriptsAlreadyPlacedInPanels()
+        {
+            var placedScripts = new HashSet<string>();
+
+            // Check all panels except GitHub Scripts panel
+            foreach (var panel in _viewModel.Panels.Where(p => !p.Id.Equals("GitHubScripts", StringComparison.OrdinalIgnoreCase)))  // 🔧 FIX: PascalCase
+            {
+                foreach (var stack in panel.Stacks)
+                {
+                    foreach (var script in stack.Scripts)
+                    {
+                        placedScripts.Add(script.Name);
+                    }
+                }
+            }
+
+            return placedScripts;
         }
 
         /// <summary>
@@ -186,16 +232,19 @@ namespace TycoonRevitAddin.UI
                 {
                     var stackVM = panelVM.AddStack(stack.Name, StackLayoutType.Vertical);
 
-                    foreach (var scriptName in stack.Items)
+                    // Use ScriptItems with icon information
+                    var scriptItems = stack.ScriptItems ?? new List<ScriptItem>();
+
+                    foreach (var scriptItem in scriptItems)
                     {
                         // Handle GitHub scripts differently
-                        if (panel.Id.Equals("githubscripts", StringComparison.OrdinalIgnoreCase))
+                        if (panel.Id.Equals("GitHubScripts", StringComparison.OrdinalIgnoreCase))  // 🔧 FIX: PascalCase
                         {
-                            stackVM.AddScript(scriptName, $"GitHub script: {scriptName}", ButtonSize.Medium);
+                            stackVM.AddScript(scriptItem.Name, $"GitHub script: {scriptItem.Name}", scriptItem.IconPath);
                         }
                         else
                         {
-                            stackVM.AddScript(scriptName, $"User script: {scriptName}", ButtonSize.Medium);
+                            stackVM.AddScript(scriptItem.Name, $"User script: {scriptItem.Name}", scriptItem.IconPath);
                         }
                     }
                 }
@@ -221,7 +270,7 @@ namespace TycoonRevitAddin.UI
                 foreach (var panelVM in _viewModel.Panels.OrderBy(p => p.Order))
                 {
                     // Skip GitHub Scripts panel - it's not part of the main layout
-                    if (panelVM.Id.Equals("githubscripts", StringComparison.OrdinalIgnoreCase))
+                    if (panelVM.Id.Equals("GitHubScripts", StringComparison.OrdinalIgnoreCase))  // 🔧 FIX: PascalCase
                         continue;
 
                     var panelLayout = new PanelLayout
@@ -241,7 +290,12 @@ namespace TycoonRevitAddin.UI
                             {
                                 Id = stackVM.Id,
                                 Name = stackVM.Name,
-                                Items = stackVM.Scripts.Select(s => s.Name).ToList(),
+                                // 🔥 NEW: Save script items with icon information
+                                ScriptItems = stackVM.Scripts.Select(s => new ScriptItem
+                                {
+                                    Name = s.Name,
+                                    IconPath = s.IconPath // Preserve the custom icon from UI
+                                }).ToList(),
                                 Order = stackOrder++
                             };
 
@@ -270,7 +324,7 @@ namespace TycoonRevitAddin.UI
             // Create default panels with proper colors
             var productionPanel = new PanelViewModel
             {
-                Id = "production",
+                Id = "Production",  // 🔧 FIX: Use PascalCase to match layout templates and ScriptsPlugin
                 Name = "🟢 Production",
                 Color = new SolidColorBrush(Color.FromRgb(39, 174, 96)), // #27AE60
                 Order = 0
@@ -278,7 +332,7 @@ namespace TycoonRevitAddin.UI
 
             var smartToolsPanel = new PanelViewModel
             {
-                Id = "smarttools",
+                Id = "SmartTools",  // 🔧 FIX: Use PascalCase to match layout templates and ScriptsPlugin
                 Name = "🧠 Smart Tools β",
                 Color = new SolidColorBrush(Color.FromRgb(243, 156, 18)), // #F39C12
                 Order = 1
@@ -286,7 +340,7 @@ namespace TycoonRevitAddin.UI
 
             var managementPanel = new PanelViewModel
             {
-                Id = "management",
+                Id = "Management",  // 🔧 FIX: Use PascalCase to match layout templates and ScriptsPlugin
                 Name = "⚙️ Management",
                 Color = new SolidColorBrush(Color.FromRgb(142, 68, 173)), // #8E44AD
                 Order = 2
@@ -294,7 +348,7 @@ namespace TycoonRevitAddin.UI
 
             var githubScriptsPanel = new PanelViewModel
             {
-                Id = "githubscripts",
+                Id = "GitHubScripts",  // 🔧 FIX: Use PascalCase to match layout templates
                 Name = "📦 GitHub Scripts",
                 Color = new SolidColorBrush(Color.FromRgb(33, 150, 243)), // #2196F3
                 Order = 3
@@ -342,7 +396,7 @@ namespace TycoonRevitAddin.UI
                     var userScriptsStack = productionPanel.AddStack("User Scripts", StackLayoutType.Vertical);
                     foreach (var script in localScripts)
                     {
-                        userScriptsStack.AddScript(script.Name, script.Description ?? $"Local script: {script.Name}", ButtonSize.Medium);
+                        userScriptsStack.AddScript(script.Name, script.Description ?? $"Local script: {script.Name}");
                     }
                     _logger.Log($"🎯 Added {localScripts.Count} local scripts to Production panel");
                 }
@@ -353,7 +407,7 @@ namespace TycoonRevitAddin.UI
                     var githubScriptsStack = githubScriptsPanel.AddStack("Available Scripts", StackLayoutType.Vertical);
                     foreach (var script in githubScripts)
                     {
-                        githubScriptsStack.AddScript(script.Name, script.Description ?? $"GitHub script: {script.Name}", ButtonSize.Medium);
+                        githubScriptsStack.AddScript(script.Name, script.Description ?? $"GitHub script: {script.Name}");
                     }
                     _logger.Log($"🎯 Added {githubScripts.Count} GitHub scripts to GitHub panel");
                 }
@@ -405,19 +459,19 @@ namespace TycoonRevitAddin.UI
                     foreach (var scriptFile in scriptFiles)
                     {
                         var scriptName = Path.GetFileNameWithoutExtension(scriptFile);
-                        stack.AddScript(scriptName, $"GitHub script: {scriptName}", ButtonSize.Medium);
+                        stack.AddScript(scriptName, $"GitHub script: {scriptName}");
                     }
                 }
 
                 if (stack.Scripts.Count == 0)
                 {
-                    stack.AddScript("📭 No scripts", "No scripts in this category", ButtonSize.Medium);
+                    stack.AddScript("📭 No scripts", "No scripts in this category");
                 }
             }
             catch (Exception ex)
             {
                 _logger.LogWarning($"Failed to load scripts from {categoryPath}: {ex.Message}");
-                stack.AddScript("❌ Load Error", "Failed to load scripts from this category", ButtonSize.Medium);
+                stack.AddScript("❌ Load Error", "Failed to load scripts from this category");
             }
         }
 
@@ -427,8 +481,8 @@ namespace TycoonRevitAddin.UI
         private void CreateGitHubPlaceholderContent(PanelViewModel githubPanel, string reason)
         {
             var statusStack = githubPanel.AddStack("GitHub Status", StackLayoutType.Vertical);
-            statusStack.AddScript("🔄 Refresh from GitHub", "Click refresh button to check for updates", ButtonSize.Medium);
-            statusStack.AddScript($"📭 {reason}", "Use refresh button to download scripts", ButtonSize.Medium);
+            statusStack.AddScript("🔄 Refresh from GitHub", "Click refresh button to check for updates");
+            statusStack.AddScript($"📭 {reason}", "Use refresh button to download scripts");
         }
 
         /// <summary>
@@ -622,9 +676,13 @@ namespace TycoonRevitAddin.UI
 
                 _hasChanges = false;
                 _viewModel.HasUnsavedChanges = false;
-                DialogResult = true;
+
                 _logger.Log("🎯 Saved user scripts layout changes to disk");
-                MessageBox.Show("User scripts layout saved successfully!", "Save Complete", MessageBoxButton.OK, MessageBoxImage.Information);
+
+                // Auto-reload scripts after saving
+                TriggerScriptReload();
+
+                DialogResult = true;
             }
             catch (Exception ex)
             {
@@ -647,6 +705,45 @@ namespace TycoonRevitAddin.UI
             DialogResult = false;
         }
 
+        /// <summary>
+        /// Export current layout as template file
+        /// </summary>
+        private void ExportTemplate_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                // Show save file dialog
+                var saveDialog = new Microsoft.Win32.SaveFileDialog
+                {
+                    Title = "Export Layout Template",
+                    Filter = "JSON Template Files (*.json)|*.json|All Files (*.*)|*.*",
+                    DefaultExt = "json",
+                    FileName = $"layout-template-{DateTime.Now:yyyy-MM-dd}.json"
+                };
+
+                if (saveDialog.ShowDialog() == true)
+                {
+                    // Convert current ViewModel to layout format
+                    var layout = ConvertViewModelToLayout();
+
+                    // Serialize to JSON with formatting
+                    var json = Newtonsoft.Json.JsonConvert.SerializeObject(layout, Newtonsoft.Json.Formatting.Indented);
+
+                    // Save to file
+                    File.WriteAllText(saveDialog.FileName, json);
+
+                    _logger.Log($"📤 Exported layout template to: {saveDialog.FileName}");
+                    MessageBox.Show($"Layout template exported successfully!\n\nFile: {saveDialog.FileName}\n\nYou can share this template file to update the default GitHub layout.",
+                                  "Export Complete", MessageBoxButton.OK, MessageBoxImage.Information);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError("Failed to export template", ex);
+                MessageBox.Show($"Error exporting template: {ex.Message}", "Export Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
         #region Advanced Event Handlers
 
         /// <summary>
@@ -658,37 +755,28 @@ namespace TycoonRevitAddin.UI
         }
 
         /// <summary>
-        /// Save layout button click
+        /// Save layout button click (Top button - now unified with bottom button behavior)
         /// </summary>
         private void SaveLayout_Click(object sender, RoutedEventArgs e)
         {
             try
             {
-                _logger.Log("💾 User clicked Save Layout - converting ViewModel to layout schema");
+                _logger.Log("💾 User clicked top Save Layout button - using unified save logic");
 
-                // Convert current ViewModel state to RibbonLayoutSchema
-                var layoutToSave = ConvertViewModelToLayout();
+                // 🔥 CRITICAL FIX: Use the same comprehensive save logic as the bottom Save Layout button
+                // This ensures ribbon refresh, event publishing, and proper persistence
+                SaveViewModelToLayoutManager();
 
-                if (layoutToSave != null)
-                {
-                    // Save the layout using the LayoutManager
-                    _layoutManager.SaveUserLayout(layoutToSave);
-                    _logger.Log($"💾 Layout saved successfully with {layoutToSave.Panels.Count} panels");
+                _hasChanges = false;
+                _viewModel.HasUnsavedChanges = false;
 
-                    // Log what was saved for debugging
-                    foreach (var panel in layoutToSave.Panels)
-                    {
-                        var scriptCount = panel.Stacks.Sum(s => s.Items.Count);
-                        _logger.Log($"💾 Saved panel '{panel.Name}': {panel.Stacks.Count} stacks, {scriptCount} scripts");
-                    }
+                _logger.Log("🎯 Top Save Layout completed - layout saved and ribbon refreshed");
 
-                    MessageBox.Show("Layout saved successfully!", "Save Layout", MessageBoxButton.OK, MessageBoxImage.Information);
-                }
-                else
-                {
-                    _logger.LogError("Failed to convert ViewModel to layout schema");
-                    MessageBox.Show("Failed to save layout. Please check the logs.", "Save Layout", MessageBoxButton.OK, MessageBoxImage.Error);
-                }
+                // Auto-reload scripts after saving (same as bottom button)
+                TriggerScriptReload();
+
+                // Show success message (since this button doesn't close the dialog)
+                MessageBox.Show("Layout saved successfully! The ribbon has been updated.", "Save Layout", MessageBoxButton.OK, MessageBoxImage.Information);
             }
             catch (Exception ex)
             {
@@ -767,28 +855,33 @@ namespace TycoonRevitAddin.UI
             try
             {
                 var githubPanel = _viewModel.Panels.FirstOrDefault(p =>
-                    p.Id.Equals("githubscripts", StringComparison.OrdinalIgnoreCase));
+                    p.Id.Equals("GitHubScripts", StringComparison.OrdinalIgnoreCase));  // 🔧 FIX: PascalCase
 
                 if (githubPanel != null)
                 {
                     // Clear existing stacks
                     githubPanel.Stacks.Clear();
 
-                    // Reload GitHub scripts from metadata
-                    var githubScripts = _scriptMetadata.Values.Where(s => s.IsGitHubScript).ToList();
+                    // Get scripts that are already placed in other panels
+                    var placedScripts = GetScriptsAlreadyPlacedInPanels();
 
-                    if (githubScripts.Count > 0)
+                    // Reload ONLY unplaced GitHub scripts from metadata
+                    var unplacedGitHubScripts = _scriptMetadata.Values
+                        .Where(s => s.IsGitHubScript && !placedScripts.Contains(s.Name))
+                        .ToList();
+
+                    if (unplacedGitHubScripts.Count > 0)
                     {
                         var githubScriptsStack = githubPanel.AddStack("Available Scripts", StackLayoutType.Vertical);
-                        foreach (var script in githubScripts)
+                        foreach (var script in unplacedGitHubScripts)
                         {
-                            githubScriptsStack.AddScript(script.Name, script.Description ?? $"GitHub script: {script.Name}", ButtonSize.Medium);
+                            githubScriptsStack.AddScript(script.Name, script.Description ?? $"GitHub script: {script.Name}");
                         }
-                        _logger.Log($"🔄 Refreshed GitHub Scripts panel with {githubScripts.Count} scripts");
+                        _logger.Log($"🔄 Refreshed GitHub Scripts panel with {unplacedGitHubScripts.Count} unplaced scripts (total GitHub scripts: {_scriptMetadata.Values.Count(s => s.IsGitHubScript)})");
                     }
                     else
                     {
-                        _logger.Log("🔄 No GitHub scripts found in metadata during refresh");
+                        _logger.Log("🔄 No unplaced GitHub scripts found during refresh - all scripts are placed in other panels");
                     }
                 }
             }
@@ -906,6 +999,11 @@ namespace TycoonRevitAddin.UI
                     var draggedIndex = _viewModel.Panels.IndexOf(draggedPanel);
                     var targetIndex = _viewModel.Panels.IndexOf(targetPanel);
                     _viewModel.ReorderPanels(draggedIndex, targetIndex);
+
+                    // 🔄 AutoSaveChanges includes ribbon refresh - no need for duplicate call
+                    AutoSaveChanges();
+
+                    _logger.Log($"🎯 Reordered panel '{draggedPanel.Name}' - ribbon updated");
                 }
                 else if (e.Data.GetData(typeof(ScriptViewModel)) is ScriptViewModel draggedScript)
                 {
@@ -936,6 +1034,20 @@ namespace TycoonRevitAddin.UI
                 e.Effects = DragDropEffects.Move;
             }
             e.Handled = true;
+        }
+
+        /// <summary>
+        /// Stack drag leave
+        /// </summary>
+        private void Stack_DragLeave(object sender, DragEventArgs e)
+        {
+            var itemsControl = sender as ItemsControl;
+            var stack = itemsControl?.DataContext as StackViewModel;
+
+            if (stack != null)
+            {
+                stack.IsDragOver = false;
+            }
         }
 
         /// <summary>
@@ -974,6 +1086,20 @@ namespace TycoonRevitAddin.UI
                 e.Effects = DragDropEffects.Move;
             }
             e.Handled = true;
+        }
+
+        /// <summary>
+        /// Script drag leave
+        /// </summary>
+        private void Script_DragLeave(object sender, DragEventArgs e)
+        {
+            var border = sender as Border;
+            var script = border?.DataContext as ScriptViewModel;
+
+            if (script != null)
+            {
+                script.IsDragOver = false;
+            }
         }
 
         /// <summary>
@@ -1018,6 +1144,7 @@ namespace TycoonRevitAddin.UI
             if (stack != null && e.Data.GetData(typeof(ScriptViewModel)) is ScriptViewModel draggedScript)
             {
                 MoveScriptToStack(draggedScript, stack);
+                // Note: MoveScriptToStack already calls TriggerRibbonRefresh()
             }
 
             e.Handled = true;
@@ -1052,12 +1179,10 @@ namespace TycoonRevitAddin.UI
                     var dialog = new AvailableScriptsDialog(availableScripts);
                     if (dialog.ShowDialog() == true && !string.IsNullOrEmpty(dialog.SelectedScript))
                     {
-                        stack.AddScript(dialog.SelectedScript, $"User script: {dialog.SelectedScript}", ButtonSize.Medium);
+                        stack.AddScript(dialog.SelectedScript, $"User script: {dialog.SelectedScript}");
                         _viewModel.HasUnsavedChanges = true;
+                        // 🔄 AutoSaveChanges includes ribbon refresh - no need for duplicate call
                         AutoSaveChanges();
-
-                        // 🔄 Trigger ribbon refresh to update layout organization
-                        TriggerRibbonRefresh();
 
                         _logger.Log($"🎯 Added script '{dialog.SelectedScript}' to stack '{stack.Name}'");
                     }
@@ -1153,9 +1278,10 @@ namespace TycoonRevitAddin.UI
                 newStack.Scripts.Add(draggedScript);
 
                 _viewModel.HasUnsavedChanges = true;
+                // 🔄 AutoSaveChanges includes ribbon refresh - no need for duplicate call
                 AutoSaveChanges();
 
-                _logger.Log($"🎯 Created new stack '{newStackName}' with script '{draggedScript.Name}'");
+                _logger.Log($"🎯 Created new stack '{newStackName}' with script '{draggedScript.Name}' - ribbon updated");
             }
 
             e.Handled = true;
@@ -1200,9 +1326,9 @@ namespace TycoonRevitAddin.UI
         }
 
         /// <summary>
-        /// Change size menu item click
+        /// Set icon menu item click
         /// </summary>
-        private void ChangeSize_Click(object sender, RoutedEventArgs e)
+        private void SetIcon_Click(object sender, RoutedEventArgs e)
         {
             var menuItem = sender as MenuItem;
             var contextMenu = menuItem?.Parent as ContextMenu;
@@ -1211,17 +1337,21 @@ namespace TycoonRevitAddin.UI
 
             if (script != null)
             {
-                // Cycle through sizes
-                script.Size = script.Size switch
+                var openFileDialog = new Microsoft.Win32.OpenFileDialog
                 {
-                    ButtonSize.Small => ButtonSize.Medium,
-                    ButtonSize.Medium => ButtonSize.Large,
-                    ButtonSize.Large => ButtonSize.Full,
-                    ButtonSize.Full => ButtonSize.Small,
-                    _ => ButtonSize.Medium
+                    Title = "Select Icon for Script",
+                    Filter = "Image Files|*.png;*.jpg;*.jpeg;*.bmp;*.gif;*.ico|All Files|*.*",
+                    FilterIndex = 1
                 };
-                _viewModel.HasUnsavedChanges = true;
-                AutoSaveChanges();
+
+                if (openFileDialog.ShowDialog() == true)
+                {
+                    script.IconPath = openFileDialog.FileName;
+                    _viewModel.HasUnsavedChanges = true;
+                    AutoSaveChanges();
+
+                    _logger.Log($"🖼️ Set custom icon for script '{script.Name}': {script.IconPath}");
+                }
             }
         }
 
@@ -1237,13 +1367,19 @@ namespace TycoonRevitAddin.UI
 
             if (script != null && script.ParentStack != null)
             {
-                if (MessageBox.Show($"Remove script '{script.Name}'?", "Confirm Remove",
-                    MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes)
+                // Remove from current stack
+                script.ParentStack.RemoveScript(script);
+
+                // If it's a GitHub script, return it to GitHub Scripts panel
+                if (IsGitHubScript(script.Name))
                 {
-                    script.ParentStack.RemoveScript(script);
-                    _viewModel.HasUnsavedChanges = true;
-                    AutoSaveChanges();
+                    ReturnScriptToGitHubPanel(script);
                 }
+
+                _viewModel.HasUnsavedChanges = true;
+                AutoSaveChanges();
+
+                _logger.Log($"🗑️ Removed script '{script.Name}' from layout");
             }
         }
 
@@ -1278,12 +1414,14 @@ namespace TycoonRevitAddin.UI
                 var newScript = script.ParentStack.AddScript(
                     $"{_copiedScript.Name} (Copy)",
                     _copiedScript.Description,
-                    _copiedScript.Size);
+                    _copiedScript.IconPath);
                 newScript.IsFavorite = _copiedScript.IsFavorite;
                 _viewModel.HasUnsavedChanges = true;
                 AutoSaveChanges();
             }
         }
+
+
 
         #endregion
 
@@ -1297,10 +1435,19 @@ namespace TycoonRevitAddin.UI
             try
             {
                 // Convert ViewModel panels back to LayoutManager format
-                var updatedLayout = new RibbonLayoutSchema();
+                var updatedLayout = new RibbonLayoutSchema
+                {
+                    Mode = TycoonRevitAddin.Layout.LayoutMode.Manual,
+                    LastModified = DateTime.UtcNow,
+                    Panels = new List<PanelLayout>()
+                };
 
                 foreach (var panelVM in _viewModel.Panels)
                 {
+                    // Skip GitHub Scripts panel - it's not part of the main layout
+                    if (panelVM.Id.Equals("GitHubScripts", StringComparison.OrdinalIgnoreCase))  // 🔧 FIX: PascalCase
+                        continue;
+
                     var panel = new PanelLayout
                     {
                         Id = panelVM.Id,
@@ -1308,23 +1455,50 @@ namespace TycoonRevitAddin.UI
                         Stacks = new List<StackLayout>()
                     };
 
+                    int stackOrder = 0;
                     foreach (var stackVM in panelVM.Stacks)
                     {
-                        var stack = new StackLayout
+                        // Only save stacks that have scripts
+                        if (stackVM.Scripts.Any())
                         {
-                            Id = stackVM.Id,
-                            Name = stackVM.Name,
-                            Items = stackVM.Scripts.Select(s => s.Name).ToList()
-                        };
-                        panel.Stacks.Add(stack);
+                            var stack = new StackLayout
+                            {
+                                Id = stackVM.Id,
+                                Name = stackVM.Name,
+                                // 🔥 NEW: Save script items with icon information
+                                ScriptItems = stackVM.Scripts.Select(s => new ScriptItem
+                                {
+                                    Name = s.Name,
+                                    IconPath = s.IconPath // Preserve the custom icon from UI
+                                }).ToList(),
+                                Order = stackOrder++
+                            };
+                            panel.Stacks.Add(stack);
+                        }
                     }
 
                     updatedLayout.Panels.Add(panel);
                 }
 
-                // Save to LayoutManager
+                // Save to LayoutManager with explicit flush
                 _layoutManager.SaveUserLayout(updatedLayout);
+
+                // 🔥 CRITICAL FIX: Publish LayoutChanged event (Chat's event-driven architecture)
+                _logger.Log("📡 Publishing LayoutChanged event to notify ScriptsPlugin");
+                EventBus.Instance.Publish(new LayoutChangedEvent(updatedLayout));
+
+                // Force file system flush to ensure write completes
+                System.GC.Collect();
+                System.GC.WaitForPendingFinalizers();
+
                 _logger.Log($"🎯 Saved layout with {updatedLayout.Panels.Count} panels to LayoutManager");
+
+                // Log what was saved for debugging
+                foreach (var panel in updatedLayout.Panels)
+                {
+                    var scriptCount = panel.Stacks.Sum(s => s.ScriptItems?.Count ?? 0);
+                    _logger.Log($"🎯 Saved panel '{panel.Name}': {panel.Stacks.Count} stacks, {scriptCount} scripts");
+                }
             }
             catch (Exception ex)
             {
@@ -1340,13 +1514,68 @@ namespace TycoonRevitAddin.UI
         {
             try
             {
+                _logger.Log("🎯 AUTO-SAVE DEBUG: Starting AutoSaveChanges");
                 SaveViewModelToLayoutManager();
-                _logger.Log("🎯 Auto-saved layout changes");
+                _logger.Log("🎯 AUTO-SAVE DEBUG: Layout saved to disk");
+
+                // Add small delay to ensure file system write completes before refresh
+                System.Threading.Thread.Sleep(100);
+
+                _logger.Log("🎯 AUTO-SAVE DEBUG: Calling TriggerScriptReload");
+                // Trigger immediate script reload to reflect changes in ribbon
+                TriggerScriptReload();
+                _logger.Log("🎯 AUTO-SAVE DEBUG: AutoSaveChanges completed");
             }
             catch (Exception ex)
             {
                 _logger.LogError("Failed to auto-save changes", ex);
                 // Don't throw - auto-save failures shouldn't break the UI
+            }
+        }
+
+        private static bool _isRefreshing = false;
+        private static readonly object _refreshLock = new object();
+
+        /// <summary>
+        /// Trigger script reload to update the ribbon using event-driven architecture
+        /// </summary>
+        private void TriggerScriptReload()
+        {
+            try
+            {
+                lock (_refreshLock)
+                {
+                    if (_isRefreshing)
+                    {
+                        _logger.Log("🔄 Script refresh already in progress - skipping duplicate refresh");
+                        return;
+                    }
+
+                    _isRefreshing = true;
+                    _logger.Log("🔥 TriggerScriptReload: Using event-driven architecture for ribbon update");
+
+                    // Get current layout state from ViewModel
+                    var currentLayout = ConvertViewModelToLayout();
+                    _logger.Log($"🔥 Current layout has {currentLayout.Panels.Count} panels:");
+                    foreach (var panel in currentLayout.Panels)
+                    {
+                        var scriptCount = panel.Stacks.Sum(s => s.ScriptItems?.Count ?? 0);
+                        _logger.Log($"  - Panel '{panel.Name}' (ID: {panel.Id}): {panel.Stacks.Count} stacks, {scriptCount} scripts");
+                    }
+
+                    // 🔥 CRITICAL FIX: Use the same event-driven system as SaveViewModelToLayoutManager
+                    _logger.Log("🔥 Publishing LayoutChanged event for immediate ribbon update");
+                    EventBus.Instance.Publish(new LayoutChangedEvent(currentLayout));
+                    _logger.Log("✅ LayoutChanged event published - ribbon should update immediately");
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError("Failed to trigger script reload via event system", ex);
+            }
+            finally
+            {
+                _isRefreshing = false;
             }
         }
 
@@ -1465,12 +1694,11 @@ if __name__ == '__main__':
                 File.WriteAllText(scriptFilePath, scriptTemplate);
 
                 // Add to layout
-                stack.AddScript(scriptName, $"User script: {scriptName}", ButtonSize.Medium);
+                stack.AddScript(scriptName, $"User script: {scriptName}");
                 _viewModel.HasUnsavedChanges = true;
-                AutoSaveChanges();
 
-                // 🔥 Trigger ribbon refresh to show new script immediately
-                TriggerRibbonRefresh();
+                // 🔄 AutoSaveChanges includes ribbon refresh - no need for duplicate call
+                AutoSaveChanges();
 
                 _logger.Log($"🎯 Created new script file '{scriptName}.py' and added to layout");
                 MessageBox.Show($"Created new script '{scriptName}.py' successfully!\n\n🔄 Ribbon will refresh automatically to show the new script.", "Script Created", MessageBoxButton.OK, MessageBoxImage.Information);
@@ -1505,15 +1733,19 @@ if __name__ == '__main__':
                         {
                             foreach (var stack in panel.Stacks)
                             {
-                                var phantomScripts = stack.Items.Where(item => !existingScripts.Contains(item)).ToList();
+                                // 🔥 NEW: Handle both old Items and new ScriptItems formats
+                                // Get script names from ScriptItems
+                                var scriptNames = stack.ScriptItems?.Select(si => si.Name).ToList() ?? new List<string>();
+
+                                var phantomScripts = scriptNames.Where(item => !existingScripts.Contains(item)).ToList();
                                 if (phantomScripts.Any())
                                 {
                                     _logger.Log($"🧹 Found {phantomScripts.Count} phantom scripts in saved layout: {string.Join(", ", phantomScripts)}");
 
-                                    // Remove phantom scripts
+                                    // Remove phantom scripts from ScriptItems
                                     foreach (var phantom in phantomScripts)
                                     {
-                                        stack.Items.Remove(phantom);
+                                        stack.ScriptItems?.RemoveAll(si => si.Name == phantom);
                                     }
                                     needsCleanup = true;
                                 }
@@ -1536,31 +1768,8 @@ if __name__ == '__main__':
             }
         }
 
-        /// <summary>
-        /// Trigger ribbon refresh to show new scripts immediately
-        /// </summary>
-        private void TriggerRibbonRefresh()
-        {
-            try
-            {
-                // Access the Plugin Manager to trigger script refresh
-                var pluginManager = TycoonRevitAddin.Plugins.PluginManager.Instance;
-                if (pluginManager != null)
-                {
-                    pluginManager.RefreshScriptButtons();
-                    _logger.Log("🔄 Triggered ribbon refresh for new script");
-                }
-                else
-                {
-                    _logger.LogWarning("Plugin Manager not available for ribbon refresh");
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError("Failed to trigger ribbon refresh", ex);
-                // Don't throw - ribbon refresh failure shouldn't break script creation
-            }
-        }
+        // REMOVED: TriggerRibbonRefresh() method - redundant with TriggerScriptReload()
+        // All refresh operations now use the single TriggerScriptReload() method called by AutoSaveChanges()
 
         #endregion
 
@@ -1571,6 +1780,9 @@ if __name__ == '__main__':
         /// </summary>
         private void MoveScriptToPanel(ScriptViewModel script, PanelViewModel targetPanel)
         {
+            var sourcePanel = script.ParentStack?.ParentPanel?.Name ?? "Unknown";
+            _logger.Log($"🎯 MOVE DEBUG: Moving script '{script.Name}' from '{sourcePanel}' to '{targetPanel.Name}'");
+
             // Remove from source
             script.ParentStack?.RemoveScript(script);
 
@@ -1585,7 +1797,96 @@ if __name__ == '__main__':
             targetStack.Scripts.Add(script);
 
             _viewModel.HasUnsavedChanges = true;
+
+            _logger.Log($"🎯 MOVE DEBUG: Script moved in ViewModel, calling AutoSaveChanges...");
+
+            // 🔄 AutoSaveChanges includes both save and ribbon refresh - no need for duplicate refresh
             AutoSaveChanges();
+
+            _logger.Log($"🎯 MOVE DEBUG: AutoSaveChanges completed for script '{script.Name}' move to '{targetPanel.Name}'");
+        }
+
+        /// <summary>
+        /// Check if a script is from GitHub
+        /// </summary>
+        private bool IsGitHubScript(string scriptName)
+        {
+            try
+            {
+                if (_gitCacheManager == null) return false;
+
+                var cachedScriptsPath = _gitCacheManager.GetCachedScriptsPath();
+                if (string.IsNullOrEmpty(cachedScriptsPath)) return false;
+
+                // Check if script exists in any GitHub category folder
+                var categories = new[] { "Analysis", "Management", "Utilities" };
+                foreach (var category in categories)
+                {
+                    var categoryPath = Path.Combine(cachedScriptsPath, category);
+                    var scriptPath = Path.Combine(categoryPath, $"{scriptName}.py");
+                    if (File.Exists(scriptPath))
+                    {
+                        return true;
+                    }
+                }
+
+                return false;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Failed to check if script '{scriptName}' is from GitHub", ex);
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Return a removed script to the GitHub Scripts panel
+        /// </summary>
+        private void ReturnScriptToGitHubPanel(ScriptViewModel script)
+        {
+            try
+            {
+                // Find the GitHub Scripts panel
+                var gitHubPanel = _viewModel.Panels.FirstOrDefault(p => p.Id.Equals("GitHubScripts", StringComparison.OrdinalIgnoreCase));  // 🔧 FIX: PascalCase
+                if (gitHubPanel != null)
+                {
+                    // Check if script is already in GitHub Scripts panel
+                    var existingScript = gitHubPanel.Stacks.SelectMany(s => s.Scripts).FirstOrDefault(s => s.Name == script.Name);
+                    if (existingScript == null)
+                    {
+                        // Add to the first stack in GitHub Scripts panel
+                        if (gitHubPanel.Stacks.Count == 0)
+                        {
+                            gitHubPanel.AddStack("Available Scripts");
+                        }
+
+                        var gitHubStack = gitHubPanel.Stacks[0];
+
+                        // Create a new script instance for GitHub panel (don't reuse the same instance)
+                        var newScript = new ScriptViewModel
+                        {
+                            Name = script.Name,
+                            Description = script.Description ?? $"GitHub script: {script.Name}",
+                            ParentStack = gitHubStack
+                        };
+
+                        gitHubStack.Scripts.Add(newScript);
+                        _logger.Log($"🔄 Returned script '{script.Name}' to GitHub Scripts panel");
+                    }
+                    else
+                    {
+                        _logger.Log($"🔄 Script '{script.Name}' already exists in GitHub Scripts panel");
+                    }
+                }
+                else
+                {
+                    _logger.LogWarning($"GitHub Scripts panel not found - cannot return script '{script.Name}'");
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Failed to return script '{script.Name}' to GitHub Scripts panel", ex);
+            }
         }
 
         /// <summary>
@@ -1601,7 +1902,11 @@ if __name__ == '__main__':
             targetStack.Scripts.Add(script);
 
             _viewModel.HasUnsavedChanges = true;
+
+            // 🔄 AutoSaveChanges includes both save and ribbon refresh - no need for duplicate refresh
             AutoSaveChanges();
+
+            _logger.Log($"🎯 Moved script '{script.Name}' to stack '{targetStack.Name}' - layout saved and ribbon updated");
         }
 
         /// <summary>
@@ -1617,7 +1922,11 @@ if __name__ == '__main__':
             targetPanel.Stacks.Add(stack);
 
             _viewModel.HasUnsavedChanges = true;
+
+            // 🔄 AutoSaveChanges includes both save and ribbon refresh - no need for duplicate refresh
             AutoSaveChanges();
+
+            _logger.Log($"🎯 Moved stack '{stack.Name}' to panel '{targetPanel.Name}' - layout saved and ribbon updated");
         }
 
         /// <summary>
@@ -1635,8 +1944,138 @@ if __name__ == '__main__':
                 {
                     stack.Scripts.Move(draggedIndex, targetIndex);
                     _viewModel.HasUnsavedChanges = true;
+
+                    // 🔄 AutoSaveChanges includes both save and ribbon refresh - no need for duplicate refresh
                     AutoSaveChanges();
+
+                    _logger.Log($"🎯 Reordered script '{draggedScript.Name}' within stack '{stack.Name}' - layout saved and ribbon updated");
                 }
+            }
+        }
+
+        #endregion
+
+        #region ScriptService Integration
+
+        /// <summary>
+        /// 🎯 Load script metadata from ScriptService (replaces dictionary parameter)
+        /// </summary>
+        private void LoadScriptMetadataFromScriptService()
+        {
+            try
+            {
+                _scriptMetadata.Clear();
+
+                // Get current scripts from ScriptService
+                var localScripts = ScriptService.Instance.GetCurrentLocalScripts();
+                var githubScripts = ScriptService.Instance.GetCurrentGitHubScripts();
+
+                // Convert local scripts to ScriptMetadata format
+                foreach (var script in localScripts)
+                {
+                    var metadata = new ScriptMetadata
+                    {
+                        Name = script.Name,
+                        Description = script.Description,
+                        Author = "Local",
+                        CapabilityLevel = ScriptCapabilityLevel.P1_Deterministic,
+                        IsGitHubScript = false,
+                        SchemaVersion = "1.0.0",
+                        FilePath = script.Command,
+                        LastModified = DateTime.Now
+                    };
+
+                    _scriptMetadata[script.Command] = metadata;
+                }
+
+                // Convert GitHub scripts to ScriptMetadata format
+                foreach (var script in githubScripts)
+                {
+                    var metadata = new ScriptMetadata
+                    {
+                        Name = script.Name,
+                        Description = script.Description,
+                        Author = "GitHub",
+                        CapabilityLevel = ScriptCapabilityLevel.P2_Analytic,
+                        IsGitHubScript = true,
+                        SchemaVersion = "1.0.0",
+                        FilePath = script.Command,
+                        LastModified = DateTime.Now
+                    };
+
+                    _scriptMetadata[script.Command] = metadata;
+                }
+
+                _logger.Log($"🎯 Loaded script metadata from ScriptService: {localScripts.Count()} local + {githubScripts.Count()} GitHub = {_scriptMetadata.Count} total");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError("Failed to load script metadata from ScriptService", ex);
+            }
+        }
+
+        /// <summary>
+        /// Handle ScriptService local scripts updated event
+        /// </summary>
+        private void OnScriptServiceLocalScriptsUpdated(IEnumerable<ScriptViewModel> localScripts)
+        {
+            try
+            {
+                // Update on UI thread
+                this.Dispatcher.BeginInvoke(new Action(() =>
+                {
+                    LoadScriptMetadataFromScriptService();
+                    RefreshViewModel();
+                }));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError("Failed to handle local scripts update in StackManagerDialog", ex);
+            }
+        }
+
+        /// <summary>
+        /// Handle ScriptService GitHub scripts updated event
+        /// </summary>
+        private void OnScriptServiceGitHubScriptsUpdated(IEnumerable<ScriptViewModel> githubScripts)
+        {
+            try
+            {
+                // Update on UI thread
+                this.Dispatcher.BeginInvoke(new Action(() =>
+                {
+                    LoadScriptMetadataFromScriptService();
+                    RefreshViewModel();
+                }));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError("Failed to handle GitHub scripts update in StackManagerDialog", ex);
+            }
+        }
+
+        /// <summary>
+        /// Refresh the ViewModel with current script metadata
+        /// </summary>
+        private void RefreshViewModel()
+        {
+            try
+            {
+                // Try to load existing user layout first
+                if (TryLoadExistingLayout())
+                {
+                    _logger.Log("🎯 Refreshed with existing user layout");
+                }
+                else
+                {
+                    // Create default layout from updated metadata
+                    CreateDefaultPanelsFromMetadata();
+                    _logger.Log("🎯 Refreshed with default layout from updated metadata");
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError("Failed to refresh StackManagerDialog ViewModel", ex);
             }
         }
 
@@ -1965,6 +2404,4 @@ if __name__ == '__main__':
             Children.Add(resolutionCombo);
         }
     }
-
-
 }

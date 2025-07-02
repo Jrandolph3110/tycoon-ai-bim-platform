@@ -5,6 +5,7 @@ using System.Linq;
 using Newtonsoft.Json;
 using TycoonRevitAddin.Utils;
 using TycoonRevitAddin.Plugins;
+using TycoonRevitAddin.Models;
 
 namespace TycoonRevitAddin.Layout
 {
@@ -120,40 +121,18 @@ namespace TycoonRevitAddin.Layout
 
         /// <summary>
         /// 🤖 Generate Auto Layout from Script Metadata
-        /// Uses capability-based grouping + script header hints
+        /// DISABLED: No automatic script placement - creates empty panels only
         /// </summary>
         private RibbonLayoutSchema GenerateAutoLayout(Dictionary<string, ScriptMetadata> scriptMetadata)
         {
             var layout = LayoutValidator.CreateDefaultLayout();
-            layout.Mode = LayoutMode.Auto;
+            layout.Mode = LayoutMode.Manual; // Changed from Auto to Manual
 
-            // Group scripts by capability and stack hints
-            var scriptGroups = GroupScriptsByStackHints(scriptMetadata);
+            // DISABLED: No automatic script routing to main panels
+            // All scripts will appear only in GitHub Scripts panel for manual organization
+            // Main panels (Production, Smart Tools) remain completely empty until user manually organizes
 
-            foreach (var group in scriptGroups)
-            {
-                var targetPanel = GetTargetPanel(layout, group.Key.Capability, group.Key.PreferredPanel);
-                if (targetPanel != null)
-                {
-                    var stack = new StackLayout
-                    {
-                        Id = group.Key.StackId ?? Guid.NewGuid().ToString(),
-                        Name = group.Key.StackName ?? GetDefaultStackName(group.Key.Capability),
-                        Items = group.Value.Select(s => s.Name).ToList(),
-                        Capability = group.Key.Capability.ToString(),
-                        Order = group.Value.Min(s => s.StackOrder)
-                    };
-
-                    targetPanel.Stacks.Add(stack);
-                }
-            }
-
-            // Sort stacks by order within each panel
-            foreach (var panel in layout.Panels)
-            {
-                panel.Stacks = panel.Stacks.OrderBy(s => s.Order).ToList();
-            }
-
+            _logger.Log($"🤖 Generated layout with {layout.Panels.Count} empty panels (automatic script placement DISABLED)");
             return layout;
         }
 
@@ -204,16 +183,17 @@ namespace TycoonRevitAddin.Layout
             mergedLayout.Mode = LayoutMode.Manual;
             mergedLayout.LastModified = DateTime.UtcNow;
 
-            // Add new scripts that aren't in user layout
+            // DISABLED: No automatic script placement - user controls all layout manually
+            // All new scripts will appear only in GitHub Scripts panel for manual organization
             var userScripts = GetAllScriptsInLayout(userLayout);
             var newScripts = scriptMetadata.Values.Where(s => !userScripts.Contains(s.Name)).ToList();
 
-            _logger.Log($"🔍 DIAGNOSTIC: User layout contains {userScripts.Count} scripts, found {newScripts.Count} new scripts to add");
+            _logger.Log($"🔍 DIAGNOSTIC: User layout contains {userScripts.Count} scripts, found {newScripts.Count} new scripts");
 
             if (newScripts.Any())
             {
-                _logger.Log($"🎯 Adding {newScripts.Count} new scripts to user layout: {string.Join(", ", newScripts.Select(s => s.Name))}");
-                AddNewScriptsToLayout(mergedLayout, newScripts);
+                _logger.Log($"🎯 Found {newScripts.Count} new scripts - they will appear in GitHub Scripts panel for manual organization: {string.Join(", ", newScripts.Select(s => s.Name))}");
+                // DISABLED: No automatic placement - user has full control over script organization
             }
 
             // Remove scripts that no longer exist
@@ -269,9 +249,9 @@ namespace TycoonRevitAddin.Layout
             {
                 foreach (var stack in panel.Stacks)
                 {
-                    foreach (var item in stack.Items)
+                    foreach (var scriptItem in stack.ScriptItems)
                     {
-                        scripts.Add(item);
+                        scripts.Add(scriptItem.Name);
                     }
                 }
             }
@@ -290,9 +270,14 @@ namespace TycoonRevitAddin.Layout
 
                 // Find or create appropriate stack
                 var targetStack = FindOrCreateStack(targetPanel, script);
-                if (!targetStack.Items.Contains(script.Name))
+
+                // Add to ScriptItems if not already present
+                if (!targetStack.ScriptItems.Any(si => si.Name == script.Name))
                 {
-                    targetStack.Items.Add(script.Name);
+                    targetStack.ScriptItems.Add(new ScriptItem
+                    {
+                        Name = script.Name
+                    });
                 }
             }
         }
@@ -334,11 +319,21 @@ namespace TycoonRevitAddin.Layout
             {
                 foreach (var stack in panel.Stacks.ToList())
                 {
-                    stack.Items.RemoveAll(item => !currentScriptNames.Contains(item));
-                    
-                    // Remove empty stacks
-                    if (!stack.Items.Any())
+                    // Use ScriptItems (current format)
+                    if (stack.ScriptItems?.Any() == true)
                     {
+                        // Remove obsolete ScriptItems
+                        stack.ScriptItems.RemoveAll(item => !currentScriptNames.Contains(item.Name));
+
+                        // Remove empty stacks
+                        if (!stack.ScriptItems.Any())
+                        {
+                            panel.Stacks.Remove(stack);
+                        }
+                    }
+                    else
+                    {
+                        // Empty stack - remove it
                         panel.Stacks.Remove(stack);
                     }
                 }

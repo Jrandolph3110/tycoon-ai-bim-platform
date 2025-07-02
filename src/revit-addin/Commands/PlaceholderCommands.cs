@@ -350,29 +350,18 @@ namespace TycoonRevitAddin.Commands
                     return Result.Failed;
                 }
 
-                // Access the Scripts plugin to get layout manager and script metadata
+                // Access the Scripts plugin to get layout manager and logger
                 var scriptsPlugin = pluginManager.GetPlugin("scripts");
                 if (scriptsPlugin is TycoonRevitAddin.Plugins.ScriptsPlugin plugin)
                 {
-                    // Open Stack Manager dialog
+                    // Open Stack Manager dialog with new ScriptService-based constructor
                     var layoutManager = plugin.GetLayoutManager();
-                    var scriptMetadata = plugin.GetScriptMetadata();
                     var logger = plugin.GetLogger();
-                    var gitCacheManager = plugin.GetGitCacheManager();
 
-                    var dialog = new TycoonRevitAddin.UI.StackManagerDialog(layoutManager, scriptMetadata, logger, gitCacheManager);
+                    var dialog = new TycoonRevitAddin.UI.StackManagerDialog(layoutManager, logger);
                     var result = dialog.ShowDialog();
 
-                    if (result == true)
-                    {
-                        MessageBox.Show("🎯 Layout Saved Successfully!\n\n" +
-                                      "✅ Custom stack layout saved\n" +
-                                      "🔄 Click 'Reload Scripts' to apply changes\n\n" +
-                                      "🌟 Chat's Layout System Active!",
-                                      "🎯 Layout Manager Success",
-                                      MessageBoxButtons.OK,
-                                      MessageBoxIcon.Information);
-                    }
+                    // Layout saved successfully - no popup needed as user requested
                 }
                 else
                 {
@@ -499,13 +488,8 @@ namespace TycoonRevitAddin.Commands
                         var layoutManager = plugin.GetLayoutManager();
                         layoutManager.ResetToAutoLayout();
 
-                        MessageBox.Show("🔄 Layout Reset Complete!\n\n" +
-                                      "✅ User customizations cleared\n" +
-                                      "✅ Returned to automatic layout\n" +
-                                      "🔄 Click 'Reload Scripts' to apply changes",
-                                      "🔄 Reset Complete",
-                                      MessageBoxButtons.OK,
-                                      MessageBoxIcon.Information);
+                        // Auto-reload scripts after reset
+                        pluginManager.RefreshScriptButtons();
                     }
                     else
                     {

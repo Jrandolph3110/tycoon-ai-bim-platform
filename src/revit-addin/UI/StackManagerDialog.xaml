@@ -35,6 +35,11 @@
                     <Setter Property="BorderBrush" Value="#3498DB"/>
                     <Setter Property="BorderThickness" Value="2"/>
                 </Trigger>
+                <DataTrigger Binding="{Binding IsDragOver}" Value="True">
+                    <Setter Property="Background" Value="#E8F4FD"/>
+                    <Setter Property="BorderBrush" Value="#3498DB"/>
+                    <Setter Property="BorderThickness" Value="3"/>
+                </DataTrigger>
             </Style.Triggers>
         </Style>
 
@@ -54,6 +59,8 @@
 
         <!-- Custom Converters -->
         <local:BoolToExpanderConverter x:Key="BoolToExpanderConverter"/>
+        <local:StringToVisibilityConverter x:Key="StringToVisibilityConverter"/>
+        <local:InverseStringToVisibilityConverter x:Key="InverseStringToVisibilityConverter"/>
 
         <Style x:Key="PanelStyle" TargetType="Border">
             <Setter Property="BorderThickness" Value="2"/>
@@ -63,6 +70,21 @@
                 <DataTrigger Binding="{Binding IsDragOver}" Value="True">
                     <Setter Property="BorderThickness" Value="4"/>
                     <Setter Property="Background" Value="#F8F9FA"/>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style x:Key="StackHeaderBorderStyle" TargetType="Border">
+            <Setter Property="Background" Value="#ECF0F1"/>
+            <Setter Property="CornerRadius" Value="3"/>
+            <Setter Property="Padding" Value="5"/>
+            <Setter Property="Margin" Value="0,0,0,2"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding IsDragOver}" Value="True">
+                    <Setter Property="Background" Value="#E8F4FD"/>
+                    <Setter Property="BorderBrush" Value="#3498DB"/>
+                    <Setter Property="BorderThickness" Value="2"/>
                 </DataTrigger>
             </Style.Triggers>
         </Style>
@@ -190,8 +212,8 @@
                                             <DataTemplate>
                                                 <StackPanel Margin="0,5">
                                                     <!-- Stack Header -->
-                                                    <Border Background="#ECF0F1" CornerRadius="3" Padding="5" Margin="0,0,0,2"
-                                                            MouseLeftButtonDown="StackHeader_MouseDown" Cursor="Hand">
+                                                    <Border Style="{StaticResource StackHeaderBorderStyle}"
+                                                            MouseLeftButtonDown="StackHeader_MouseDown">
                                                         <StackPanel Orientation="Horizontal">
                                                             <TextBlock Text="{Binding IsExpanded, Converter={StaticResource BoolToExpanderConverter}}"
                                                                        FontSize="12" Margin="0,0,5,0" Cursor="Hand"
@@ -208,17 +230,17 @@
                                                     <!-- Stack Scripts -->
                                                     <ItemsControl ItemsSource="{Binding Scripts}" Margin="10,0,0,0"
                                                                   Visibility="{Binding IsExpanded, Converter={StaticResource BoolToVisConverter}}"
-                                                                  AllowDrop="True" Drop="Stack_Drop" DragOver="Stack_DragOver">
+                                                                  AllowDrop="True" Drop="Stack_Drop" DragOver="Stack_DragOver" DragLeave="Stack_DragLeave">
                                                         <ItemsControl.ItemTemplate>
                                                             <DataTemplate>
                                                                 <Border Style="{StaticResource ScriptItemStyle}" Margin="2"
                                                                         MouseLeftButtonDown="Script_MouseDown"
-                                                                        AllowDrop="True" Drop="Script_Drop" DragOver="Script_DragOver"
+                                                                        AllowDrop="True" Drop="Script_Drop" DragOver="Script_DragOver" DragLeave="Script_DragLeave"
                                                                         ContextMenuOpening="Script_ContextMenuOpening">
                                                                     <Border.ContextMenu>
                                                                         <ContextMenu>
                                                                             <MenuItem Header="⭐ Toggle Favorite" Click="ToggleFavorite_Click"/>
-                                                                            <MenuItem Header="📏 Change Size" Click="ChangeSize_Click"/>
+                                                                            <MenuItem Header="🖼️ Set Icon" Click="SetIcon_Click"/>
                                                                             <MenuItem Header="🗑️ Remove" Click="RemoveScript_Click"/>
                                                                             <Separator/>
                                                                             <MenuItem Header="📋 Copy" Click="CopyScript_Click"/>
@@ -228,11 +250,12 @@
 
                                                                     <StackPanel Orientation="Horizontal">
                                                                         <TextBlock Text="{Binding FavoriteIcon}" FontSize="10" Margin="0,0,5,0"/>
-                                                                        <TextBlock Text="🔧" FontSize="10" Margin="0,0,5,0"/>
+                                                                        <Image Source="{Binding IconPath}" Width="12" Height="12" Margin="0,0,5,0"
+                                                                               Visibility="{Binding IconPath, Converter={StaticResource StringToVisibilityConverter}}"/>
+                                                                        <TextBlock Text="🔧" FontSize="10" Margin="0,0,5,0"
+                                                                                   Visibility="{Binding IconPath, Converter={StaticResource InverseStringToVisibilityConverter}}"/>
                                                                         <StackPanel>
                                                                             <TextBlock Text="{Binding Name}" FontSize="11" FontWeight="Bold"/>
-                                                                            <TextBlock Text="{Binding SizeDescription}" FontSize="9"
-                                                                                       Foreground="#7F8C8D" Margin="0,1,0,0"/>
                                                                         </StackPanel>
                                                                     </StackPanel>
                                                                 </Border>
@@ -272,6 +295,9 @@
         <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,10,0,0">
             <Button x:Name="SaveButton" Content="💾 Save Layout" Width="120" Height="30" Margin="5"
                     Background="#27AE60" Foreground="White" BorderThickness="0" Click="SaveButton_Click"/>
+            <Button x:Name="ExportTemplateButton" Content="📤 Export Template" Width="140" Height="30" Margin="5"
+                    Background="#3498DB" Foreground="White" BorderThickness="0" Click="ExportTemplate_Click"
+                    ToolTip="Export current layout as a template file for sharing"/>
             <Button x:Name="CancelButton" Content="❌ Cancel" Width="120" Height="30" Margin="5"
                     Background="#95A5A6" Foreground="White" BorderThickness="0" Click="CancelButton_Click"/>
         </StackPanel>

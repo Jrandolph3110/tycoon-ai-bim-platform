@@ -1,15 +1,37 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
+using System.Runtime.Serialization;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Converters;
+using TycoonRevitAddin.Models;
 
 namespace TycoonRevitAddin.Layout
 {
+    /// <summary>
+    /// 🎯 Script Item with Icon Information
+    /// Represents a single script button with all its properties
+    /// </summary>
+    [JsonObject(MemberSerialization.OptIn)]
+    public class ScriptItem
+    {
+        [JsonProperty("name")]
+        public string Name { get; set; }
+
+        [JsonProperty("iconPath")]
+        public string IconPath { get; set; }
+
+        // Future properties can be added here easily
+        // public bool IsEnabled { get; set; } = true;
+        // public string TooltipOverride { get; set; }
+    }
+
     /// <summary>
     /// 🎯 Chat's Ribbon Layout Schema v1
     /// JSON-based layout persistence for user-customizable button stacking
     /// Implements: User Preference > Script Header > Capability Auto priority
     /// </summary>
-    
+
     [JsonObject(MemberSerialization.OptIn)]
     public class RibbonLayoutSchema
     {
@@ -57,8 +79,9 @@ namespace TycoonRevitAddin.Layout
         [JsonProperty("name")]
         public string Name { get; set; } // "Framing QA", "Wall Tools", etc.
 
-        [JsonProperty("items")]
-        public List<string> Items { get; set; } = new List<string>(); // Script names/IDs
+        // Script items with custom icon support
+        [JsonProperty("scriptItems")]
+        public List<ScriptItem> ScriptItems { get; set; } = new List<ScriptItem>();
 
         [JsonProperty("stackType")]
         public StackType StackType { get; set; } = StackType.Vertical;
@@ -71,6 +94,8 @@ namespace TycoonRevitAddin.Layout
 
         [JsonProperty("capability")]
         public string Capability { get; set; } // P1, P2, P3 - for auto-grouping fallback
+
+
     }
 
     [JsonObject(MemberSerialization.OptIn)]
@@ -129,7 +154,11 @@ namespace TycoonRevitAddin.Layout
                 foreach (var stack in panel.Stacks)
                 {
                     if (string.IsNullOrEmpty(stack.Id)) return false;
-                    if (stack.Items == null) return false;
+
+                    // A stack is valid if it has ScriptItems
+                    bool hasScriptItems = stack.ScriptItems?.Any() ?? false;
+
+                    if (!hasScriptItems) return false;
                     if (stack.MaxItems < 1 || stack.MaxItems > 5) return false;
                 }
             }

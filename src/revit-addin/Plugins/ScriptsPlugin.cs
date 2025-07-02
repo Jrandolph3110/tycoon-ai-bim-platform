@@ -9,6 +9,8 @@ using Autodesk.Revit.UI;
 using TycoonRevitAddin.Utils;
 using TycoonRevitAddin.Layout;
 using TycoonRevitAddin.Services;
+using TycoonRevitAddin.Events;
+using TycoonRevitAddin.Models;
 using Newtonsoft.Json;
 
 namespace TycoonRevitAddin.Plugins
@@ -67,6 +69,7 @@ namespace TycoonRevitAddin.Plugins
         private RibbonPanel _productionPanel;
         private RibbonPanel _smartToolsPanel;
         private RibbonPanel _managementPanel;
+        private RibbonPanel _scriptsControlPanel;
 
         // 🎯 Chat's Layout Management System
         private readonly RibbonLayoutManager _layoutManager;
@@ -85,7 +88,7 @@ namespace TycoonRevitAddin.Plugins
             // Set up scripts directory
             var appDataPath = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
             _scriptsPath = Path.Combine(appDataPath, "Tycoon", "Scripts");
-            
+
             _scriptModificationTimes = new Dictionary<string, DateTime>();
             _scriptButtons = new List<PushButton>();
             _scriptMetadata = new Dictionary<string, ScriptMetadata>(); // Chat's capability tracking
@@ -107,108 +110,78 @@ namespace TycoonRevitAddin.Plugins
             // 🔄 Initialize GitHub Cache Management System
             _gitCacheManager = new GitCacheManager(logger);
 
+            // 🎯 Initialize ScriptService with async-first architecture
+            ScriptService.Instance.Initialize(_gitCacheManager, logger, _scriptsPath);
+
+            // 📡 Subscribe to ScriptService events for UI updates
+            ScriptService.Instance.LocalScriptsUpdated += OnLocalScriptsUpdated;
+            ScriptService.Instance.GitHubScriptsUpdated += OnGitHubScriptsUpdated;
+            ScriptService.Instance.UpdateStatusChanged += OnUpdateStatusChanged;
+            ScriptService.Instance.IsUpdatingChanged += OnIsUpdatingChanged;
+
+            // 📡 Subscribe to Layout Manager events (Chat's event-driven architecture)
+            EventBus.Instance.Subscribe<LayoutChangedEvent>(OnLayoutChanged);
+            _logger.Log("📡 Subscribed to LayoutChanged events from Layout Manager");
+
             // Ensure scripts directory exists
             EnsureScriptsDirectory();
 
-            // 🚀 Check for first-run setup
-            CheckFirstRunSetup();
+            _logger.Log("🎯 ScriptsPlugin initialized with async-first ScriptService architecture");
         }
 
         protected override void CreatePanels()
         {
-            // 🎯 Chat's Three-Tier Ribbon Architecture Implementation
+            // 🎯 Scripts Plugin Ribbon Architecture - Ordered Layout
+            // Order: Scripts Control > Management > Smart Tools > Production
 
-            // First, populate script metadata by scanning directory
-            LoadScriptMetadata();
+            // 🎛️ Panel 1: "Scripts Control" - Development and Management Tools
+            _scriptsControlPanel = CreatePanel("🎛️ Scripts Control");
+            _activePanels["ScriptsControl"] = _scriptsControlPanel;
+            CreateScriptManagementButtons(_scriptsControlPanel);
 
-            // 🟢 Panel 1: "Production" - P1 Dedicated Scripts (Green Theme)
-            _productionPanel = CreatePanel("🟢 Production");
-            _activePanels["Production"] = _productionPanel;
+            // ⚙️ Panel 2: "Management" - Available for script organization via Layout Manager
+            _managementPanel = CreatePanel("⚙️ Management");
+            _activePanels["Management"] = _managementPanel;
             // NOTE: No hardcoded buttons - Layout Manager will handle all script buttons
 
-            // 🟡 Panel 2: "Smart Tools β" - P2/P3 AI-Assisted Scripts (Yellow/Orange Theme)
+            // 🧠 Panel 3: "Smart Tools β" - P2/P3 AI-Assisted Scripts (Yellow/Orange Theme)
             _smartToolsPanel = CreatePanel("🧠 Smart Tools β");
             _activePanels["SmartTools"] = _smartToolsPanel;
             // NOTE: No hardcoded buttons - Layout Manager will handle all script buttons
 
-            // ⚙️ Panel 3: "Script Management" - Development and Management Tools
-            _managementPanel = CreatePanel("⚙️ Management");
-            _activePanels["Management"] = _managementPanel;
-            CreateScriptManagementButtons(_managementPanel);
+            // 🟢 Panel 4: "Production" - P1 Dedicated Scripts (Green Theme)
+            _productionPanel = CreatePanel("🟢 Production");
+            _activePanels["Production"] = _productionPanel;
+            // NOTE: No hardcoded buttons - Layout Manager will handle all script buttons
 
-            // 🎯 CRITICAL FIX: Apply Layout Manager immediately after creating panels
-            // This ensures user's saved layout is applied instead of hardcoded buttons
+            // 🎯 NEW ASYNC-FIRST ARCHITECTURE: ScriptService handles all script loading
+            // UI shows bundled scripts immediately, updates asynchronously when GitHub completes
             try
             {
-                _logger.Log("🎯 Applying Layout Manager during initialization");
-                CreateDynamicButtons();
-                _logger.Log("✅ Layout Manager applied successfully during initialization");
+                _logger.Log("🎯 Initializing ribbon with async-first ScriptService architecture");
+
+                // Create initial layout with bundled scripts (immediate)
+                CreateInitialLayoutFromScriptService();
+
+                _logger.Log("✅ Ribbon initialized with bundled scripts - GitHub update will follow asynchronously");
             }
             catch (Exception ex)
             {
-                _logger.LogError("Failed to apply Layout Manager during initialization", ex);
-                // Fallback to hardcoded buttons if Layout Manager fails
-                _logger.Log("⚠️ Falling back to hardcoded buttons");
-                CreateProductionScriptButtons(_productionPanel);
-                CreateSmartToolsButtons(_smartToolsPanel);
+                _logger.LogError("Failed to initialize ribbon with ScriptService", ex);
+                _logger.Log("⚠️ Attempting fallback with minimal layout");
+                try
+                {
+                    CreateMinimalFallbackLayout();
+                }
+                catch (Exception fallbackEx)
+                {
+                    _logger.LogError("Minimal fallback also failed", fallbackEx);
+                    _logger.Log("⚠️ System will continue with management buttons only");
+                }
             }
         }
 
-        /// <summary>
-        /// 🎯 Load Script Metadata Only (Chat's Capability System)
-        /// Scans scripts directory and populates metadata for capability-based segregation
-        /// </summary>
-        private void LoadScriptMetadata()
-        {
-            try
-            {
-                _logger.Log("🔍 DIAGNOSTIC: Starting LoadScriptMetadata");
 
-                // 1. Load local scripts
-                if (!Directory.Exists(_scriptsPath))
-                {
-                    _logger.LogWarning($"Scripts directory not found: {_scriptsPath}");
-                }
-                else
-                {
-                    var scriptFiles = Directory.GetFiles(_scriptsPath, "*.py", SearchOption.AllDirectories)
-                        .Concat(Directory.GetFiles(_scriptsPath, "*.cs", SearchOption.AllDirectories))
-                        .ToArray();
-
-                    _logger.Log($"🎯 Scanning {scriptFiles.Length} local scripts for capability metadata");
-
-                    // Parse all script metadata for capability-based segregation
-                    foreach (var scriptFile in scriptFiles)
-                    {
-                        // 🎯 Parse script metadata (Chat's capability system)
-                        var metadata = ParseScriptMetadata(scriptFile);
-                        _scriptMetadata[scriptFile] = metadata;
-
-                        // Track modification time for hot-reload
-                        _scriptModificationTimes[scriptFile] = File.GetLastWriteTime(scriptFile);
-                    }
-                }
-
-                // 2. Load GitHub scripts (Chat's cache validation)
-                _logger.Log("🔍 DIAGNOSTIC: Loading GitHub scripts from cache");
-                LoadGitHubScriptsIntoMetadata();
-
-                // 📊 Log capability distribution
-                var p1Count = _scriptMetadata.Count(kvp => kvp.Value.CapabilityLevel == ScriptCapabilityLevel.P1_Deterministic);
-                var p2Count = _scriptMetadata.Count(kvp => kvp.Value.CapabilityLevel == ScriptCapabilityLevel.P2_Analytic);
-                var p3Count = _scriptMetadata.Count(kvp => kvp.Value.CapabilityLevel == ScriptCapabilityLevel.P3_Adaptive);
-
-                _logger.Log($"🎯 Script Capability Distribution: P1={p1Count}, P2={p2Count}, P3={p3Count}");
-
-                // Chat's diagnostic: Log all script names for debugging
-                var allScriptNames = _scriptMetadata.Values.Select(s => s.Name).OrderBy(n => n);
-                _logger.Log($"🔍 DIAGNOSTIC: All loaded script names: {string.Join(", ", allScriptNames)}");
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError("Failed to load script metadata", ex);
-            }
-        }
 
         /// <summary>
         /// 🟢 Create Production Script Buttons (Chat's P1-Deterministic)
@@ -299,21 +272,49 @@ namespace TycoonRevitAddin.Plugins
         }
 
         /// <summary>
-        /// Create script management buttons
+        /// Create script management buttons for Scripts Control panel
         /// </summary>
         private void CreateScriptManagementButtons(RibbonPanel panel)
         {
-            // Reload Scripts button
-            AddPushButton(
-                panel,
+            // Create button data for stacked buttons
+            var reloadButtonData = new PushButtonData(
                 "ReloadScripts",
                 "Reload\nScripts",
-                "TycoonRevitAddin.Commands.ReloadScriptsCommand",
-                "Reload all scripts from the scripts directory",
-                "ReloadIcon.png"
+                Assembly.GetExecutingAssembly().Location,
+                "TycoonRevitAddin.Commands.ReloadScriptsCommand"
+            );
+            reloadButtonData.ToolTip = "Reload all scripts from the scripts directory";
+            reloadButtonData.LargeImage = LoadIcon("ReloadIcon.png", 32);
+            reloadButtonData.Image = LoadIcon("ReloadIcon.png", 16);
+
+            var resetButtonData = new PushButtonData(
+                "ResetLayout",
+                "Reset\nLayout",
+                Assembly.GetExecutingAssembly().Location,
+                "TycoonRevitAddin.Commands.ResetLayoutCommand"
+            );
+            resetButtonData.ToolTip = "Reset to automatic layout";
+            resetButtonData.LargeImage = LoadIcon("ResetIcon.png", 32);
+            resetButtonData.Image = LoadIcon("ResetIcon.png", 16);
+
+            var githubButtonData = new PushButtonData(
+                "GitHubSettings",
+                "GitHub\nSettings",
+                Assembly.GetExecutingAssembly().Location,
+                "TycoonRevitAddin.Commands.GitHubSettingsCommand"
+            );
+            githubButtonData.ToolTip = "Configure GitHub repository settings for script updates";
+            githubButtonData.LargeImage = LoadIcon("GitHubIcon.png", 32);
+            githubButtonData.Image = LoadIcon("GitHubIcon.png", 16);
+
+            // Create stacked buttons
+            var stackedItems = panel.AddStackedItems(
+                reloadButtonData,
+                resetButtonData,
+                githubButtonData
             );
 
-            // Open Scripts Folder button
+            // Open Scripts Folder button (standalone)
             AddPushButton(
                 panel,
                 "OpenScriptsFolder",
@@ -323,7 +324,7 @@ namespace TycoonRevitAddin.Plugins
                 "FolderIcon.png"
             );
 
-            // Script Editor button
+            // Script Editor button (standalone)
             AddPushButton(
                 panel,
                 "ScriptEditor",
@@ -333,7 +334,7 @@ namespace TycoonRevitAddin.Plugins
                 "EditorIcon.png"
             );
 
-            // 🎯 Layout Management button (Chat's customization system)
+            // 🎯 Layout Management button (standalone)
             AddPushButton(
                 panel,
                 "LayoutManager",
@@ -342,36 +343,9 @@ namespace TycoonRevitAddin.Plugins
                 "Customize button stacking and layout",
                 "LayoutIcon.png"
             );
-
-            // Reset Layout button
-            AddPushButton(
-                panel,
-                "ResetLayout",
-                "Reset\nLayout",
-                "TycoonRevitAddin.Commands.ResetLayoutCommand",
-                "Reset to automatic layout",
-                "ResetIcon.png"
-            );
-
-            // ⚙️ GitHub Settings button
-            AddPushButton(
-                panel,
-                "GitHubSettings",
-                "GitHub\nSettings",
-                "TycoonRevitAddin.Commands.GitHubSettingsCommand",
-                "Configure GitHub repository settings for script updates",
-                "GitHubIcon.png"
-            );
         }
 
-        /// <summary>
-        /// Create dynamic script buttons based on scripts in the directory
-        /// </summary>
-        private void CreateDynamicScriptButtons(RibbonPanel panel)
-        {
-            // Scan scripts directory and create buttons
-            LoadScriptButtons(panel);
-        }
+
 
         /// <summary>
         /// Create development tools buttons
@@ -409,51 +383,7 @@ namespace TycoonRevitAddin.Plugins
             );
         }
 
-        /// <summary>
-        /// 🎯 Load Script Metadata (Chat's Capability System)
-        /// Scans scripts directory and populates metadata for capability-based segregation
-        /// </summary>
-        private void LoadScriptButtons(RibbonPanel panel)
-        {
-            try
-            {
-                if (!Directory.Exists(_scriptsPath))
-                {
-                    _logger.LogWarning($"Scripts directory not found: {_scriptsPath}");
-                    return;
-                }
 
-                var scriptFiles = Directory.GetFiles(_scriptsPath, "*.py", SearchOption.AllDirectories)
-                    .Concat(Directory.GetFiles(_scriptsPath, "*.cs", SearchOption.AllDirectories))
-                    .ToArray();
-
-                _logger.Log($"🎯 Scanning {scriptFiles.Length} scripts for capability metadata");
-
-                // Parse all script metadata for capability-based segregation
-                foreach (var scriptFile in scriptFiles)
-                {
-                    // 🎯 Parse script metadata (Chat's capability system)
-                    var metadata = ParseScriptMetadata(scriptFile);
-                    _scriptMetadata[scriptFile] = metadata;
-
-                    // Track modification time for hot-reload
-                    _scriptModificationTimes[scriptFile] = File.GetLastWriteTime(scriptFile);
-                }
-
-                // 📊 Log capability distribution
-                var p1Count = _scriptMetadata.Count(kvp => kvp.Value.CapabilityLevel == ScriptCapabilityLevel.P1_Deterministic);
-                var p2Count = _scriptMetadata.Count(kvp => kvp.Value.CapabilityLevel == ScriptCapabilityLevel.P2_Analytic);
-                var p3Count = _scriptMetadata.Count(kvp => kvp.Value.CapabilityLevel == ScriptCapabilityLevel.P3_Adaptive);
-
-                _logger.Log($"🎯 Script Capability Distribution: P1={p1Count}, P2={p2Count}, P3={p3Count}");
-
-                _logger.Log($"📜 Loaded {scriptFiles.Length} script buttons");
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError("Failed to load script buttons", ex);
-            }
-        }
 
         /// <summary>
         /// 🎯 Parse Script Metadata (Chat's Capability Detection)
@@ -695,41 +625,80 @@ namespace TycoonRevitAddin.Plugins
         }
 
         /// <summary>
-        /// 🔥 PyRevit-Style Hot-Reload Implementation
-        /// Instantly adds new script buttons without Revit restart!
+        /// 🔥 PyRevit-Style Hot-Reload Implementation (Simplified Unified Approach)
+        /// Instantly refreshes script buttons without Revit restart using unified event-driven system
         /// </summary>
         public void RefreshScripts()
         {
             try
             {
-                _logger.Log("🔥 Starting PyRevit-style hot-reload (instant button creation)");
+                _logger.Log("🔥 Starting simplified hot-reload via unified event system");
 
-                // 1. Hide existing dynamic buttons (but keep them for reuse)
-                HideDynamicButtons();
-
-                // 2. Clear existing metadata and reload
+                // 1. Clear existing metadata and button tracking
                 _scriptMetadata.Clear();
                 foreach (var capabilityList in _buttonsByCapability.Values)
                 {
                     capabilityList.Clear();
                 }
 
-                // 3. Reload script metadata (includes GitHub scripts)
-                LoadScriptMetadata();
-
-                // 4. 🔥 CREATE NEW BUTTONS INSTANTLY (PyRevit-style)
-                CreateDynamicButtons();
+                // 2. 🎯 UNIFIED REFRESH: Let the event-driven system handle everything
+                RefreshRibbonViaEvents();
 
                 var p1Count = _scriptMetadata.Count(kvp => kvp.Value.CapabilityLevel == ScriptCapabilityLevel.P1_Deterministic);
                 var p2Count = _scriptMetadata.Count(kvp => kvp.Value.CapabilityLevel == ScriptCapabilityLevel.P2_Analytic);
                 var p3Count = _scriptMetadata.Count(kvp => kvp.Value.CapabilityLevel == ScriptCapabilityLevel.P3_Adaptive);
 
-                _logger.Log($"🔥 PyRevit-style hot-reload complete: P1={p1Count}, P2={p2Count}, P3={p3Count}");
-                _logger.Log($"🎯 {_dynamicButtons.Count} new buttons created instantly!");
+                _logger.Log($"🔥 Unified hot-reload complete: P1={p1Count}, P2={p2Count}, P3={p3Count}");
+                _logger.Log($"🎯 {_dynamicButtons.Count} buttons configured via unified system");
             }
             catch (Exception ex)
             {
-                _logger.LogError("Failed to refresh scripts with hot-reload", ex);
+                _logger.LogError("Failed to refresh scripts with unified hot-reload", ex);
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// 🎯 Create minimal fallback layout using unified system
+        /// Used when main initialization fails but we still want to use event-driven architecture
+        /// </summary>
+        private void CreateMinimalFallbackLayout()
+        {
+            try
+            {
+                _logger.Log("🎯 Creating minimal fallback layout via unified system");
+
+                // Create a minimal layout with just essential management tools
+                var minimalLayout = new RibbonLayoutSchema
+                {
+                    Panels = new List<PanelLayout>
+                    {
+                        new PanelLayout
+                        {
+                            Id = "Production",
+                            Name = "🟢 Production",
+                            Stacks = new List<StackLayout>
+                            {
+                                new StackLayout
+                                {
+                                    Id = Guid.NewGuid().ToString(),
+                                    Name = "Essential Tools",
+                                    Order = 1,
+                                    StackType = StackType.Vertical,
+                                    ScriptItems = new List<ScriptItem>() // Empty - management tools are in Scripts Control panel
+                                }
+                            }
+                        }
+                    }
+                };
+
+                // Apply minimal layout
+                ApplyLayoutToRibbon(minimalLayout);
+                _logger.Log("✅ Minimal fallback layout created successfully");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError("Failed to create minimal fallback layout", ex);
                 throw;
             }
         }
@@ -791,61 +760,7 @@ namespace TycoonRevitAddin.Plugins
             }
         }
 
-        /// <summary>
-        /// 🔥 PyRevit-Style Dynamic Button Creation with Chat's Layout System
-        /// Creates stacked buttons using merged layout (User > Script Header > Capability Auto)
-        /// </summary>
-        private void CreateDynamicButtons()
-        {
-            try
-            {
-                _logger.Log("🔥 Creating dynamic stacked buttons (Chat's layout system)");
 
-                // 🔄 Hide existing buttons first (for reuse strategy)
-                HideDynamicButtons();
-
-                // 🎯 Use Chat's Layout Manager to merge user preferences with auto layout
-                _logger.Log("🔍 DIAGNOSTIC: Calling MergeLayouts with script metadata");
-                var mergedLayout = _layoutManager.MergeLayouts(_scriptMetadata);
-
-                _logger.Log($"🔍 DIAGNOSTIC: MergeLayouts returned {mergedLayout.Panels.Count} panels, mode: {mergedLayout.Mode}");
-
-                // Log detailed layout structure for debugging
-                foreach (var panelLayout in mergedLayout.Panels)
-                {
-                    _logger.Log($"🔍 DIAGNOSTIC: Panel '{panelLayout.Id}' has {panelLayout.Stacks.Count} stacks");
-                    foreach (var stackLayout in panelLayout.Stacks)
-                    {
-                        _logger.Log($"🔍 DIAGNOSTIC: Stack '{stackLayout.Name}' has {stackLayout.Items.Count} items: {string.Join(", ", stackLayout.Items)}");
-                    }
-                }
-
-                // Create buttons based on merged layout
-                foreach (var panelLayout in mergedLayout.Panels)
-                {
-                    var ribbonPanel = GetRibbonPanelById(panelLayout.Id);
-                    if (ribbonPanel == null)
-                    {
-                        _logger.LogWarning($"🔍 DIAGNOSTIC: No ribbon panel found for layout panel '{panelLayout.Id}'");
-                        continue;
-                    }
-
-                    _logger.Log($"🔍 DIAGNOSTIC: Processing panel '{panelLayout.Id}' with {panelLayout.Stacks.Count} stacks");
-
-                    foreach (var stackLayout in panelLayout.Stacks.OrderBy(s => s.Order))
-                    {
-                        CreateStackFromLayout(ribbonPanel, stackLayout);
-                    }
-                }
-
-                _logger.Log($"🔥 Created {_dynamicButtons.Count} dynamic buttons in {_dynamicStacks.Count} stacks (Chat's layout system)!");
-                _logger.Log($"🎯 Layout mode: {mergedLayout.Mode}");
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError("Failed to create dynamic stacked buttons", ex);
-            }
-        }
 
         /// <summary>
         /// 🎯 Get Ribbon Panel by ID
@@ -858,6 +773,7 @@ namespace TycoonRevitAddin.Plugins
                 "Production" => _productionPanel,
                 "SmartTools" => _smartToolsPanel,
                 "Management" => _managementPanel,
+                "ScriptsControl" => _scriptsControlPanel,
                 _ => null
             };
         }
@@ -870,93 +786,170 @@ namespace TycoonRevitAddin.Plugins
         {
             try
             {
-                _logger.Log($"🔍 CreateStackFromLayout called for stack '{stackLayout.Name}' with {stackLayout.Items.Count} items");
-                var scripts = new List<ScriptMetadata>();
+                // Use ScriptItems (current format)
+                var scriptItems = stackLayout.ScriptItems ?? new List<ScriptItem>();
+
+                _logger.Log($"🔍 CreateStackFromLayout called for stack '{stackLayout.Name}' with {scriptItems.Count} items");
+                var scriptsWithItems = new List<(ScriptMetadata metadata, ScriptItem scriptItem)>();
 
                 // Find script metadata for items in this stack
-                foreach (var itemName in stackLayout.Items)
+                foreach (var scriptItem in scriptItems)
                 {
-                    var script = _scriptMetadata.Values.FirstOrDefault(s => s.Name == itemName);
+                    var script = _scriptMetadata.Values.FirstOrDefault(s => s.Name == scriptItem.Name);
                     if (script != null)
                     {
-                        scripts.Add(script);
-                        _logger.Log($"✅ Found script '{itemName}' for stack '{stackLayout.Name}'");
+                        scriptsWithItems.Add((script, scriptItem));
+                        _logger.Log($"✅ Found script '{scriptItem.Name}' for stack '{stackLayout.Name}'");
+                        if (!string.IsNullOrEmpty(scriptItem.IconPath))
+                        {
+                            _logger.Log($"🖼️ Custom icon found for '{scriptItem.Name}': {scriptItem.IconPath}");
+                        }
                     }
                     else
                     {
-                        _logger.LogWarning($"❌ Script '{itemName}' not found in metadata for stack '{stackLayout.Name}'");
-                        // Chat's recommendation: Log available script names for debugging
+                        _logger.LogWarning($"❌ Script '{scriptItem.Name}' not found in metadata for stack '{stackLayout.Name}'");
+                        // Log available script names for debugging
                         var availableNames = string.Join(", ", _scriptMetadata.Values.Select(s => s.Name).Take(10));
                         _logger.Log($"📋 Available script names ({_scriptMetadata.Count} total): {availableNames}");
-
-                        // Chat's guard: Still add placeholder to keep stack position stable
-                        _logger.Log($"🔧 Adding placeholder for missing script '{itemName}' to maintain stack structure");
                     }
                 }
 
-                if (!scripts.Any())
+                if (!scriptsWithItems.Any())
                 {
                     _logger.LogWarning($"No scripts found for stack '{stackLayout.Name}'");
                     return;
                 }
 
-                _logger.Log($"🔥 Creating stack '{stackLayout.Name}' with {scripts.Count} scripts");
+                _logger.Log($"🔥 Creating stack '{stackLayout.Name}' with {scriptsWithItems.Count} scripts");
 
-                if (scripts.Count == 1)
+                if (scriptsWithItems.Count == 1)
                 {
-                    // Single button - reuse existing or create new
-                    var scriptName = scripts[0].Name;
+                    // Single button - create individual button
+                    var (script, scriptItem) = scriptsWithItems[0];
+                    var scriptName = script.Name;
                     PushButton button = null;
 
-                    if (_dynamicButtons.ContainsKey(scriptName))
+                    // Create button with custom icon support
+                    var buttonData = CreatePushButtonDataForScript(script, scriptItem);
+                    if (buttonData != null)
                     {
-                        // Reuse existing button
-                        button = _dynamicButtons[scriptName];
-                        button.Visible = true;
-                        button.Enabled = true;
-                        _logger.Log($"🔄 Reusing existing button for '{scriptName}'");
+                        button = panel.AddItem(buttonData) as PushButton;
                     }
-                    else
+                    if (button != null)
                     {
-                        // Create new button
-                        button = CreateDynamicScriptButton(panel, scripts[0]);
-                        if (button != null)
+                        // Update tracking - this replaces any existing button reference
+                        _dynamicButtons[scriptName] = button;
+
+                        // Ensure capability tracking is updated
+                        var capabilityList = _buttonsByCapability[script.CapabilityLevel];
+                        if (!capabilityList.Contains(button))
                         {
-                            _dynamicButtons[scriptName] = button;
-                            _buttonsByCapability[scripts[0].CapabilityLevel].Add(button);
-                            _logger.Log($"🆕 Created new button for '{scriptName}'");
+                            capabilityList.Add(button);
+                        }
+
+                        _logger.Log($"🆕 Created new button for '{scriptName}' on panel '{panel.Name}'");
+                        if (!string.IsNullOrEmpty(scriptItem.IconPath))
+                        {
+                            _logger.Log($"🖼️ Applied custom icon: {scriptItem.IconPath}");
                         }
                     }
                 }
                 else
                 {
-                    // For layout reorganization, use individual buttons (easier to reuse)
-                    // TODO: Implement true stacked button reuse in future version
-                    _logger.Log($"🔄 Creating individual buttons for stack '{stackLayout.Name}' (layout reorganization mode)");
+                    // Multiple buttons - create stacked buttons (PyRevit style!)
+                    _logger.Log($"🔥 Creating stacked buttons for stack '{stackLayout.Name}' with {scriptsWithItems.Count} scripts");
 
-                    foreach (var script in scripts)
+                    // Create button data for each script (stacked buttons are always small)
+                    var buttonDataList = new List<PushButtonData>();
+                    var scriptList = new List<ScriptMetadata>();
+
+                    foreach (var (script, scriptItem) in scriptsWithItems)
                     {
-                        var scriptName = script.Name;
-                        PushButton button = null;
-
-                        if (_dynamicButtons.ContainsKey(scriptName))
+                        var buttonData = CreatePushButtonDataForScript(script, scriptItem);
+                        if (buttonData != null)
                         {
-                            // Reuse existing button
-                            button = _dynamicButtons[scriptName];
-                            button.Visible = true;
-                            button.Enabled = true;
-                            _logger.Log($"🔄 Reusing existing button for '{scriptName}'");
-                        }
-                        else
-                        {
-                            // Create new button
-                            button = CreateDynamicScriptButton(panel, script);
-                            if (button != null)
+                            buttonDataList.Add(buttonData);
+                            scriptList.Add(script);
+                            if (!string.IsNullOrEmpty(scriptItem.IconPath))
                             {
-                                _dynamicButtons[scriptName] = button;
-                                _buttonsByCapability[script.CapabilityLevel].Add(button);
-                                _logger.Log($"🆕 Created new button for '{scriptName}'");
+                                _logger.Log($"🖼️ Custom icon for stacked button '{script.Name}': {scriptItem.IconPath}");
                             }
+                        }
+                    }
+
+                    if (buttonDataList.Count > 1)
+                    {
+                        // 🔥 CREATE PYREVIT-STYLE STACKED BUTTONS!
+                        IList<RibbonItem> stackedItems = null;
+
+                        if (buttonDataList.Count == 2)
+                        {
+                            stackedItems = panel.AddStackedItems(buttonDataList[0], buttonDataList[1]);
+                            _logger.Log($"✅ Created 2-button stack for '{stackLayout.Name}'");
+                        }
+                        else if (buttonDataList.Count == 3)
+                        {
+                            stackedItems = panel.AddStackedItems(buttonDataList[0], buttonDataList[1], buttonDataList[2]);
+                            _logger.Log($"✅ Created 3-button stack for '{stackLayout.Name}'");
+                        }
+                        else if (buttonDataList.Count > 3)
+                        {
+                            // For now, create individual buttons for >3 items (future: implement pulldown)
+                            _logger.Log($"⚠️ Stack '{stackLayout.Name}' has {buttonDataList.Count} items (>3), creating individual buttons");
+                            foreach (var (script, scriptItem) in scriptsWithItems)
+                            {
+                                var buttonData = CreatePushButtonDataForScript(script, scriptItem);
+                                if (buttonData != null)
+                                {
+                                    var button = panel.AddItem(buttonData) as PushButton;
+                                    if (button != null)
+                                    {
+                                        _dynamicButtons[script.Name] = button;
+                                        _buttonsByCapability[script.CapabilityLevel].Add(button);
+                                        if (!string.IsNullOrEmpty(scriptItem.IconPath))
+                                        {
+                                            _logger.Log($"🖼️ Applied custom icon to individual button '{script.Name}': {scriptItem.IconPath}");
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        // Track stacked buttons
+                        if (stackedItems != null)
+                        {
+                            _dynamicStacks.Add(stackedItems);
+
+                            // Track individual buttons within the stack
+                            for (int i = 0; i < stackedItems.Count && i < scriptList.Count; i++)
+                            {
+                                if (stackedItems[i] is PushButton pushButton)
+                                {
+                                    var script = scriptList[i];
+                                    _dynamicButtons[script.Name] = pushButton;
+
+                                    // Ensure capability tracking is updated
+                                    var capabilityList = _buttonsByCapability[script.CapabilityLevel];
+                                    if (!capabilityList.Contains(pushButton))
+                                    {
+                                        capabilityList.Add(pushButton);
+                                    }
+
+                                    _logger.Log($"🆕 Tracked stacked button for '{script.Name}' on panel '{panel.Name}'");
+                                }
+                            }
+                        }
+                    }
+                    else if (buttonDataList.Count == 1)
+                    {
+                        // Single button fallback
+                        var button = panel.AddItem(buttonDataList[0]) as PushButton;
+                        if (button != null)
+                        {
+                            var script = scriptList[0];
+                            _dynamicButtons[script.Name] = button;
+                            _buttonsByCapability[script.CapabilityLevel].Add(button);
+                            _logger.Log($"🆕 Created single button for '{script.Name}' on panel '{panel.Name}'");
                         }
                     }
                 }
@@ -967,150 +960,16 @@ namespace TycoonRevitAddin.Plugins
             }
         }
 
-        /// <summary>
-        /// 🔥 Create PyRevit-Style Stacked Buttons for Capability Level
-        /// Groups scripts into vertical stacks like PyRevit
-        /// </summary>
-        private void CreateStackedButtonsForCapability(List<ScriptMetadata> scripts, RibbonPanel panel, string capabilityName)
-        {
-            try
-            {
-                _logger.Log($"🔥 Creating stacked buttons for {capabilityName} ({scripts.Count} scripts)");
 
-                // Create stacks of 2-3 buttons (PyRevit style)
-                for (int i = 0; i < scripts.Count; i += 3)
-                {
-                    var stackScripts = scripts.Skip(i).Take(3).ToList();
 
-                    if (stackScripts.Count == 1)
-                    {
-                        // Single button - add normally
-                        var button = CreateDynamicScriptButton(panel, stackScripts[0]);
-                        if (button != null)
-                        {
-                            _dynamicButtons[stackScripts[0].Name] = button;
-                            _buttonsByCapability[stackScripts[0].CapabilityLevel].Add(button);
-                        }
-                    }
-                    else
-                    {
-                        // Multiple buttons - create stack (PyRevit style!)
-                        var buttonDataList = new List<PushButtonData>();
 
-                        foreach (var script in stackScripts)
-                        {
-                            var buttonData = CreateButtonData(script);
-                            if (buttonData != null)
-                            {
-                                buttonDataList.Add(buttonData);
-                            }
-                        }
 
-                        if (buttonDataList.Count > 1)
-                        {
-                            // 🔥 CREATE PYREVIT-STYLE STACKED BUTTONS!
-                            IList<RibbonItem> stackedItems = null;
-
-                            if (buttonDataList.Count == 2)
-                            {
-                                stackedItems = panel.AddStackedItems(buttonDataList[0], buttonDataList[1]);
-                            }
-                            else if (buttonDataList.Count == 3)
-                            {
-                                stackedItems = panel.AddStackedItems(buttonDataList[0], buttonDataList[1], buttonDataList[2]);
-                            }
-
-                            if (stackedItems != null)
-                            {
-                                _dynamicStacks.Add(stackedItems);
-
-                                // Track individual buttons
-                                for (int j = 0; j < stackedItems.Count && j < stackScripts.Count; j++)
-                                {
-                                    if (stackedItems[j] is PushButton pushButton)
-                                    {
-                                        _dynamicButtons[stackScripts[j].Name] = pushButton;
-                                        _buttonsByCapability[stackScripts[j].CapabilityLevel].Add(pushButton);
-                                    }
-                                }
-
-                                _logger.Log($"✅ Created PyRevit-style stack with {stackedItems.Count} buttons");
-                            }
-                        }
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError($"Failed to create stacked buttons for {capabilityName}", ex);
-            }
-        }
 
         /// <summary>
-        /// 🔥 Create Stacked Button Group
-        /// Creates PyRevit-style vertical stack from script list
+        /// 🎯 Create PushButtonData for Script with Custom Icon Support
+        /// Creates button data without adding to panel, enabling reuse for both individual and stacked buttons
         /// </summary>
-        private void CreateStackedButtonGroup(RibbonPanel panel, List<ScriptMetadata> scripts, StackLayout stackLayout)
-        {
-            try
-            {
-                var buttonDataList = new List<PushButtonData>();
-
-                // Create button data for each script (up to 3 for PyRevit-style stacking)
-                var stackScripts = scripts.Take(stackLayout.MaxItems).ToList();
-
-                foreach (var script in stackScripts)
-                {
-                    var buttonData = CreateButtonData(script);
-                    if (buttonData != null)
-                    {
-                        buttonDataList.Add(buttonData);
-                    }
-                }
-
-                if (buttonDataList.Count > 1)
-                {
-                    // 🔥 CREATE PYREVIT-STYLE STACKED BUTTONS!
-                    IList<RibbonItem> stackedItems = null;
-
-                    if (buttonDataList.Count == 2)
-                    {
-                        stackedItems = panel.AddStackedItems(buttonDataList[0], buttonDataList[1]);
-                    }
-                    else if (buttonDataList.Count >= 3)
-                    {
-                        stackedItems = panel.AddStackedItems(buttonDataList[0], buttonDataList[1], buttonDataList[2]);
-                    }
-
-                    if (stackedItems != null)
-                    {
-                        _dynamicStacks.Add(stackedItems);
-
-                        // Track individual buttons
-                        for (int i = 0; i < stackedItems.Count && i < stackScripts.Count; i++)
-                        {
-                            if (stackedItems[i] is PushButton pushButton)
-                            {
-                                _dynamicButtons[stackScripts[i].Name] = pushButton;
-                                _buttonsByCapability[stackScripts[i].CapabilityLevel].Add(pushButton);
-                            }
-                        }
-
-                        _logger.Log($"✅ Created PyRevit-style stack '{stackLayout.Name}' with {stackedItems.Count} buttons");
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError($"Failed to create stacked button group for '{stackLayout.Name}'", ex);
-            }
-        }
-
-        /// <summary>
-        /// 🎯 Create Button Data for Script
-        /// Prepares button data without adding to panel
-        /// </summary>
-        private PushButtonData CreateButtonData(ScriptMetadata metadata)
+        private PushButtonData CreatePushButtonDataForScript(ScriptMetadata metadata, ScriptItem scriptItem = null)
         {
             try
             {
@@ -1134,6 +993,30 @@ namespace TycoonRevitAddin.Plugins
                                             $"Description: {metadata.Description}\n" +
                                             $"Path: {metadata.FilePath}\n\n" +
                                             $"This script was dynamically loaded without restarting Revit!";
+
+                // Prioritize custom icon from layout, fallback to capability icon
+                System.Windows.Media.ImageSource iconToUse = null;
+                if (!string.IsNullOrEmpty(scriptItem?.IconPath))
+                {
+                    iconToUse = LoadIcon(scriptItem.IconPath, 32);
+                }
+
+                // Use capability icon if no custom icon
+                if (iconToUse == null)
+                {
+                    var capabilityIconPath = GetCapabilityIcon(metadata.CapabilityLevel);
+                    if (!string.IsNullOrEmpty(capabilityIconPath))
+                    {
+                        iconToUse = LoadIcon(capabilityIconPath, 32);
+                    }
+                }
+
+                // Apply icon (PyRevit stacking will handle sizing automatically)
+                if (iconToUse != null)
+                {
+                    buttonData.LargeImage = iconToUse;
+                    buttonData.Image = iconToUse; // Set both for compatibility
+                }
 
                 return buttonData;
             }
@@ -1144,6 +1027,8 @@ namespace TycoonRevitAddin.Plugins
             }
         }
 
+
+
         /// <summary>
         /// 🎯 Create Individual Dynamic Script Button
         /// PyRevit-style button creation with capability-based theming
@@ -1152,38 +1037,17 @@ namespace TycoonRevitAddin.Plugins
         {
             try
             {
-                var displayName = FormatScriptName(metadata.Name);
-                var capabilityBadge = GetCapabilityBadge(metadata.CapabilityLevel);
-
-                var buttonData = new PushButtonData(
-                    $"DynamicScript_{metadata.Name}_{DateTime.Now.Ticks}",
-                    displayName,
-                    Assembly.GetExecutingAssembly().Location,
-                    "TycoonRevitAddin.Commands.DynamicScriptCommand"
-                );
-
-                buttonData.ToolTip = $"{capabilityBadge}: {displayName}\n" +
-                                   $"{metadata.Description}\n" +
-                                   $"Author: {metadata.Author}\n" +
-                                   $"🔥 Hot-loaded script";
-
-                buttonData.LongDescription = $"🔥 HOT-LOADED: {displayName}\n\n" +
-                                            $"Capability: {metadata.CapabilityLevel}\n" +
-                                            $"Description: {metadata.Description}\n" +
-                                            $"Path: {metadata.FilePath}\n\n" +
-                                            $"This script was dynamically loaded without restarting Revit!";
-
-                // Set capability-specific icon
-                var iconPath = GetCapabilityIcon(metadata.CapabilityLevel);
-                if (!string.IsNullOrEmpty(iconPath))
+                // Use the helper method to create button data
+                var buttonData = CreatePushButtonDataForScript(metadata);
+                if (buttonData == null)
                 {
-                    buttonData.Image = LoadIcon(iconPath, 16);
-                    buttonData.LargeImage = LoadIcon(iconPath, 32);
+                    return null;
                 }
 
-                // 🔥 ADD BUTTON TO PANEL INSTANTLY
+                // Add button to panel
                 var button = panel.AddItem(buttonData) as PushButton;
 
+                var displayName = FormatScriptName(metadata.Name);
                 _logger.Log($"🔥 Dynamic button created: {displayName} ({metadata.CapabilityLevel})");
                 return button;
             }
@@ -1199,14 +1063,30 @@ namespace TycoonRevitAddin.Plugins
         /// </summary>
         private System.Windows.Media.ImageSource LoadIcon(string iconPath, int size)
         {
-            try
+            if (string.IsNullOrEmpty(iconPath) || !File.Exists(iconPath))
             {
-                // For now, return null - icons will be added later
+                _logger.LogWarning($"Icon path is null, empty, or file does not exist: {iconPath}");
                 return null;
             }
-            catch
+
+            try
             {
-                return null;
+                var bitmap = new System.Windows.Media.Imaging.BitmapImage();
+                bitmap.BeginInit();
+                bitmap.UriSource = new Uri(iconPath, UriKind.Absolute);
+
+                // Set pixel size for performance and to match button size
+                bitmap.DecodePixelWidth = size;
+                bitmap.DecodePixelHeight = size;
+
+                bitmap.EndInit();
+                bitmap.Freeze(); // Freeze for performance and cross-thread safety
+                return bitmap;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Failed to load icon from path: {iconPath}", ex);
+                return null; // Return null on failure to allow fallback
             }
         }
 
@@ -1262,15 +1142,15 @@ namespace TycoonRevitAddin.Plugins
 
                 _logger.Log($"🔍 First-run check: Settings={hasSettings}, Cache={hasCache}");
 
-                // Show first-run wizard if no settings AND no cached scripts
+                // Auto-download scripts if no settings AND no cached scripts (first run)
                 if (!hasSettings && !hasCache)
                 {
-                    _logger.Log("🚀 First run detected - will show setup wizard when UI is ready");
+                    _logger.Log("🚀 First run detected - will auto-download scripts without popup");
 
-                    // Schedule the wizard to show after UI initialization
+                    // Schedule automatic download after UI initialization
                     System.Windows.Threading.Dispatcher.CurrentDispatcher.BeginInvoke(
                         System.Windows.Threading.DispatcherPriority.ApplicationIdle,
-                        new Action(ShowFirstRunWizard));
+                        new Action(AttemptFirstRunAutoDownload));
                 }
                 else if (hasSettings && !hasCache)
                 {
@@ -1319,6 +1199,89 @@ namespace TycoonRevitAddin.Plugins
             catch (Exception ex)
             {
                 _logger.LogError($"Error showing first-run wizard: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// 🚀 Attempt automatic first-run download without popup dialog
+        /// </summary>
+        private async void AttemptFirstRunAutoDownload()
+        {
+            try
+            {
+                _logger.Log("🚀 Starting automatic first-run script download...");
+
+                // Save hardcoded settings first (same as FirstRunWizard)
+                await SaveHardcodedGitHubSettings();
+
+                // Start automatic download without blocking UI
+                _ = Task.Run(async () =>
+                {
+                    try
+                    {
+                        // Create cancellation token with 60-second timeout
+                        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+
+                        // Try to refresh cache automatically
+                        var success = await _gitCacheManager.RefreshCacheAsync(forceRefresh: true, cancellationToken: cts.Token);
+
+                        if (success)
+                        {
+                            _logger.Log("✅ Automatic first-run download completed successfully");
+
+                            // Refresh the ribbon to show downloaded scripts (on UI thread)
+                            System.Windows.Threading.Dispatcher.CurrentDispatcher.BeginInvoke(
+                                System.Windows.Threading.DispatcherPriority.Background,
+                                new Action(() => RefreshRibbonWithGitHubScripts()));
+
+                            _logger.Log("🎯 First-run auto-download complete - scripts are now available");
+                        }
+                        else
+                        {
+                            _logger.LogWarning("⚠️ Automatic first-run download failed - will use offline mode");
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError($"Error during automatic first-run download: {ex.Message}");
+                    }
+                });
+
+                _logger.Log("🚀 Automatic first-run download task started - UI remains responsive");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Error starting automatic first-run download: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// 💾 Save hardcoded GitHub settings for first-run auto-download
+        /// </summary>
+        private async Task SaveHardcodedGitHubSettings()
+        {
+            try
+            {
+                var settingsPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Tycoon", "github-settings.json");
+                Directory.CreateDirectory(Path.GetDirectoryName(settingsPath));
+
+                var settings = new
+                {
+                    RepositoryOwner = "Jrandolph3110",
+                    RepositoryName = "tycoon-ai-bim-platform",
+                    Branch = "main",
+                    ScriptsPath = "scripts",
+                    LastUpdated = DateTime.UtcNow.ToString("O")
+                };
+
+                var json = Newtonsoft.Json.JsonConvert.SerializeObject(settings, Newtonsoft.Json.Formatting.Indented);
+                File.WriteAllText(settingsPath, json);
+
+                _logger.Log("💾 Saved hardcoded GitHub settings for auto-download");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError("Failed to save hardcoded GitHub settings", ex);
             }
         }
 
@@ -1446,14 +1409,14 @@ namespace TycoonRevitAddin.Plugins
                     var fileName = Path.GetFileNameWithoutExtension(scriptFile);
                     var relativePath = scriptFile.Substring(cachedScriptsPath.Length).TrimStart('\\', '/');
 
-                    // Create metadata for GitHub script
+                    // Create metadata for GitHub script - capability level doesn't matter since auto-sorting is disabled
                     var metadata = new ScriptMetadata
                     {
                         Name = fileName, // CRITICAL: Use clean name without prefix
                         Description = $"GitHub script: {relativePath}",
                         Author = "GitHub Repository",
                         Version = "Latest",
-                        CapabilityLevel = ScriptCapabilityLevel.P2_Analytic,
+                        CapabilityLevel = ScriptCapabilityLevel.P2_Analytic, // Default - not used since auto-sorting disabled
                         FilePath = scriptFile,
                         IsGitHubScript = true
                     };
@@ -1475,6 +1438,271 @@ namespace TycoonRevitAddin.Plugins
         // 🎯 REMOVED: LoadGitHubScriptMetadata() method that used "github_" prefix
         // This was causing conflicts with Layout Manager which expects clean script names
         // All GitHub script metadata is now handled by LoadGitHubScriptsIntoMetadata() with clean names
+
+        #region Unified Event-Driven System
+
+        /// <summary>
+        /// 🔄 Refresh ribbon using ScriptService data
+        /// Called by ScriptService event handlers when scripts are updated
+        /// </summary>
+        private void RefreshRibbonViaEvents()
+        {
+            try
+            {
+                _logger.Log("🔄 Refreshing ribbon via ScriptService event system");
+
+                // Update script metadata from ScriptService
+                var localScripts = ScriptService.Instance.GetCurrentLocalScripts();
+                var githubScripts = ScriptService.Instance.GetCurrentGitHubScripts();
+                UpdateScriptMetadataFromScriptService(localScripts, githubScripts);
+
+                // Generate fresh layout with current script metadata
+                var layout = _layoutManager.MergeLayouts(_scriptMetadata);
+                _logger.Log($"🔄 Generated refresh layout with {layout.Panels.Count} panels");
+
+                // Apply layout via unified system
+                ApplyLayoutToRibbon(layout);
+
+                _logger.Log("🔄 Ribbon refresh complete");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError("Failed to refresh ribbon via ScriptService", ex);
+                throw;
+            }
+        }
+
+
+
+        #endregion
+
+        #region Event Handlers
+
+        /// <summary>
+        /// 📡 Handle LayoutChanged events from Layout Manager (Chat's event-driven architecture)
+        /// </summary>
+        private void OnLayoutChanged(LayoutChangedEvent layoutEvent)
+        {
+            try
+            {
+                _logger.Log($"📡 Received LayoutChanged event from {layoutEvent.Source} at {layoutEvent.Timestamp}");
+                _logger.Log($"📡 Layout has {layoutEvent.Layout.Panels.Count} panels with {layoutEvent.Layout.Panels.Sum(p => p.Stacks.Count)} total stacks");
+
+                // 🔥 CRITICAL: Apply the layout changes to the actual ribbon
+                _logger.Log("🔥 Applying layout changes to ribbon (Chat's RibbonRefresher pattern)");
+                ApplyLayoutToRibbon(layoutEvent.Layout);
+
+                _logger.Log("✅ Layout changes applied to ribbon successfully");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError("Failed to handle LayoutChanged event", ex);
+            }
+        }
+
+        /// <summary>
+        /// 🔥 Apply layout changes to the actual Revit ribbon (Chat's RibbonRefresher)
+        /// </summary>
+        private void ApplyLayoutToRibbon(RibbonLayoutSchema layout)
+        {
+            try
+            {
+                _logger.Log("🔥 RIBBON REFRESHER: Starting layout application to ribbon");
+
+                // Hide all existing dynamic buttons first
+                HideDynamicButtons();
+
+                // Apply the new layout by creating buttons in the correct panels
+                foreach (var panelLayout in layout.Panels)
+                {
+                    var ribbonPanel = GetRibbonPanelById(panelLayout.Id);
+                    if (ribbonPanel == null)
+                    {
+                        _logger.LogWarning($"🔥 RIBBON REFRESHER: No ribbon panel found for layout panel '{panelLayout.Id}'");
+                        continue;
+                    }
+
+                    _logger.Log($"🔥 RIBBON REFRESHER: Applying layout to panel '{panelLayout.Id}' with {panelLayout.Stacks.Count} stacks");
+
+                    foreach (var stackLayout in panelLayout.Stacks.OrderBy(s => s.Order))
+                    {
+                        CreateStackFromLayout(ribbonPanel, stackLayout);
+                    }
+                }
+
+                _logger.Log($"🔥 RIBBON REFRESHER: Layout application complete - {_dynamicButtons.Count} buttons configured");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError("RIBBON REFRESHER: Failed to apply layout to ribbon", ex);
+                throw;
+            }
+        }
+
+        #endregion
+
+
+
+        #region ScriptService Event Handlers
+
+        /// <summary>
+        /// 🎯 Create initial layout from ScriptService (immediate, bundled scripts)
+        /// </summary>
+        private void CreateInitialLayoutFromScriptService()
+        {
+            try
+            {
+                _logger.Log("🎯 Creating initial layout from ScriptService");
+
+                // Get current scripts from ScriptService (bundled scripts available immediately)
+                var localScripts = ScriptService.Instance.GetCurrentLocalScripts();
+                var githubScripts = ScriptService.Instance.GetCurrentGitHubScripts();
+
+                _logger.Log($"🎯 Initial layout: {localScripts.Count()} local, {githubScripts.Count()} GitHub scripts");
+
+                // Convert to legacy format for Layout Manager compatibility
+                UpdateScriptMetadataFromScriptService(localScripts, githubScripts);
+
+                // Generate and apply layout
+                var layout = _layoutManager.MergeLayouts(_scriptMetadata);
+                ApplyLayoutToRibbon(layout);
+
+                _logger.Log("🎯 Initial layout created successfully");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError("Failed to create initial layout from ScriptService", ex);
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// 🎯 Handle local scripts updated from ScriptService
+        /// </summary>
+        private void OnLocalScriptsUpdated(IEnumerable<ScriptViewModel> scripts)
+        {
+            try
+            {
+                _logger.Log($"🎯 Local scripts updated: {scripts.Count()} scripts");
+
+                // Update layout with new local scripts
+                var githubScripts = ScriptService.Instance.GetCurrentGitHubScripts();
+                UpdateScriptMetadataFromScriptService(scripts, githubScripts);
+                RefreshRibbonViaEvents();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError("Failed to handle local scripts update", ex);
+            }
+        }
+
+        /// <summary>
+        /// 🎯 Handle GitHub scripts updated from ScriptService
+        /// </summary>
+        private void OnGitHubScriptsUpdated(IEnumerable<ScriptViewModel> scripts)
+        {
+            try
+            {
+                _logger.Log($"🎯 GitHub scripts updated: {scripts.Count()} scripts");
+
+                // Update layout with new GitHub scripts
+                var localScripts = ScriptService.Instance.GetCurrentLocalScripts();
+                UpdateScriptMetadataFromScriptService(localScripts, scripts);
+                RefreshRibbonViaEvents();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError("Failed to handle GitHub scripts update", ex);
+            }
+        }
+
+        /// <summary>
+        /// 🎯 Handle update status changed from ScriptService
+        /// </summary>
+        private void OnUpdateStatusChanged(string status)
+        {
+            try
+            {
+                _logger.Log($"🎯 Update status: {status}");
+                // Could update UI status indicators here in the future
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError("Failed to handle update status change", ex);
+            }
+        }
+
+        /// <summary>
+        /// 🎯 Handle updating state changed from ScriptService
+        /// </summary>
+        private void OnIsUpdatingChanged(bool isUpdating)
+        {
+            try
+            {
+                _logger.Log($"🎯 Updating state: {(isUpdating ? "Started" : "Completed")}");
+                // Could update UI loading indicators here in the future
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError("Failed to handle updating state change", ex);
+            }
+        }
+
+        /// <summary>
+        /// 🎯 Convert ScriptService ViewModels to legacy ScriptMetadata format
+        /// Maintains compatibility with existing Layout Manager
+        /// </summary>
+        private void UpdateScriptMetadataFromScriptService(IEnumerable<ScriptViewModel> localScripts, IEnumerable<ScriptViewModel> githubScripts)
+        {
+            try
+            {
+                _scriptMetadata.Clear();
+
+                // Add local scripts
+                foreach (var script in localScripts)
+                {
+                    var metadata = new ScriptMetadata
+                    {
+                        Name = script.Name,
+                        FilePath = script.Command,
+                        Description = script.Description,
+                        CapabilityLevel = ScriptCapabilityLevel.P1_Deterministic, // Default for local
+                        IsGitHubScript = false,
+                        LastModified = DateTime.Now,
+                        Author = "Local",
+                        SchemaVersion = "1.0.0"
+                    };
+
+                    _scriptMetadata[script.Command] = metadata;
+                }
+
+                // Add GitHub scripts
+                foreach (var script in githubScripts)
+                {
+                    var metadata = new ScriptMetadata
+                    {
+                        Name = script.Name,
+                        FilePath = script.Command,
+                        Description = script.Description,
+                        CapabilityLevel = ScriptCapabilityLevel.P2_Analytic, // Default for GitHub
+                        IsGitHubScript = true,
+                        LastModified = DateTime.Now,
+                        Author = "GitHub",
+                        SchemaVersion = "1.0.0"
+                    };
+
+                    _scriptMetadata[script.Command] = metadata;
+                }
+
+                _logger.Log($"🎯 Updated script metadata: {localScripts.Count()} local + {githubScripts.Count()} GitHub = {_scriptMetadata.Count} total");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError("Failed to update script metadata from ScriptService", ex);
+            }
+        }
+
+        #endregion
 
     }
 }
