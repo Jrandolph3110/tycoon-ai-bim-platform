@@ -5,16 +5,19 @@ param(
     [Parameter(Mandatory=$false)]
     [ValidateSet("Debug", "Release")]
     [string]$Configuration = "Release",
-    
+
     [Parameter(Mandatory=$false)]
     [ValidateSet("x86", "x64", "Any CPU")]
     [string]$Platform = "x86",
-    
+
     [Parameter(Mandatory=$false)]
     [switch]$Clean,
-    
+
     [Parameter(Mandatory=$false)]
-    [switch]$SkipTests
+    [switch]$SkipTests,
+
+    [Parameter(Mandatory=$false)]
+    [switch]$BuildBootstrapper
 )
 
 # Script configuration
@@ -160,6 +163,30 @@ Copy-Item $SetupWizardExe $PSScriptRoot -Force
 
 Write-Host "Setup Wizard build completed" -ForegroundColor Green
 
+# Build DownloadMCP utility
+Write-Host "Building DownloadMCP utility..." -ForegroundColor Yellow
+$DownloadMCPProject = Join-Path $PSScriptRoot "DownloadMCP\DownloadMCP.csproj"
+if (Test-Path $DownloadMCPProject) {
+    & $MSBuildPath $DownloadMCPProject /p:Configuration=$Configuration /p:Platform="Any CPU" /verbosity:minimal
+    if ($LASTEXITCODE -ne 0) {
+        Write-Error "Failed to build DownloadMCP utility"
+        exit 1
+    }
+
+    # Copy InstallMCP.exe to installer directory for WiX (rename to DownloadMCP.exe)
+    $DownloadMCPSource = Join-Path $PSScriptRoot "DownloadMCP\bin\Any CPU\Release\net48\InstallMCP.exe"
+    $DownloadMCPDest = Join-Path $PSScriptRoot "DownloadMCP.exe"
+    if (Test-Path $DownloadMCPSource) {
+        Copy-Item $DownloadMCPSource $DownloadMCPDest -Force
+        Write-Host "Copied InstallMCP.exe to installer directory as DownloadMCP.exe" -ForegroundColor Gray
+    } else {
+        Write-Warning "InstallMCP.exe not found at $DownloadMCPSource"
+    }
+} else {
+    Write-Warning "DownloadMCP project not found, skipping..."
+}
+Write-Host "DownloadMCP utility build completed" -ForegroundColor Green
+
 # Build Revit Add-in
 Write-Host "Building Revit Add-in..." -ForegroundColor Yellow
 
@@ -199,13 +226,23 @@ try {
     
     Write-Host "MCP Server build completed" -ForegroundColor Green
 
-# Package MCP Server for GitHub release
-Write-Host "Packaging MCP Server for GitHub release..." -ForegroundColor Yellow
+# Package MCP Server for installer distribution
+Write-Host "Packaging MCP Server for installer distribution..." -ForegroundColor Yellow
 $PackageMCPScript = Join-Path $PSScriptRoot "PackageMCP.ps1"
 if (Test-Path $PackageMCPScript) {
     & powershell -ExecutionPolicy Bypass -File $PackageMCPScript
     if ($LASTEXITCODE -ne 0) {
         Write-Warning "MCP packaging failed, but continuing with installer build..."
+    } else {
+        # Copy the ZIP file to installer directory for WiX
+        $ZipSource = Join-Path $PSScriptRoot "mcp-server\bin\Release\mcp-server.zip"
+        $ZipDest = Join-Path $PSScriptRoot "mcp-server.zip"
+        if (Test-Path $ZipSource) {
+            Copy-Item $ZipSource $ZipDest -Force
+            Write-Host "Copied MCP server ZIP to installer directory" -ForegroundColor Gray
+        } else {
+            Write-Warning "MCP server ZIP not found at $ZipSource"
+        }
     }
 } else {
     Write-Warning "PackageMCP.ps1 not found, skipping MCP packaging..."
@@ -280,8 +317,69 @@ if ($LASTEXITCODE -ne 0) {
 
 Write-Host "WiX Installer build completed" -ForegroundColor Green
 
-# Skip bootstrapper for now - MSI is sufficient
-Write-Host "Skipping bootstrapper build (MSI installer is ready)" -ForegroundColor Yellow
+# Build bootstrapper if requested (includes Node.js prerequisite)
+if ($BuildBootstrapper) {
+    Write-Host "Building WiX Bootstrapper with Node.js prerequisite..." -ForegroundColor Blue
+
+    # Find WiX tools
+    $WixBinPath = "C:\Program Files (x86)\WiX Toolset v3.11\bin"
+    $CandlePath = Join-Path $WixBinPath "candle.exe"
+    $LightPath = Join-Path $WixBinPath "light.exe"
+
+    if (!(Test-Path $CandlePath) -or !(Test-Path $LightPath)) {
+        Write-Host "Error: WiX Toolset v3.11 not found. Please install WiX Toolset." -ForegroundColor Red
+        exit 1
+    }
+
+    # Create dummy Node.js MSI for build (will be downloaded at runtime)
+    $DummyNodeMsi = Join-Path $ScriptDir "node-v20.11.0-x64.msi"
+    "Dummy Node.js MSI for build" | Out-File -FilePath $DummyNodeMsi -Encoding ASCII
+
+    try {
+        # Compile Bundle.wxs
+        $BundleWxs = Join-Path $ScriptDir "Bundle.wxs"
+        $BundleObj = Join-Path $ScriptDir "obj\Release\Bundle.wixobj"
+        $MSIPath = Join-Path $OutputDir "TycoonAI-BIM-Platform.msi"
+
+        # Ensure obj directory exists
+        $ObjDir = Join-Path $ScriptDir "obj\Release"
+        if (!(Test-Path $ObjDir)) {
+            New-Item -ItemType Directory -Path $ObjDir -Force | Out-Null
+        }
+
+        Write-Host "  Compiling Bundle.wxs..." -ForegroundColor Gray
+        & $CandlePath -ext WixBalExtension -ext WixUtilExtension "-dTycoonInstaller.TargetPath=$MSIPath" $BundleWxs -o $BundleObj
+        if ($LASTEXITCODE -ne 0) {
+            Write-Host "Bundle compilation failed" -ForegroundColor Red
+            exit $LASTEXITCODE
+        }
+
+        # Link bootstrapper
+        $BootstrapperOutput = Join-Path $OutputDir "TycoonAI-BIM-Platform-Setup.exe"
+        Write-Host "  Linking bootstrapper..." -ForegroundColor Gray
+        & $LightPath -ext WixBalExtension -ext WixUtilExtension $BundleObj -o $BootstrapperOutput
+        if ($LASTEXITCODE -ne 0) {
+            Write-Host "Bootstrapper linking failed" -ForegroundColor Red
+            exit $LASTEXITCODE
+        }
+
+        Write-Host "WiX Bootstrapper build completed" -ForegroundColor Green
+
+        # Check for bootstrapper output
+        if (Test-Path $BootstrapperOutput) {
+            $BootstrapperSize = [math]::Round((Get-Item $BootstrapperOutput).Length / 1MB, 2)
+            Write-Host "  Bootstrapper: $BootstrapperOutput ($BootstrapperSize MB)" -ForegroundColor Green
+        }
+    }
+    finally {
+        # Clean up dummy file
+        if (Test-Path $DummyNodeMsi) {
+            Remove-Item $DummyNodeMsi -Force
+        }
+    }
+} else {
+    Write-Host "Skipping bootstrapper build (use -BuildBootstrapper to include Node.js prerequisite)" -ForegroundColor Yellow
+}
 
 # Display results
 Write-Host ""

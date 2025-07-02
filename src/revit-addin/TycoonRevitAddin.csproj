@@ -133,7 +133,7 @@
     <Compile Include="Services\VersionTracker.cs" />
     <Compile Include="Services\ScriptService.cs" />
     <Compile Include="Services\ScriptParser.cs" />
-    <Compile Include="Services\BundledScriptProvider.cs" />
+
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   
@@ -146,11 +146,7 @@
     </None>
   </ItemGroup>
 
-  <ItemGroup>
-    <EmbeddedResource Include="Resources\BundledScripts\ElementCounter.py" />
-    <EmbeddedResource Include="Resources\BundledScripts\ModelInfo.py" />
-    <EmbeddedResource Include="Resources\BundledScripts\RefreshViews.py" />
-  </ItemGroup>
+
 
   <ItemGroup>
     <Page Include="UI\ConnectionProgressDialog.xaml">

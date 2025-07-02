@@ -274,7 +274,7 @@ namespace TycoonRevitAddin.Commands
 
                 // Check if MCP server exists
                 string appDataPath = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
-                string mcpServerPath = Path.Combine(appDataPath, "Tycoon", "mcp-server", "dist", "index.js");
+                string mcpServerPath = Path.Combine(appDataPath, "Tycoon", "mcp-server", "index.js");
 
                 string statusMessage;
                 if (File.Exists(mcpServerPath))
@@ -318,7 +318,7 @@ namespace TycoonRevitAddin.Commands
         {
             // Get the MCP server path
             string appDataPath = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
-            string mcpServerPath = Path.Combine(appDataPath, "Tycoon", "mcp-server", "dist", "index.js");
+            string mcpServerPath = Path.Combine(appDataPath, "Tycoon", "mcp-server", "index.js");
 
             // Create the configuration object
             var config = new

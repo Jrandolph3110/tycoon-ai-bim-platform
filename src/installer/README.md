@@ -19,7 +19,9 @@ Professional WiX MSI installer for the revolutionary AI-powered construction aut
 
 ### **Complete Professional Installation**
 - ✅ **MSI Package** - Industry-standard Windows installer
-- ✅ **Bootstrapper** - Handles prerequisites automatically  
+- ✅ **WiX Bootstrapper** - Handles prerequisites automatically (NEW!)
+- ✅ **Fresh Windows Support** - Works on clean Windows installations
+- ✅ **Node.js Integration** - Automatically installs Node.js LTS if needed
 - ✅ **Multi-Revit Support** - Installs for Revit 2022-2025
 - ✅ **Dependency Management** - Bundles all required libraries
 - ✅ **Automatic Detection** - Finds installed Revit versions
@@ -58,12 +60,16 @@ Professional WiX MSI installer for the revolutionary AI-powered construction aut
 
 #### **ONLY Build Method - Use Build.ps1**
 ```powershell
-# Standard release build (RECOMMENDED)
+# Standard release build (MSI only)
 .\Build.ps1
+
+# Build with Node.js prerequisite support (RECOMMENDED for distribution)
+.\Build.ps1 -BuildBootstrapper
 ```
 
 **⚠️ IMPORTANT: Build.ps1 is the ONLY supported build method.**
 - ✅ **Use Build.ps1** - Handles all dependencies, NuGet packages, and build order correctly
+- ✅ **Use -BuildBootstrapper** - Creates installer that works on fresh Windows installations
 - ❌ **Do NOT use** `dotnet build`, `msbuild`, or `nuget restore` directly
 - ❌ **Do NOT use** manual build commands - they will fail with package dependency issues
 
@@ -77,17 +83,19 @@ The Build.ps1 script:
 
 After building, you'll find these files in `bin\Release\`:
 
-### **Primary Installer**
-- **`TycoonAI-BIM-Platform-Setup.exe`** - Main installer (recommended)
-  - Includes all prerequisites
-  - Handles .NET Framework installation
-  - Professional branded UI
+### **Bootstrapper Installer (NEW!)**
+- **`TycoonAI-BIM-Platform-Setup.exe`** (1.56 MB) - ✅ **RECOMMENDED**
+  - **Fresh Windows Support** - Works on clean Windows installations
+  - **Automatic Node.js Installation** - Downloads and installs Node.js LTS v20.11.0
+  - **Smart Detection** - Skips Node.js if already installed
+  - **Enterprise Ready** - Silent installation support
+  - **Single File** - Everything needed in one executable
 
-### **MSI Package**
-- **`TycoonAI-BIM-Platform.msi`** - Core MSI package
-  - For enterprise deployment
-  - Requires prerequisites pre-installed
-  - Group Policy compatible
+### **Traditional MSI Package**
+- **`TycoonAI-BIM-Platform.msi`** (1.21 MB) - For systems with Node.js pre-installed
+  - **Smaller Size** - No prerequisite bundling
+  - **Direct Installation** - Requires Node.js already installed
+  - **Group Policy Compatible** - Enterprise deployment ready
 
 ## 🎯 **Installation Features**
 
@@ -113,10 +121,18 @@ The installer automatically detects installed Revit versions:
 
 ### **Branding**
 Replace these files to customize appearance:
-- `Resources\TycoonIcon.ico` - Application icon
+- `Resources\TycoonIcon.ico` - Application icon ✅ **CONFIGURED**
 - `Resources\TycoonBanner.bmp` - Installer banner (493×58)
 - `Resources\TycoonDialog.bmp` - Dialog background (493×312)
 - `Resources\License.rtf` - License agreement
+
+**Icon Customization**: Use `ConvertToIcon.ps1` to convert PNG images to both ICO and dialog PNG:
+```powershell
+.\ConvertToIcon.ps1 -PngPath "C:\Path\To\Your\Logo.png"
+```
+This creates:
+- `Resources\TycoonIcon.ico` - EXE file icon (taskbar, file explorer)
+- `Resources\TycoonLogo.png` - Dialog logo (64x64, replaces default red CD square)
 
 ### **Version Information**
 Update version numbers in:

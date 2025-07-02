@@ -155,15 +155,15 @@ namespace TycoonRevitAddin.Plugins
             // NOTE: No hardcoded buttons - Layout Manager will handle all script buttons
 
             // 🎯 NEW ASYNC-FIRST ARCHITECTURE: ScriptService handles all script loading
-            // UI shows bundled scripts immediately, updates asynchronously when GitHub completes
+            // UI shows cached GitHub scripts immediately, updates asynchronously when GitHub refresh completes
             try
             {
                 _logger.Log("🎯 Initializing ribbon with async-first ScriptService architecture");
 
-                // Create initial layout with bundled scripts (immediate)
+                // Create initial layout from cached GitHub scripts (immediate)
                 CreateInitialLayoutFromScriptService();
 
-                _logger.Log("✅ Ribbon initialized with bundled scripts - GitHub update will follow asynchronously");
+                _logger.Log("✅ Ribbon initialized with cached scripts - GitHub update will follow asynchronously");
             }
             catch (Exception ex)
             {
@@ -1546,7 +1546,7 @@ namespace TycoonRevitAddin.Plugins
         #region ScriptService Event Handlers
 
         /// <summary>
-        /// 🎯 Create initial layout from ScriptService (immediate, bundled scripts)
+        /// 🎯 Create initial layout from ScriptService (immediate, cached GitHub scripts)
         /// </summary>
         private void CreateInitialLayoutFromScriptService()
         {
@@ -1554,7 +1554,7 @@ namespace TycoonRevitAddin.Plugins
             {
                 _logger.Log("🎯 Creating initial layout from ScriptService");
 
-                // Get current scripts from ScriptService (bundled scripts available immediately)
+                // Get current scripts from ScriptService (cached GitHub scripts available immediately)
                 var localScripts = ScriptService.Instance.GetCurrentLocalScripts();
                 var githubScripts = ScriptService.Instance.GetCurrentGitHubScripts();
 

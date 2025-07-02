@@ -25,7 +25,7 @@ namespace TycoonRevitAddin.Services
         #region Private Fields
         private Logger _logger;
         private GitCacheManager _gitCacheManager;
-        private readonly BundledScriptProvider _bundledScriptProvider;
+
         private readonly ScriptParser _scriptParser;
         
         private List<ScriptViewModel> _localScripts = new List<ScriptViewModel>();
@@ -102,7 +102,7 @@ namespace TycoonRevitAddin.Services
         {
             _logger = new Logger("ScriptService"); // Temporary logger until proper injection
             _scriptParser = new ScriptParser(_logger);
-            _bundledScriptProvider = new BundledScriptProvider(_scriptParser);
+
             // GitCacheManager will be injected during initialization
         }
         #endregion
@@ -260,9 +260,8 @@ namespace TycoonRevitAddin.Services
                 }
                 else
                 {
-                    // Fallback to bundled scripts
-                    githubScripts = LoadBundledScripts();
-                    _logger.Log($"🎯 Loaded {githubScripts.Count} bundled scripts as fallback");
+                    // No cached scripts available - will need to download from GitHub
+                    _logger.Log("🎯 No cached scripts found - GitHub download required");
                 }
 
                 lock (_githubScripts)
@@ -274,20 +273,8 @@ namespace TycoonRevitAddin.Services
             {
                 _logger.LogError("Failed to load initial GitHub scripts", ex);
                 
-                // Final fallback to bundled scripts
-                try
-                {
-                    var bundledScripts = LoadBundledScripts();
-                    lock (_githubScripts)
-                    {
-                        _githubScripts = bundledScripts;
-                    }
-                    _logger.Log($"🎯 Fallback to {bundledScripts.Count} bundled scripts after cache failure");
-                }
-                catch (Exception bundledEx)
-                {
-                    _logger.LogError("Failed to load bundled scripts fallback", bundledEx);
-                }
+                // No fallback scripts available - user will need to download from GitHub
+                _logger.Log("🎯 No scripts available - GitHub download required");
             }
         }
 
@@ -319,34 +306,7 @@ namespace TycoonRevitAddin.Services
             return scripts;
         }
 
-        /// <summary>
-        /// Load bundled scripts as fallback
-        /// </summary>
-        private List<ScriptViewModel> LoadBundledScripts()
-        {
-            var scripts = new List<ScriptViewModel>();
 
-            try
-            {
-                var bundledScripts = _bundledScriptProvider.GetBundledScripts();
-                foreach (var scriptDef in bundledScripts)
-                {
-                    scripts.Add(new ScriptViewModel
-                    {
-                        Id = Guid.NewGuid().ToString(),
-                        Name = scriptDef.Metadata.Name,
-                        Description = scriptDef.Metadata.Description ?? "Bundled script",
-                        Command = scriptDef.FilePath // This will be the resource name for bundled scripts
-                    });
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError("Failed to load bundled scripts", ex);
-            }
-
-            return scripts;
-        }
 
         /// <summary>
         /// Refresh GitHub scripts from remote (async, background operation)

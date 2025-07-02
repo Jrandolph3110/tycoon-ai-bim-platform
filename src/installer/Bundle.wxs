@@ -2,11 +2,14 @@
 <Wix xmlns="http://schemas.microsoft.com/wix/2006/wi" 
      xmlns:bal="http://schemas.microsoft.com/wix/BalExtension" 
      xmlns:util="http://schemas.microsoft.com/wix/UtilExtension">
-  
+
+  <!-- Resource Directory Definition -->
+  <?define ResourcesDir = ".\Resources" ?>
+
   <!-- Bundle Definition -->
-  <Bundle Name="Tycoon AI-BIM Platform Setup" 
-          Version="1.0.0.0" 
-          Manufacturer="F.L. Crane &amp; Sons" 
+  <Bundle Name="Tycoon AI-BIM Platform Setup"
+          Version="0.13.1.0"
+          Manufacturer="F.L. Crane &amp; Sons"
           UpgradeCode="87654321-4321-4321-4321-210987654321"
           IconSourceFile="Resources\TycoonIcon.ico"
           AboutUrl="https://flcrane.com/tycoon"
@@ -14,12 +17,10 @@
           UpdateUrl="https://flcrane.com/tycoon-updates">
 
     <!-- Bundle UI -->
-    <BootstrapperApplicationRef Id="WixStandardBootstrapperApplication.RtfLicense">
-      <bal:WixStandardBootstrapperApplication 
-        LicenseFile="Resources\License.rtf"
-        LogoFile="Resources\TycoonLogo.png"
-        ThemeFile="Resources\TycoonTheme.xml"
-        LocalizationFile="Resources\TycoonStrings.wxl" />
+    <BootstrapperApplicationRef Id="WixStandardBootstrapperApplication.HyperlinkLicense">
+      <bal:WixStandardBootstrapperApplication
+        LicenseUrl="https://flcrane.com/tycoon-license"
+        LogoFile="$(var.ResourcesDir)\TycoonLogo.png" />
     </BootstrapperApplicationRef>
 
     <!-- Variables -->
@@ -27,24 +28,16 @@
     <Variable Name="LaunchTarget" Type="string" Value="[InstallFolder]TycoonRevitAddin.dll" />
 
     <!-- Chain of packages to install -->
+    <!-- INSTALLATION ORDER IS CRITICAL:
+         1. .NET Framework 4.8 (for Revit add-in)
+         2. Visual C++ Redistributable (for native dependencies)
+         3. Node.js LTS (for MCP server and npm dependencies)
+         4. Main Tycoon Application (Revit add-in + MCP server)
+    -->
     <Chain>
-      
-      <!-- .NET Framework 4.8 Prerequisite -->
-      <PackageGroupRef Id="NetFx48Web" />
-      
-      <!-- Visual C++ 2019 Redistributable (for WebSocketSharp dependencies) -->
-      <ExePackage Id="VCRedist2019"
-                  Cache="no"
-                  Compressed="no"
-                  PerMachine="yes"
-                  Permanent="yes"
-                  Vital="yes"
-                  SourceFile="Prerequisites\VC_redist.x64.exe"
-                  DownloadUrl="https://aka.ms/vs/16/release/vc_redist.x64.exe"
-                  InstallCommand="/quiet /norestart"
-                  RepairCommand="/quiet /norestart"
-                  UninstallCommand="/quiet /norestart"
-                  DetectCondition="VCRedist2019x64Installed" />
+
+      <!-- Node.js LTS Prerequisite (CRITICAL for MCP Server) -->
+      <PackageGroupRef Id="NodeJSLTS" />
 
       <!-- Main Tycoon Application -->
       <MsiPackage Id="TycoonMainPackage"
@@ -52,37 +45,35 @@
                   Compressed="yes"
                   Vital="yes"
                   SourceFile="$(var.TycoonInstaller.TargetPath)"
-                  DisplayInternalUI="no">
-        
+                  DisplayInternalUI="no"
+                  InstallCondition="VersionNT >= v6.1">
+
         <!-- Pass variables to MSI -->
         <MsiProperty Name="INSTALLFOLDER" Value="[InstallFolder]" />
-        
-        <!-- Installation conditions -->
-        <InstallCondition>VersionNT >= v6.1</InstallCondition>
-        
+
       </MsiPackage>
 
     </Chain>
 
   </Bundle>
 
-  <!-- Fragment for .NET Framework detection and installation -->
+  <!-- Fragment for Node.js detection and installation -->
   <Fragment>
-    
-    <!-- .NET Framework 4.8 Package Group -->
-    <PackageGroup Id="NetFx48Web">
-      <ExePackage Id="NetFx48Web"
-                  Cache="no"
+
+    <!-- Node.js LTS Package Group -->
+    <PackageGroup Id="NodeJSLTS">
+      <ExePackage Id="NodeJSLTS"
+                  SourceFile="node-v20.11.0-x64.msi"
+                  Cache="yes"
                   Compressed="no"
                   PerMachine="yes"
                   Permanent="yes"
                   Vital="yes"
-                  SourceFile="Prerequisites\ndp48-web.exe"
-                  DownloadUrl="https://download.microsoft.com/download/6/E/4/6E48E8AB-DC00-419E-9704-06DD46E5F81D/NDP48-KB4486153-Web.exe"
-                  InstallCommand="/quiet /norestart"
-                  RepairCommand="/quiet /norestart"
-                  UninstallCommand="/quiet /norestart"
-                  DetectCondition="NetFx48Installed" />
+                  DownloadUrl="https://nodejs.org/dist/v20.11.0/node-v20.11.0-x64.msi"
+                  InstallCommand="/quiet ADDLOCAL=NodeRuntime,npm"
+                  RepairCommand="/quiet"
+                  UninstallCommand="/quiet"
+                  DetectCondition="NodeJSInstallPath OR NodeJSInstallPath32" />
     </PackageGroup>
 
     <!-- Detection Conditions -->
@@ -90,11 +81,31 @@
                          Key="SOFTWARE\Microsoft\NET Framework Setup\NDP\v4\Full"
                          Value="Release"
                          Variable="NetFx48Version" />
-    
+
     <util:RegistrySearch Root="HKLM"
                          Key="SOFTWARE\Microsoft\VisualStudio\14.0\VC\Runtimes\x64"
                          Value="Installed"
                          Variable="VCRedist2019x64Installed" />
+
+    <!-- Node.js Detection - Check both 64-bit and 32-bit registry views -->
+    <util:RegistrySearch Root="HKLM"
+                         Key="SOFTWARE\Node.js"
+                         Value="InstallPath"
+                         Variable="NodeJSInstallPath"
+                         Win64="yes" />
+
+    <util:RegistrySearch Root="HKLM"
+                         Key="SOFTWARE\Node.js"
+                         Value="InstallPath"
+                         Variable="NodeJSInstallPath32"
+                         Win64="no" />
+
+    <!-- Node.js Version Detection for minimum version requirement -->
+    <util:RegistrySearch Root="HKLM"
+                         Key="SOFTWARE\Node.js"
+                         Value="Version"
+                         Variable="NodeJSVersion"
+                         Win64="yes" />
 
     <!-- Conditions -->
     <Condition Message="This application requires Windows 7 SP1 or later.">
@@ -104,6 +115,13 @@
     <Condition Message="This application requires .NET Framework 4.8 or later.">
       NetFx48Version >= 528040
     </Condition>
+
+    <Condition Message="This application requires 64-bit Windows for Node.js installation.">
+      VersionNT64
+    </Condition>
+
+    <!-- Define NodeJSInstalled condition based on registry detection -->
+    <!-- This will be true if Node.js is found in either 64-bit or 32-bit registry -->
 
   </Fragment>
 
