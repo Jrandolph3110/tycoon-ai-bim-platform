@@ -8,7 +8,7 @@
 
   <!-- Bundle Definition -->
   <Bundle Name="Tycoon AI-BIM Platform Setup"
-          Version="0.13.1.0"
+          Version="0.15.0.0"
           Manufacturer="F.L. Crane &amp; Sons"
           UpgradeCode="87654321-4321-4321-4321-210987654321"
           IconSourceFile="Resources\TycoonIcon.ico"
