@@ -228,10 +228,28 @@ namespace TycoonRevitAddin.Services
                 // Remove BOM (Byte Order Mark) if present - this causes JSON parsing errors
                 manifestJson = RemoveBOM(manifestJson);
 
-                var manifest = JsonConvert.DeserializeObject<ScriptManifest>(manifestJson);
-                
-                _logger.Log($"📋 Downloaded manifest: {manifest.Scripts?.Count ?? 0} scripts, version {manifest.Version}");
-                return manifest;
+                // Debug logging
+                _logger.Log($"🔍 Decoded manifest JSON length: {manifestJson.Length}");
+                _logger.Log($"🔍 First 200 chars: {manifestJson.Substring(0, Math.Min(200, manifestJson.Length))}");
+
+                // Try to deserialize with more detailed error handling
+                try
+                {
+                    var manifest = JsonConvert.DeserializeObject<ScriptManifest>(manifestJson);
+                    if (manifest == null)
+                    {
+                        _logger.LogWarning("Manifest deserialized to null");
+                        return null;
+                    }
+                    return manifest;
+                }
+                catch (JsonException jsonEx)
+                {
+                    _logger.LogError($"JSON deserialization error: {jsonEx.Message}");
+                    _logger.LogError($"JSON Path: {jsonEx.Path}");
+                    _logger.LogError($"Line Number: {jsonEx.LineNumber}, Position: {jsonEx.LinePosition}");
+                    throw;
+                }
             }
             catch (Exception ex)
             {
