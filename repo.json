@@ -1,53 +1,58 @@
 {
-  "version": "2025.07.11",
-  "build": "2025.07.11-restored",
-  "generated": "2025-07-11T16:00:00Z",
-  "templates": {
-    "default-layout.json": "b6969ec3"
+  "Version": "2025.07.11",
+  "Build": "2025.07.11-restored",
+  "Generated": "2025-07-11T16:00:00Z",
+  "Templates": {
+    "default-layout.json": {
+      "Hash": "b6969ec3",
+      "Description": "Default layout template",
+      "LastModified": "2025-07-11T16:00:00Z",
+      "Size": 1024
+    }
   },
-  "scripts": {
+  "Scripts": {
     "ElementCounter.py": {
-      "hash": "3b1cab5f",
-      "path": "Analysis/ElementCounter.py",
-      "size": 2659,
-      "version": "1.0.0",
-      "category": "Analysis",
-      "description": "Count selected elements by category and type",
-      "author": "Tycoon AI-BIM Platform",
-      "capability": "P1-Deterministic",
-      "lastModified": "2025-07-11T16:00:00Z",
-      "capabilities": [
+      "Hash": "3b1cab5f",
+      "Path": "Analysis/ElementCounter.py",
+      "Size": 2659,
+      "Version": "1.0.0",
+      "Category": "Analysis",
+      "Description": "Count selected elements by category and type",
+      "Author": "Tycoon AI-BIM Platform",
+      "Capability": "P1-Deterministic",
+      "LastModified": "2025-07-11T16:00:00Z",
+      "Capabilities": [
         "selection-optional",
         "deterministic"
       ]
     },
     "WallAnalyzer.py": {
-      "hash": "0395cef0",
-      "path": "Analysis/WallAnalyzer.py",
-      "size": 4822,
-      "version": "1.0.0",
-      "category": "Analysis",
-      "description": "Analyze wall properties and geometry with AI-powered insights",
-      "author": "Tycoon AI-BIM Platform",
-      "capability": "P2-Analytic",
-      "lastModified": "2025-07-11T16:00:00Z",
-      "capabilities": [
+      "Hash": "0395cef0",
+      "Path": "Analysis/WallAnalyzer.py",
+      "Size": 4822,
+      "Version": "1.0.0",
+      "Category": "Analysis",
+      "Description": "Analyze wall properties and geometry with AI-powered insights",
+      "Author": "Tycoon AI-BIM Platform",
+      "Capability": "P2-Analytic",
+      "LastModified": "2025-07-11T16:00:00Z",
+      "Capabilities": [
         "selection-required",
         "analytic",
         "ai-powered"
       ]
     },
     "PanelManager.py": {
-      "hash": "c407bd37",
-      "path": "Management/PanelManager.py",
-      "size": 7012,
-      "version": "1.0.0",
-      "category": "Management",
-      "description": "AI-powered panel management and optimization for FLC workflows",
-      "author": "Tycoon AI-BIM Platform",
-      "capability": "P3-Generative",
-      "lastModified": "2025-07-11T16:00:00Z",
-      "capabilities": [
+      "Hash": "c407bd37",
+      "Path": "Management/PanelManager.py",
+      "Size": 7012,
+      "Version": "1.0.0",
+      "Category": "Management",
+      "Description": "AI-powered panel management and optimization for FLC workflows",
+      "Author": "Tycoon AI-BIM Platform",
+      "Capability": "P3-Generative",
+      "LastModified": "2025-07-11T16:00:00Z",
+      "Capabilities": [
         "selection-required",
         "generative",
         "ai-powered",
@@ -55,31 +60,31 @@
       ]
     },
     "SelectionHelper.py": {
-      "hash": "1312172a",
-      "path": "Utilities/SelectionHelper.py",
-      "size": 6510,
-      "version": "1.0.0",
-      "category": "Utilities",
-      "description": "Advanced selection utilities for BIM workflows",
-      "author": "Tycoon AI-BIM Platform",
-      "capability": "P1-Deterministic",
-      "lastModified": "2025-07-11T16:00:00Z",
-      "capabilities": [
+      "Hash": "1312172a",
+      "Path": "Utilities/SelectionHelper.py",
+      "Size": 6510,
+      "Version": "1.0.0",
+      "Category": "Utilities",
+      "Description": "Advanced selection utilities for BIM workflows",
+      "Author": "Tycoon AI-BIM Platform",
+      "Capability": "P1-Deterministic",
+      "LastModified": "2025-07-11T16:00:00Z",
+      "Capabilities": [
         "selection-optional",
         "deterministic"
       ]
     },
     "ParameterManager.py": {
-      "hash": "7be93253",
-      "path": "Utilities/ParameterManager.py",
-      "size": 9020,
-      "version": "1.0.0",
-      "category": "Utilities",
-      "description": "Manage and batch edit parameters for FLC workflows",
-      "author": "Tycoon AI-BIM Platform",
-      "capability": "P1-Deterministic",
-      "lastModified": "2025-07-11T16:00:00Z",
-      "capabilities": [
+      "Hash": "7be93253",
+      "Path": "Utilities/ParameterManager.py",
+      "Size": 9020,
+      "Version": "1.0.0",
+      "Category": "Utilities",
+      "Description": "Manage and batch edit parameters for FLC workflows",
+      "Author": "Tycoon AI-BIM Platform",
+      "Capability": "P1-Deterministic",
+      "LastModified": "2025-07-11T16:00:00Z",
+      "Capabilities": [
         "selection-optional",
         "deterministic"
       ]
