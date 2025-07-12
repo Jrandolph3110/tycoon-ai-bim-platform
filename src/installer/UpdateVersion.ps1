@@ -98,6 +98,51 @@ function Update-VersionInFile {
     }
 }
 
+# Function to validate current version consistency
+function Test-VersionConsistency {
+    Write-Host ""
+    Write-Host "Validating current version consistency..." -ForegroundColor Blue
+
+    $Files = @(
+        @{ Path = Join-Path $ScriptDir "Product.wxs"; Pattern = 'Version="([\d\.]+)"'; Name = "Product.wxs" }
+        @{ Path = Join-Path $ScriptDir "..\revit-addin\Properties\AssemblyInfo.cs"; Pattern = 'AssemblyVersion\("([\d\.]+)"\)'; Name = "AssemblyInfo.cs" }
+        @{ Path = Join-Path $ScriptDir "..\mcp-server\package.json"; Pattern = '"version":\s*"([\d\.]+)"'; Name = "package.json" }
+        @{ Path = Join-Path $ScriptDir "Bundle.wxs"; Pattern = 'Version="([\d\.]+)"'; Name = "Bundle.wxs" }
+    )
+
+    $Inconsistencies = @()
+    foreach ($File in $Files) {
+        if (Test-Path $File.Path) {
+            $Content = Get-Content $File.Path -Raw
+            if ($Content -match $File.Pattern) {
+                $FileVersion = $matches[1]
+                if ($FileVersion -ne $CurrentVersion) {
+                    $Inconsistencies += @{ File = $File.Name; Expected = $CurrentVersion; Found = $FileVersion }
+                    Write-Host "⚠️  $($File.Name): $FileVersion (expected: $CurrentVersion)" -ForegroundColor Yellow
+                } else {
+                    Write-Host "✅ $($File.Name): $FileVersion" -ForegroundColor Green
+                }
+            } else {
+                Write-Host "❌ $($File.Name): Version pattern not found" -ForegroundColor Red
+            }
+        } else {
+            Write-Host "❌ $($File.Name): File not found" -ForegroundColor Red
+        }
+    }
+
+    if ($Inconsistencies.Count -gt 0) {
+        Write-Host ""
+        Write-Host "WARNING: Version inconsistencies detected!" -ForegroundColor Yellow
+        Write-Host "The script will fix these inconsistencies." -ForegroundColor Gray
+    } else {
+        Write-Host ""
+        Write-Host "✅ All versions are consistent!" -ForegroundColor Green
+    }
+}
+
+# Validate current version consistency
+Test-VersionConsistency
+
 Write-Host ""
 Write-Host "Updating version references..." -ForegroundColor Blue
 
@@ -131,6 +176,25 @@ Update-VersionInFile -FilePath $PackageJsonPath `
     -Pattern '"version":\s*"[\d\.]+"' `
     -Replacement ('"version": "' + $Version + '"') `
     -Description "MCP server package version"
+
+# 5. Update Bundle.wxs (WiX bootstrapper version)
+$BundleWxsPath = Join-Path $ScriptDir "Bundle.wxs"
+Update-VersionInFile -FilePath $BundleWxsPath `
+    -Pattern '(<Bundle[^>]+Version=")[\d\.]+(")' `
+    -Replacement ('${1}' + $Version + '${2}') `
+    -Description "WiX bootstrapper bundle version"
+
+# 6. Update package-lock.json (MCP server lock file)
+$PackageLockPath = Join-Path $ScriptDir "..\mcp-server\package-lock.json"
+if (Test-Path $PackageLockPath) {
+    Update-VersionInFile -FilePath $PackageLockPath `
+        -Pattern '"version":\s*"[\d\.]+"' `
+        -Replacement ('"version": "' + $Version + '"') `
+        -Description "MCP server package-lock version"
+} else {
+    Write-Host "NOT FOUND: $PackageLockPath" -ForegroundColor Yellow
+    Write-Host "   Run 'npm install' to regenerate package-lock.json" -ForegroundColor Gray
+}
 
 Write-Host ""
 Write-Host "Version update completed!" -ForegroundColor Green

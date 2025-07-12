@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="UTF-8"?>
+﻿<?xml Version="0.16.0.5" encoding="UTF-8"?>
 <Wix xmlns="http://schemas.microsoft.com/wix/2006/wi" 
      xmlns:util="http://schemas.microsoft.com/wix/UtilExtension">
   
@@ -11,7 +11,7 @@
            UpgradeCode="12345678-1234-1234-1234-123456789012">
     
     <!-- Package Information -->
-    <Package InstallerVersion="200"
+    <Package InstallerVersion="0.16.0.5"
              Compressed="yes"
              InstallScope="perUser"
              Description="Revolutionary AI-powered construction automation platform with live Revit integration"
