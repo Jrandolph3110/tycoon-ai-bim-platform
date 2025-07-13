@@ -27,8 +27,11 @@ $VersionLocations = @(
     @{
         File = "Product.wxs"
         Path = Join-Path $ScriptDir "Product.wxs"
-        Pattern = 'Version="([\d\.]+)"'
-        Replacement = 'Version="' + $MasterVersion + '"'
+        Pattern = '<Product[^>]*\s+Version="([\d\.]+)"'
+        Replacement = '<Product Id="*"
+           Name="Tycoon AI-BIM Platform"
+           Language="1033"
+           Version="' + $MasterVersion + '"'
         Description = "WiX installer product"
     },
     @{
