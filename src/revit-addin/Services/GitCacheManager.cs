@@ -198,6 +198,30 @@ namespace TycoonRevitAddin.Services
         }
 
         /// <summary>
+        /// Clean up JSON string to handle various encoding and formatting issues
+        /// </summary>
+        private static string CleanupJsonString(string json)
+        {
+            if (string.IsNullOrEmpty(json)) return json;
+
+            // Trim whitespace and newlines from start and end
+            json = json.Trim();
+
+            // Ensure the JSON starts with { and ends with }
+            if (!json.StartsWith("{"))
+            {
+                // Look for the first { character
+                int braceIndex = json.IndexOf('{');
+                if (braceIndex > 0)
+                {
+                    json = json.Substring(braceIndex);
+                }
+            }
+
+            return json;
+        }
+
+        /// <summary>
         /// Download manifest (repo.json) from GitHub
         /// </summary>
         private async Task<ScriptManifest> DownloadManifestAsync(CancellationToken cancellationToken = default)
@@ -228,9 +252,14 @@ namespace TycoonRevitAddin.Services
                 // Remove BOM (Byte Order Mark) if present - this causes JSON parsing errors
                 manifestJson = RemoveBOM(manifestJson);
 
+                // Additional cleanup for JSON parsing issues
+                manifestJson = CleanupJsonString(manifestJson);
+
                 // Debug logging
                 _logger.Log($"🔍 Decoded manifest JSON length: {manifestJson.Length}");
                 _logger.Log($"🔍 First 200 chars: {manifestJson.Substring(0, Math.Min(200, manifestJson.Length))}");
+                _logger.Log($"🔍 Starts with '{{': {manifestJson.TrimStart().StartsWith("{")}");
+                _logger.Log($"🔍 First char code: {(manifestJson.Length > 0 ? ((int)manifestJson[0]).ToString() : "empty")}");
 
                 // Try to deserialize with more detailed error handling and proper settings
                 try
