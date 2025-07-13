@@ -232,21 +232,32 @@ namespace TycoonRevitAddin.Services
                 _logger.Log($"🔍 Decoded manifest JSON length: {manifestJson.Length}");
                 _logger.Log($"🔍 First 200 chars: {manifestJson.Substring(0, Math.Min(200, manifestJson.Length))}");
 
-                // Try to deserialize with more detailed error handling
+                // Try to deserialize with more detailed error handling and proper settings
                 try
                 {
-                    var manifest = JsonConvert.DeserializeObject<ScriptManifest>(manifestJson);
+                    var settings = new JsonSerializerSettings
+                    {
+                        DateFormatHandling = DateFormatHandling.IsoDateFormat,
+                        DateTimeZoneHandling = DateTimeZoneHandling.Utc,
+                        NullValueHandling = NullValueHandling.Ignore,
+                        MissingMemberHandling = MissingMemberHandling.Ignore
+                    };
+
+                    var manifest = JsonConvert.DeserializeObject<ScriptManifest>(manifestJson, settings);
                     if (manifest == null)
                     {
                         _logger.LogWarning("Manifest deserialized to null");
                         return null;
                     }
+
+                    _logger.Log($"✅ Manifest parsed successfully - Version: {manifest.Version}, Scripts: {manifest.Scripts?.Count ?? 0}");
                     return manifest;
                 }
                 catch (JsonException jsonEx)
                 {
                     _logger.LogError($"JSON deserialization error: {jsonEx.Message}");
                     _logger.LogError($"JSON parsing failed - check manifest format and structure");
+                    _logger.LogError($"Problematic JSON content: {manifestJson}");
                     throw;
                 }
             }

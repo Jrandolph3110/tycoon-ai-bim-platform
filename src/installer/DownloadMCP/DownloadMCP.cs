@@ -54,16 +54,16 @@ namespace TycoonInstaller
                     CreateMinimalMCPServer(mcpServerPath);
                 }
 
-                // Install Node.js dependencies (production only, no build needed)
+                // Install Node.js dependencies and build the MCP server
                 try
                 {
-                    InstallNodeDependencies(mcpServerPath);
+                    InstallAndBuildMCPServer(mcpServerPath);
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"Warning: Could not install Node.js dependencies: {ex.Message}");
-                    Console.WriteLine("The MCP server files have been extracted, but Node.js dependencies are not installed.");
-                    Console.WriteLine("Please install Node.js manually and run 'npm install --omit=dev' in the MCP server directory.");
+                    Console.WriteLine($"Warning: Could not install and build MCP server: {ex.Message}");
+                    Console.WriteLine("The MCP server files have been extracted, but dependencies and build failed.");
+                    Console.WriteLine("Please install Node.js manually and run 'npm install && npm run build' in the MCP server directory.");
                 }
 
                 Console.WriteLine("MCP Server installation completed successfully!");
@@ -253,10 +253,10 @@ main().catch(console.error);
         
 
         
-        private static void InstallNodeDependencies(string mcpServerPath)
+        private static void InstallAndBuildMCPServer(string mcpServerPath)
         {
             string canaryLogPath = Path.Combine(Path.GetTempPath(), "DownloadMCP_Execution.log");
-            File.AppendAllText(canaryLogPath, $"[{DateTime.UtcNow:O}] InstallNodeDependencies method started for path: {mcpServerPath}\n");
+            File.AppendAllText(canaryLogPath, $"[{DateTime.UtcNow:O}] InstallAndBuildMCPServer method started for path: {mcpServerPath}\n");
 
             try
             {
@@ -264,16 +264,96 @@ main().catch(console.error);
                 string npmPath = FindNpmPath();
 
                 Console.WriteLine($"Working Directory: {mcpServerPath}");
-                Console.WriteLine("Installing npm dependencies...");
 
-                var npmProcess = new System.Diagnostics.Process
+                // Step 1: Install ALL dependencies (including dev dependencies for TypeScript)
+                Console.WriteLine("Installing npm dependencies (including dev dependencies)...");
+                RunNpmCommand(npmPath, mcpServerPath, "install", "npm_install.log");
+
+                // Step 2: Install TypeScript globally if not available locally
+                Console.WriteLine("Ensuring TypeScript is available...");
+                EnsureTypeScriptAvailable(npmPath, mcpServerPath);
+
+                // Step 3: Build the TypeScript project
+                Console.WriteLine("Building TypeScript project...");
+                RunNpmCommand(npmPath, mcpServerPath, "run build", "npm_build.log");
+
+                // Step 4: Verify SQLite3 bindings are available
+                Console.WriteLine("Verifying SQLite3 bindings...");
+                VerifySqlite3Bindings(mcpServerPath, npmPath);
+
+                Console.WriteLine("MCP Server installation and build completed successfully!");
+            }
+            catch (Exception ex)
+            {
+                // Catch-all for any other exception, including the Process.Start failure
+                File.WriteAllText(Path.Combine(mcpServerPath, "custom_action_error.log"), $"An exception occurred: {ex.ToString()}");
+                // Re-throw to ensure the MSI installer knows it failed and can roll back.
+                throw;
+            }
+        }
+
+        private static void RunNpmCommand(string npmPath, string workingDirectory, string command, string logFileName)
+        {
+            var npmProcess = new System.Diagnostics.Process
+            {
+                StartInfo = new System.Diagnostics.ProcessStartInfo
+                {
+                    FileName = "cmd.exe",
+                    Arguments = $"/C \"\"{npmPath}\" {command}\"",
+                    WorkingDirectory = workingDirectory,
+                    UseShellExecute = false,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    CreateNoWindow = true
+                }
+            };
+
+            npmProcess.Start();
+            string output = npmProcess.StandardOutput.ReadToEnd();
+            string error = npmProcess.StandardError.ReadToEnd();
+            npmProcess.WaitForExit();
+
+            // Log the results
+            string logContent = $"NPM Command: {command}\n\nExit Code: {npmProcess.ExitCode}\n\nOutput:\n{output}\n\nError:\n{error}";
+            File.WriteAllText(Path.Combine(workingDirectory, logFileName), logContent);
+
+            if (npmProcess.ExitCode != 0)
+            {
+                // Special handling for SQLite3 rebuild
+                if (command == "install" && output.Contains("sqlite3"))
+                {
+                    Console.WriteLine($"npm {command} failed with SQLite3 issues. Attempting SQLite3 rebuild...");
+                    RebuildSqlite3(workingDirectory, npmPath);
+                }
+                else if (command.Contains("build") && error.Contains("tsc"))
+                {
+                    Console.WriteLine($"TypeScript build failed. Installing TypeScript locally...");
+                    RunNpmCommand(npmPath, workingDirectory, "install typescript --save-dev", "typescript_install.log");
+                    // Retry the build
+                    RunNpmCommand(npmPath, workingDirectory, "run build", "npm_build_retry.log");
+                }
+                else
+                {
+                    throw new Exception($"npm {command} failed with exit code {npmProcess.ExitCode}. See {logFileName} for details.");
+                }
+            }
+            else
+            {
+                Console.WriteLine($"npm {command} completed successfully.");
+            }
+        }
+
+        private static void EnsureTypeScriptAvailable(string npmPath, string mcpServerPath)
+        {
+            try
+            {
+                // Check if TypeScript is available locally
+                var tscProcess = new System.Diagnostics.Process
                 {
                     StartInfo = new System.Diagnostics.ProcessStartInfo
                     {
-                        // 2. Use the full path and execute via cmd.exe
-                        //    This is the most reliable way to run batch files.
                         FileName = "cmd.exe",
-                        Arguments = $"/C \"\"{npmPath}\" install --omit=dev\"",
+                        Arguments = "/C \"npx tsc --version\"",
                         WorkingDirectory = mcpServerPath,
                         UseShellExecute = false,
                         RedirectStandardOutput = true,
@@ -282,36 +362,24 @@ main().catch(console.error);
                     }
                 };
 
-                npmProcess.Start();
-                string output = npmProcess.StandardOutput.ReadToEnd();
-                string error = npmProcess.StandardError.ReadToEnd();
-                npmProcess.WaitForExit();
+                tscProcess.Start();
+                tscProcess.WaitForExit();
 
-                // 3. Improved Logging
-                string logContent = $"NPM Install Log:\n\nExit Code: {npmProcess.ExitCode}\n\nOutput:\n{output}\n\nError:\n{error}";
-                File.WriteAllText(Path.Combine(mcpServerPath, "npm_install.log"), logContent);
-
-                if (npmProcess.ExitCode != 0)
+                if (tscProcess.ExitCode != 0)
                 {
-                    Console.WriteLine($"Initial npm install failed with exit code {npmProcess.ExitCode}. Attempting SQLite3 rebuild...");
-
-                    // Try to rebuild SQLite3 specifically
-                    RebuildSqlite3(mcpServerPath, npmPath);
+                    Console.WriteLine("TypeScript not found locally. Installing TypeScript as dev dependency...");
+                    RunNpmCommand(npmPath, mcpServerPath, "install typescript --save-dev", "typescript_install.log");
                 }
                 else
                 {
-                    Console.WriteLine("npm dependencies installed successfully.");
-
-                    // Verify SQLite3 bindings are available
-                    VerifySqlite3Bindings(mcpServerPath, npmPath);
+                    Console.WriteLine("TypeScript is available.");
                 }
             }
             catch (Exception ex)
             {
-                // Catch-all for any other exception, including the Process.Start failure
-                File.WriteAllText(Path.Combine(mcpServerPath, "custom_action_error.log"), $"An exception occurred: {ex.ToString()}");
-                // Re-throw to ensure the MSI installer knows it failed and can roll back.
-                throw;
+                Console.WriteLine($"Warning: Could not verify TypeScript availability: {ex.Message}");
+                // Try to install TypeScript anyway
+                RunNpmCommand(npmPath, mcpServerPath, "install typescript --save-dev", "typescript_install_fallback.log");
             }
         }
 
