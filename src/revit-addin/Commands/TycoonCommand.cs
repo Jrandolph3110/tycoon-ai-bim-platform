@@ -318,21 +318,37 @@ namespace TycoonRevitAddin.Commands
         {
             // Get the MCP server path
             string appDataPath = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
-            string mcpServerPath = Path.Combine(appDataPath, "Tycoon", "mcp-server", "index.js");
+            string mcpServerPath = Path.Combine(appDataPath, "Tycoon", "mcp-server", "dist", "index.js");
+            string mcpServerDir = Path.Combine(appDataPath, "Tycoon", "mcp-server");
+            string memoryPath = Path.Combine(mcpServerDir, "tycoon-memory-bank");
 
-            // Create the configuration object
+            // Create the configuration object with complete environment
             var config = new
             {
                 mcpServers = new
                 {
                     tycoon_ai_bim = new
                     {
+                        type = "stdio",
                         command = "node",
                         args = new[] { mcpServerPath },
+                        cwd = mcpServerDir,
                         env = new
                         {
-                            NODE_ENV = "production"
-                        }
+                            NODE_ENV = "production",
+                            TYCOON_WORKING_DIR = mcpServerDir,
+                            TYCOON_MEMORY_PATH = memoryPath,
+                            CHROMA_URL = "http://localhost:8000",
+                            VECTOR_DB_ENABLED = "false",
+                            REVIT_BRIDGE_PORT = "8768",
+                            WEBSOCKET_PORT = "8765",
+                            NEURAL_NEXUS_ENABLED = "true",
+                            FAFB_CORRELATION_ENABLED = "true",
+                            WORKFLOW_AUTOMATION = "enabled",
+                            TYCOON_DEBUG = "false"
+                        },
+                        healthEndpoint = "http://localhost:8765/health",
+                        description = "Tycoon AI-BIM Platform - Live Revit integration with Neural Nexus memory"
                     }
                 }
             };

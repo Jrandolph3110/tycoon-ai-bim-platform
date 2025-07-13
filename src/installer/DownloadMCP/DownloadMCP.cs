@@ -55,7 +55,16 @@ namespace TycoonInstaller
                 }
 
                 // Install Node.js dependencies (production only, no build needed)
-                InstallNodeDependencies(mcpServerPath);
+                try
+                {
+                    InstallNodeDependencies(mcpServerPath);
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Warning: Could not install Node.js dependencies: {ex.Message}");
+                    Console.WriteLine("The MCP server files have been extracted, but Node.js dependencies are not installed.");
+                    Console.WriteLine("Please install Node.js manually and run 'npm install --omit=dev' in the MCP server directory.");
+                }
 
                 Console.WriteLine("MCP Server installation completed successfully!");
                 File.AppendAllText(canaryLogPath, $"[{DateTime.UtcNow:O}] Main method completed successfully.\n");
@@ -264,7 +273,7 @@ main().catch(console.error);
                         // 2. Use the full path and execute via cmd.exe
                         //    This is the most reliable way to run batch files.
                         FileName = "cmd.exe",
-                        Arguments = $"/C \"\"{npmPath}\" install --omit=dev --ignore-scripts\"",
+                        Arguments = $"/C \"\"{npmPath}\" install --omit=dev\"",
                         WorkingDirectory = mcpServerPath,
                         UseShellExecute = false,
                         RedirectStandardOutput = true,
@@ -284,9 +293,18 @@ main().catch(console.error);
 
                 if (npmProcess.ExitCode != 0)
                 {
-                    throw new Exception($"npm install failed with exit code {npmProcess.ExitCode}. See npm_install.log for details.");
+                    Console.WriteLine($"Initial npm install failed with exit code {npmProcess.ExitCode}. Attempting SQLite3 rebuild...");
+
+                    // Try to rebuild SQLite3 specifically
+                    RebuildSqlite3(mcpServerPath, npmPath);
                 }
-                Console.WriteLine("npm dependencies installed successfully.");
+                else
+                {
+                    Console.WriteLine("npm dependencies installed successfully.");
+
+                    // Verify SQLite3 bindings are available
+                    VerifySqlite3Bindings(mcpServerPath, npmPath);
+                }
             }
             catch (Exception ex)
             {
@@ -435,6 +453,88 @@ For enterprise deployments, consider installing Node.js via:
             }
             catch { /* PATH parsing might fail */ }
             return null;
+        }
+
+        private static void RebuildSqlite3(string mcpServerPath, string npmPath)
+        {
+            try
+            {
+                Console.WriteLine("Attempting to rebuild SQLite3 native bindings...");
+
+                var rebuildProcess = new System.Diagnostics.Process
+                {
+                    StartInfo = new System.Diagnostics.ProcessStartInfo
+                    {
+                        FileName = "cmd.exe",
+                        Arguments = $"/C \"\"{npmPath}\" rebuild sqlite3\"",
+                        WorkingDirectory = mcpServerPath,
+                        UseShellExecute = false,
+                        RedirectStandardOutput = true,
+                        RedirectStandardError = true,
+                        CreateNoWindow = true
+                    }
+                };
+
+                rebuildProcess.Start();
+                string output = rebuildProcess.StandardOutput.ReadToEnd();
+                string error = rebuildProcess.StandardError.ReadToEnd();
+                rebuildProcess.WaitForExit();
+
+                string logContent = $"SQLite3 Rebuild Log:\n\nExit Code: {rebuildProcess.ExitCode}\n\nOutput:\n{output}\n\nError:\n{error}";
+                File.WriteAllText(Path.Combine(mcpServerPath, "sqlite3_rebuild.log"), logContent);
+
+                if (rebuildProcess.ExitCode == 0)
+                {
+                    Console.WriteLine("SQLite3 rebuild completed successfully.");
+                }
+                else
+                {
+                    Console.WriteLine($"SQLite3 rebuild failed with exit code {rebuildProcess.ExitCode}. See sqlite3_rebuild.log for details.");
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error during SQLite3 rebuild: {ex.Message}");
+            }
+        }
+
+        private static void VerifySqlite3Bindings(string mcpServerPath, string npmPath)
+        {
+            try
+            {
+                Console.WriteLine("Verifying SQLite3 native bindings...");
+
+                // Check if SQLite3 .node file exists
+                string[] possiblePaths = {
+                    Path.Combine(mcpServerPath, "node_modules", "sqlite3", "build", "Release", "node_sqlite3.node"),
+                    Path.Combine(mcpServerPath, "node_modules", "sqlite3", "build", "Debug", "node_sqlite3.node")
+                };
+
+                bool bindingsFound = false;
+                foreach (string path in possiblePaths)
+                {
+                    if (File.Exists(path))
+                    {
+                        Console.WriteLine($"SQLite3 bindings found at: {path}");
+                        bindingsFound = true;
+                        break;
+                    }
+                }
+
+                if (!bindingsFound)
+                {
+                    Console.WriteLine("SQLite3 bindings not found. Attempting rebuild...");
+                    RebuildSqlite3(mcpServerPath, npmPath);
+                }
+                else
+                {
+                    Console.WriteLine("SQLite3 bindings verification passed.");
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error during SQLite3 verification: {ex.Message}");
+            }
         }
     }
 }

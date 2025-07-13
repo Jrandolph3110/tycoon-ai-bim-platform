@@ -6,7 +6,7 @@ AI-powered construction automation platform with live Revit integration for stee
 
 The Tycoon AI-BIM Platform connects AI assistants with Autodesk Revit to enable intelligent automation of steel framing construction workflows. Developed specifically for F.L. Crane & Sons' prefabricated light gauge steel construction using FrameCAD standards.
 
-## 📋 Current Version: 0.16.0.5
+## 📋 Current Version: 0.16.0.7
 
 ### **🏗️ Core Architecture**
 - ✅ **MCP Server Integration** - Model Context Protocol for AI communication
@@ -15,6 +15,7 @@ The Tycoon AI-BIM Platform connects AI assistants with Autodesk Revit to enable 
 - ✅ **WebSocket Communication** - Bidirectional data flow between Revit and AI
 - ✅ **Enhanced Process Management** - Graceful shutdown handling and singleton enforcement
 - ✅ **Version Management System** - Automated version synchronization across all components
+- ✅ **C# Script Engine** - Hot-reload compilation and execution of C# scripts with native performance
 
 ### **⚡ Performance Features**
 - ✅ **Large Selection Handling** - Processes 100,000+ elements efficiently
@@ -23,10 +24,10 @@ The Tycoon AI-BIM Platform connects AI assistants with Autodesk Revit to enable 
 - ✅ **Memory Optimization** - Dynamic garbage collection and caching
 
 ### **🔧 Process Management & Version Control (Latest Enhancements)**
-- ✅ **Graceful Shutdown** - Proper SIGTERM/SIGINT signal handling
-- ✅ **PID File Management** - Singleton process enforcement
+- ✅ **Windows Shutdown Protocol** - Parent process monitoring with 2-second intervals
+- ✅ **VS Code Integration** - Proper shutdown when VS Code closes (no orphaned processes)
+- ✅ **PID File Management** - Singleton process enforcement with automatic cleanup
 - ✅ **Auto-reconnection** - Revit automatically reconnects after server restart
-- ✅ **VS Code Integration** - Clean startup/shutdown with development environments
 - ✅ **Enhanced Version Management** - Automated version synchronization with validation
 - ✅ **Build System Improvements** - Fixed XML corruption and dependency issues
 
@@ -41,7 +42,8 @@ The Tycoon AI-BIM Platform connects AI assistants with Autodesk Revit to enable 
 - 🤖 **AI-Revit Integration** - Direct communication between AI assistants and Revit models
 - 🏗️ **Steel Framing Automation** - FLC-specific workflows and standards
 - 📋 **Element Selection Context** - AI understands current Revit selection
-- 🔧 **Dynamic Scripting** - AI-generated scripts based on model context
+- 🔧 **Dynamic Scripting** - AI-generated scripts based on model context (Python & C#)
+- ⚡ **C# Hot-Reload** - Compile and execute C# scripts dynamically with native performance
 - 📊 **Panel Management** - Automated panel numbering and validation
 - 🎯 **Multi-user Support** - Dynamic port discovery for team environments
 - 🔄 **Process Management** - Reliable startup/shutdown with singleton enforcement
@@ -139,10 +141,25 @@ cd src/installer
 
 ## 🆕 Recent Improvements (January 2025)
 
+### **🔧 Shutdown Protocol Enhancement (v0.16.0.7)**
+- ✅ **Windows-Specific Solution** - Parent process monitoring every 2 seconds
+- ✅ **VS Code Integration** - Clean shutdown when VS Code closes (no orphaned processes)
+- ✅ **Immediate Folder Deletion** - Can delete AppData/Roaming/Tycoon folder immediately after VS Code closes
+- ✅ **No Port Conflicts** - Eliminates "port already in use" errors on restart
+- ✅ **Cross-Platform Compatibility** - Addresses Windows vs. POSIX signal handling differences
+
+### **⚡ C# Script Engine Implementation (v0.16.0.7)**
+- ✅ **Hot-Reload Compilation** - Dynamic C# script compilation using CSharpCodeProvider
+- ✅ **Dual Script Support** - Both Python (.py) and C# (.cs) scripts work seamlessly
+- ✅ **Auto-Detection** - Automatically detects script type from file extension/content
+- ✅ **Native Performance** - C# scripts run with native Revit API performance
+- ✅ **Transaction Safety** - Full transaction rollback on script errors
+- ✅ **F.L. Crane Integration** - ReNumber script converted with ExtensibleStorage support
+
 ### **Version Management System Overhaul**
 - ✅ **Enhanced UpdateVersion.ps1** - Added Bundle.wxs support and comprehensive validation
 - ✅ **New SyncVersions.ps1** - Version consistency checking and automated synchronization
-- ✅ **Fixed Version Inconsistencies** - Resolved Bundle.wxs (0.15.0.0 → 0.16.0.5) and other drift issues
+- ✅ **Fixed Version Inconsistencies** - Resolved Bundle.wxs and other drift issues
 - ✅ **Improved Regex Patterns** - Prevents XML declaration corruption during version updates
 
 ### **Build System Improvements**
@@ -181,8 +198,10 @@ Copyright © 2025 F.L. Crane & Sons. All rights reserved.
 
 ### **Current Build Status**
 - ✅ **Installer**: Successfully builds TycoonAI-BIM-Platform-Setup.exe
-- ✅ **Version Sync**: All components synchronized to v0.16.0.5
+- ✅ **Version Sync**: All components synchronized to v0.16.0.7
 - ✅ **Dependencies**: All NuGet packages restored and functional
+- ✅ **C# Script Engine**: Hot-reload compilation working with native performance
+- ✅ **Shutdown Protocol**: Windows process monitoring implemented and tested
 - ✅ **Git Status**: All improvements committed and pushed to GitHub
 
 ---

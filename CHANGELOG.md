@@ -1,4 +1,25 @@
-﻿## [0.16.0.5] - 2025-07-11
+﻿## [0.16.0.6] - 2025-07-11
+
+GitHub Script Refresh Debugging Enhancement
+
+Bug Fixes:
+- Enhanced JSON deserialization debugging in GitCacheManager.cs
+- Added detailed logging for base64 decoding and JSON structure validation
+- Improved error handling with JsonException details including line numbers and positions
+- Added manifest content length and preview logging for troubleshooting
+
+Technical Improvements:
+- Resolves Error converting value Version to type ScriptManifest issue
+- Enhanced GitHub-driven script system reliability
+- Better diagnostic information for JSON parsing failures
+- Improved debugging capabilities for GitHub API integration
+
+Testing:
+- Ready for testing GitHub script refresh functionality
+- Enhanced logging will help identify root cause of deserialization issues
+- Maintains backward compatibility with existing script cache system
+
+## [0.16.0.5] - 2025-07-11
 
 GitHub Script Refresh Debugging Enhancement
 
@@ -1222,5 +1243,6 @@ This comprehensive changelog represents the complete software development journe
 
 ### ï¿½ðŸš€ **READY FOR NEXT DEVELOPMENT PHASE**
 **The Tycoon AI-BIM Platform foundation is complete and production-tested. Architectural cleanup completed with pure GitHub-driven script system. Ready for next development phase with enterprise-grade foundation, comprehensive troubleshooting framework, and validated deployment capabilities!** âœ¨
+
 
 

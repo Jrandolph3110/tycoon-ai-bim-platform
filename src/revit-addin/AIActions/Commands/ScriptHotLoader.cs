@@ -1,16 +1,29 @@
 using System;
+using System.CodeDom.Compiler;
 using System.Collections.Generic;
 using System.IO;
+using System.Reflection;
 using System.Threading.Tasks;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
+using Microsoft.CSharp;
 using TycoonRevitAddin.Utils;
 
 namespace TycoonRevitAddin.AIActions.Commands
 {
     /// <summary>
-    /// 🔥 Script Hot-Loader - Phase 1 Implementation
+    /// Script type enumeration for hot-loader
+    /// </summary>
+    public enum ScriptType
+    {
+        Python,
+        CSharp
+    }
+
+    /// <summary>
+    /// 🔥 Script Hot-Loader - Enhanced Implementation
     /// Provides safe dynamic script loading with transaction rollback guards
+    /// Supports both Python and C# script execution with hot-reload capability
     /// Implements o3-pro's hot-loading infrastructure for AI-generated scripts
     /// </summary>
     public class ScriptHotLoader
@@ -18,45 +31,62 @@ namespace TycoonRevitAddin.AIActions.Commands
         private readonly ILogger _logger;
         private readonly Dictionary<string, HotLoadedScript> _loadedScripts;
         private readonly string _tempScriptDirectory;
+        private readonly CSharpScriptEngine _csharpEngine;
 
         public ScriptHotLoader(ILogger logger)
         {
             _logger = logger;
             _loadedScripts = new Dictionary<string, HotLoadedScript>();
             _tempScriptDirectory = Path.Combine(Path.GetTempPath(), "TycoonAI", "HotLoadedScripts");
-            
+            _csharpEngine = new CSharpScriptEngine(logger);
+
             // Ensure temp directory exists
             Directory.CreateDirectory(_tempScriptDirectory);
             _logger.Log($"🔥 ScriptHotLoader initialized. Temp directory: {_tempScriptDirectory}");
         }
 
         /// <summary>
-        /// Phase 1: Load and execute script with transaction safety
+        /// Enhanced: Load and execute script with transaction safety
+        /// Supports both Python and C# scripts with automatic type detection
         /// </summary>
         public async Task<HotLoadResult> LoadAndExecuteScript(
-            string scriptContent, 
-            string scriptName, 
+            string scriptContent,
+            string scriptName,
             Document doc,
             UIDocument uidoc,
-            List<int> elementIds)
+            List<int> elementIds,
+            ScriptType? scriptType = null)
         {
             var operationId = $"hotload_{DateTime.UtcNow:yyyy-MM-ddTHH:mm:ss.fffZ}";
-            _logger.Log($"🔥 [OP:{operationId}] Hot-loading script: {scriptName}");
+
+            // Auto-detect script type if not provided
+            var detectedType = scriptType ?? DetectScriptType(scriptContent, scriptName);
+
+            _logger.Log($"🔥 [OP:{operationId}] Hot-loading {detectedType} script: {scriptName}");
 
             try
             {
-                // Phase 1: Create temporary script file
-                var scriptPath = await CreateTempScriptFile(scriptContent, scriptName, operationId);
-                
-                // Phase 1: Execute with transaction safety
-                var result = await ExecuteScriptWithSafety(scriptPath, scriptName, doc, uidoc, elementIds, operationId);
-                
+                HotLoadResult result;
+
+                if (detectedType == ScriptType.CSharp)
+                {
+                    // Execute C# script directly through engine
+                    result = await _csharpEngine.CompileAndExecuteAsync(
+                        scriptContent, scriptName, doc, uidoc, elementIds, operationId);
+                }
+                else
+                {
+                    // Legacy Python execution path
+                    var scriptPath = await CreateTempScriptFile(scriptContent, scriptName, operationId);
+                    result = await ExecuteScriptWithSafety(scriptPath, scriptName, doc, uidoc, elementIds, operationId);
+                }
+
                 // Cache successful script for reuse
                 if (result.Success)
                 {
-                    CacheLoadedScript(scriptName, scriptPath, scriptContent, result);
+                    CacheLoadedScript(scriptName, scriptContent, result, detectedType);
                 }
-                
+
                 return result;
             }
             catch (Exception ex)
@@ -175,23 +205,45 @@ if __name__ == '__main__':
         }
 
         /// <summary>
+        /// Detect script type from content and filename
+        /// </summary>
+        private ScriptType DetectScriptType(string scriptContent, string scriptName)
+        {
+            // Check file extension first
+            if (scriptName.EndsWith(".cs", StringComparison.OrdinalIgnoreCase))
+                return ScriptType.CSharp;
+            if (scriptName.EndsWith(".py", StringComparison.OrdinalIgnoreCase))
+                return ScriptType.Python;
+
+            // Check content for C# indicators
+            if (scriptContent.Contains("using System") ||
+                scriptContent.Contains("namespace ") ||
+                scriptContent.Contains("public class ") ||
+                scriptContent.Contains("IExternalCommand"))
+                return ScriptType.CSharp;
+
+            // Default to Python for backward compatibility
+            return ScriptType.Python;
+        }
+
+        /// <summary>
         /// Cache successfully loaded script for reuse
         /// </summary>
-        private void CacheLoadedScript(string scriptName, string scriptPath, string scriptContent, HotLoadResult result)
+        private void CacheLoadedScript(string scriptName, string scriptContent, HotLoadResult result, ScriptType scriptType)
         {
             var cachedScript = new HotLoadedScript
             {
                 Name = scriptName,
-                Path = scriptPath,
+                Path = result.ScriptPath ?? $"temp_{scriptType}_{DateTime.Now.Ticks}",
                 Content = scriptContent,
                 LoadTime = DateTime.UtcNow,
                 ExecutionCount = 1,
                 LastExecutionTime = result.ExecutionTimeMs,
                 Success = result.Success
             };
-            
+
             _loadedScripts[scriptName] = cachedScript;
-            _logger.Log($"🔥 Cached hot-loaded script: {scriptName}");
+            _logger.Log($"🔥 Cached hot-loaded {scriptType} script: {scriptName}");
         }
 
         /// <summary>

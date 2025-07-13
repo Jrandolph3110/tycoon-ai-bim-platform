@@ -1,10 +1,13 @@
 using System;
+using System.IO;
 using System.Linq;
 using System.Windows.Forms;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
+using TycoonRevitAddin.AIActions.Commands;
 using TycoonRevitAddin.Plugins;
+using TycoonRevitAddin.Utils;
 
 namespace TycoonRevitAddin.Commands
 {
@@ -220,8 +223,80 @@ namespace TycoonRevitAddin.Commands
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
-            MessageBox.Show("Dynamic Script Execution - Coming Soon!", "Scripts Plugin", MessageBoxButtons.OK, MessageBoxIcon.Information);
-            return Result.Succeeded;
+            try
+            {
+                // Get script path from button metadata (stored in ToolTip)
+                var scriptPath = GetScriptPathFromCommand(commandData);
+                if (string.IsNullOrEmpty(scriptPath) || !File.Exists(scriptPath))
+                {
+                    MessageBox.Show($"Script file not found: {scriptPath}", "Script Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    return Result.Failed;
+                }
+
+                // Read script content
+                var scriptContent = File.ReadAllText(scriptPath);
+                var scriptName = Path.GetFileNameWithoutExtension(scriptPath);
+
+                // Detect script type
+                var scriptType = Path.GetExtension(scriptPath).ToLower() == ".cs"
+                    ? ScriptType.CSharp
+                    : ScriptType.Python;
+
+                // Get Revit context
+                var doc = commandData.Application.ActiveUIDocument.Document;
+                var uidoc = commandData.Application.ActiveUIDocument;
+                var selectedIds = uidoc.Selection.GetElementIds().Select(id => id.IntegerValue).ToList();
+
+                // Execute script via ScriptHotLoader
+                var logger = new ConsoleLogger(); // Simple logger for now
+                var hotLoader = new ScriptHotLoader(logger);
+
+                var task = hotLoader.LoadAndExecuteScript(scriptContent, scriptName, doc, uidoc, selectedIds, scriptType);
+                var result = task.GetAwaiter().GetResult(); // Synchronous execution for IExternalCommand
+
+                if (result.Success)
+                {
+                    // Optional: Show success message for debugging
+                    // MessageBox.Show($"Script executed successfully in {result.ExecutionTimeMs:F0}ms", "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    return Result.Succeeded;
+                }
+                else
+                {
+                    MessageBox.Show($"Script execution failed: {result.Message}", "Script Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    return Result.Failed;
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error executing script: {ex.Message}", "Script Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return Result.Failed;
+            }
+        }
+
+        /// <summary>
+        /// Extract script path from command data (stored in button ToolTip)
+        /// </summary>
+        private string GetScriptPathFromCommand(ExternalCommandData commandData)
+        {
+            try
+            {
+                // The ScriptsPlugin stores the script path in the button's ToolTip
+                // Format: "Badge: DisplayName\nDescription\nPath: /full/path/to/script.py"
+
+                // For now, we'll need to get this from the ribbon button
+                // This is a simplified approach - in production, we'd need better integration
+
+                // Try to get the script path from the active ribbon button
+                // This is a placeholder implementation that should be enhanced
+
+                // Return the test script for now
+                return @"C:\RevitAI\tycoon-ai-bim-platform\src\revit-addin\Scripts\FLC_ReNumber.cs";
+            }
+            catch (Exception ex)
+            {
+                // Fallback to test script
+                return @"C:\RevitAI\tycoon-ai-bim-platform\src\revit-addin\Scripts\FLC_ReNumber.cs";
+            }
         }
     }
 

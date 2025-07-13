@@ -27,8 +27,8 @@ $VersionLocations = @(
     @{
         File = "Product.wxs"
         Path = Join-Path $ScriptDir "Product.wxs"
-        Pattern = 'Version="([\d\.]+)"'
-        Replacement = 'Version="' + $MasterVersion + '"'
+        Pattern = '(<Product[^>]*\s+Version=")[\d\.]+(")'
+        Replacement = '${1}' + $MasterVersion + '${2}'
         Description = "WiX installer product"
     },
     @{

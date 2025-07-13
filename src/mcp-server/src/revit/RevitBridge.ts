@@ -227,9 +227,16 @@ export class RevitBridge extends EventEmitter {
             console.log(`🚀 DEBUG: Creating WebSocketServer on port ${this.port}`);
             this.wss = new WebSocketServer({
                 port: this.port,
-                perMessageDeflate: false
+                perMessageDeflate: {
+                    // Enable compression to match Revit add-in configuration
+                    threshold: 1024,
+                    concurrencyLimit: 10
+                },
+                // Add additional configuration for better compatibility
+                maxPayload: 100 * 1024 * 1024, // 100MB max payload for large BIM data
+                skipUTF8Validation: false
             });
-            console.log(`✅ DEBUG: WebSocketServer created successfully`);
+            console.log(`✅ DEBUG: WebSocketServer created successfully with compression enabled`);
 
             console.log(`🔧 DEBUG: Registering connection event handler...`);
             this.wss.on('connection', (ws: WebSocket) => {

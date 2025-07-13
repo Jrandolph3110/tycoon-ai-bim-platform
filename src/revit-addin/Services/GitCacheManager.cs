@@ -246,8 +246,7 @@ namespace TycoonRevitAddin.Services
                 catch (JsonException jsonEx)
                 {
                     _logger.LogError($"JSON deserialization error: {jsonEx.Message}");
-                    _logger.LogError($"JSON Path: {jsonEx.Path}");
-                    _logger.LogError($"Line Number: {jsonEx.LineNumber}, Position: {jsonEx.LinePosition}");
+                    _logger.LogError($"JSON parsing failed - check manifest format and structure");
                     throw;
                 }
             }

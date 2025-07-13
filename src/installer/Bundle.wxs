@@ -1,4 +1,4 @@
-﻿<?xml Version="0.16.0.5" encoding="UTF-8"?>
+﻿<?xml version="1.0" encoding="UTF-8"?>
 <Wix xmlns="http://schemas.microsoft.com/wix/2006/wi" 
      xmlns:bal="http://schemas.microsoft.com/wix/BalExtension" 
      xmlns:util="http://schemas.microsoft.com/wix/UtilExtension">
@@ -8,7 +8,7 @@
 
   <!-- Bundle Definition -->
   <Bundle Name="Tycoon AI-BIM Platform Setup"
-          Version="0.16.0.5"
+          Version="0.16.0.7"
           Manufacturer="F.L. Crane &amp; Sons"
           UpgradeCode="87654321-4321-4321-4321-210987654321"
           IconSourceFile="Resources\TycoonIcon.ico"

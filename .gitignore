@@ -79,6 +79,12 @@ Thumbs.db
 # Temporary files
 *.tmp
 *.temp
+*.backup
+
+# Archive files (build outputs)
+*.zip
+*.rar
+*.7z
 
 # Personal access tokens and secrets
 *.token

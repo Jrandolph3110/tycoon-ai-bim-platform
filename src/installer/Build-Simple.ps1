@@ -66,60 +66,6 @@ if ($LASTEXITCODE -ne 0) {
     exit $LASTEXITCODE
 }
 
-# Build MCP Server
-Write-Host "Building MCP Server..." -ForegroundColor Yellow
-
-$McpServerDir = Join-Path $ScriptDir "..\mcp-server"
-Push-Location $McpServerDir
-
-try {
-    # Install dependencies if needed
-    if (-not (Test-Path "node_modules")) {
-        Write-Host "Installing Node.js dependencies..." -ForegroundColor Gray
-        & npm install
-        if ($LASTEXITCODE -ne 0) {
-            Write-Error "Failed to install Node.js dependencies"
-            exit $LASTEXITCODE
-        }
-    }
-
-    # Build TypeScript
-    Write-Host "Compiling TypeScript..." -ForegroundColor Gray
-    & npm run build
-    if ($LASTEXITCODE -ne 0) {
-        Write-Error "Failed to build MCP Server"
-        exit $LASTEXITCODE
-    }
-
-    Write-Host "MCP Server build completed" -ForegroundColor Green
-
-# Package MCP Server for installer distribution
-Write-Host "Packaging MCP Server for installer distribution..." -ForegroundColor Yellow
-$PackageMCPScript = Join-Path $PSScriptRoot "PackageMCP.ps1"
-if (Test-Path $PackageMCPScript) {
-    & powershell -ExecutionPolicy Bypass -File $PackageMCPScript
-    if ($LASTEXITCODE -ne 0) {
-        Write-Warning "MCP packaging failed, but continuing with installer build..."
-    } else {
-        # Copy the ZIP file to installer directory for WiX
-        $ZipSource = Join-Path $PSScriptRoot "bin\Release\mcp-server.zip"
-        $ZipDest = Join-Path $PSScriptRoot "mcp-server.zip"
-        if (Test-Path $ZipSource) {
-            Copy-Item $ZipSource $ZipDest -Force
-            Write-Host "Copied MCP server ZIP to installer directory" -ForegroundColor Gray
-        } else {
-            Write-Warning "MCP server ZIP not found at $ZipSource"
-        }
-    }
-} else {
-    Write-Warning "PackageMCP.ps1 not found, skipping MCP packaging..."
-}
-Write-Host "MCP Server packaging completed" -ForegroundColor Green
-}
-finally {
-    Pop-Location
-}
-
 # Build WiX installer manually
 Write-Host "Building WiX Installer..." -ForegroundColor Yellow
 

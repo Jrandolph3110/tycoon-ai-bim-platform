@@ -3,6 +3,10 @@ param(
     [string]$OutputPath = "bin\Release"
 )
 
+# Ensure we're working with absolute paths
+$ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+$OutputPath = Join-Path $ScriptDir $OutputPath
+
 Write-Host "Packaging MCP Server for Installer Distribution..." -ForegroundColor Green
 
 # Create output directory

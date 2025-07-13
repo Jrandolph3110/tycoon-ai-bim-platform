@@ -15,6 +15,8 @@
     <FileAlignment>512</FileAlignment>
     <Deterministic>true</Deterministic>
     <LangVersion>latest</LangVersion>
+    <RuntimeIdentifiers>win;win-x64;win-x86</RuntimeIdentifiers>
+    <RestoreProjectStyle>PackageReference</RestoreProjectStyle>
   </PropertyGroup>
   
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
@@ -93,6 +95,7 @@
     <Compile Include="AIActions\Commands\ParameterManagementCommands.cs" />
     <Compile Include="AIActions\Commands\FLCScriptBridge.cs" />
     <Compile Include="AIActions\Commands\ScriptHotLoader.cs" />
+    <Compile Include="AIActions\Commands\CSharpScriptEngine.cs" />
     <Compile Include="AIActions\Validation\IValidationEngine.cs" />
     <Compile Include="AIActions\Workflow\IWorkflowEngine.cs" />
     <Compile Include="AIActions\Autonomy\IAutonomyManager.cs" />
