@@ -27,8 +27,8 @@ $VersionLocations = @(
     @{
         File = "Product.wxs"
         Path = Join-Path $ScriptDir "Product.wxs"
-        Pattern = '(<Product[^>]*\s+Version=")[\d\.]+(")'
-        Replacement = '${1}' + $MasterVersion + '${2}'
+        Pattern = 'Version="([\d\.]+)"'
+        Replacement = 'Version="' + $MasterVersion + '"'
         Description = "WiX installer product"
     },
     @{
@@ -65,6 +65,13 @@ $VersionLocations = @(
         Pattern = '"version":\s*"([\d\.]+)"'
         Replacement = '"version": "' + $MasterVersion + '"'
         Description = "MCP server lock file"
+    },
+    @{
+        File = "Application.cs"
+        Path = Join-Path $ScriptDir "..\revit-addin\Application.cs"
+        Pattern = 'Starting Tycoon AI-BIM Platform v([\d\.]+)'
+        Replacement = 'Starting Tycoon AI-BIM Platform v' + $MasterVersion
+        Description = "Revit add-in startup message"
     }
 )
 

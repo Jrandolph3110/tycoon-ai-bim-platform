@@ -682,10 +682,19 @@ namespace TycoonRevitAddin.Services
     /// </summary>
     public class ScriptManifest
     {
+        [JsonProperty("Version")]
         public string Version { get; set; }
+
+        [JsonProperty("Build")]
         public string Build { get; set; }
+
+        [JsonProperty("Generated")]
         public DateTime Generated { get; set; }
+
+        [JsonProperty("Scripts")]
         public Dictionary<string, ScriptInfo> Scripts { get; set; } = new Dictionary<string, ScriptInfo>();
+
+        [JsonProperty("Templates")]
         public Dictionary<string, TemplateInfo> Templates { get; set; } = new Dictionary<string, TemplateInfo>();
     }
 
