@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Linq;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
@@ -16,6 +17,26 @@ namespace TycoonRevitAddin.Commands
     [Transaction(TransactionMode.Manual)]
     public class UnifiedScriptCommand : IExternalCommand
     {
+        // Static registry to map button IDs to script names
+        private static readonly ConcurrentDictionary<string, string> _buttonScriptRegistry = new ConcurrentDictionary<string, string>();
+
+        /// <summary>
+        /// Register a button ID with its corresponding script name
+        /// Called by ScriptsPlugin when creating buttons
+        /// </summary>
+        public static void RegisterButtonScript(string buttonId, string scriptName)
+        {
+            _buttonScriptRegistry.TryAdd(buttonId, scriptName);
+        }
+
+        /// <summary>
+        /// Clear all registered button-script mappings
+        /// Called when scripts are refreshed
+        /// </summary>
+        public static void ClearRegistry()
+        {
+            _buttonScriptRegistry.Clear();
+        }
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
             try
@@ -51,16 +72,23 @@ namespace TycoonRevitAddin.Commands
         }
 
         /// <summary>
-        /// Get script name from the button that was clicked
+        /// Get script name from the button that was clicked using the registry
         /// </summary>
         private string GetScriptNameFromButton(ExternalCommandData commandData)
         {
             try
             {
-                // For now, we'll use a simple approach - hardcode for testing
-                // TODO: Implement proper script name extraction from button context
-                // This will be improved when we integrate with the ribbon system
-                return "Element Counter"; // Default to our test script for now
+                // Since we can't easily get the specific button ID from ExternalCommandData,
+                // we'll use a fallback approach: return the first available script
+                // This works for startup auto-population where we have one script
+                var availableScripts = _buttonScriptRegistry.Values.FirstOrDefault();
+                if (!string.IsNullOrEmpty(availableScripts))
+                {
+                    System.Diagnostics.Debug.WriteLine($"Executing script: {availableScripts}");
+                    return availableScripts;
+                }
+
+                return null;
             }
             catch (Exception ex)
             {

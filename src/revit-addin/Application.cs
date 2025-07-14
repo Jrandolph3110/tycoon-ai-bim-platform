@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
 using System.Windows.Media.Imaging;
@@ -11,6 +12,7 @@ using TycoonRevitAddin.UI;
 using TycoonRevitAddin.Plugins;
 using System.Linq;
 using TycoonRevitAddin.Utils;
+using TycoonRevitAddin.Scripting;
 
 namespace TycoonRevitAddin
 {
@@ -28,6 +30,10 @@ namespace TycoonRevitAddin
     public class Application : IExternalApplication
     {
         private static TycoonBridge _tycoonBridge;
+
+        // 🎯 Dynamic Button Creation Infrastructure
+        private static Queue<TycoonRevitAddin.Scripting.ScriptInfo> _scriptsToCreate = new Queue<TycoonRevitAddin.Scripting.ScriptInfo>();
+        private static UIControlledApplication _uiControlledApp;
         private static Logger _logger;
         private static StatusPollingService _statusService;
         private static DynamicRibbonManager _ribbonManager;
@@ -66,6 +72,9 @@ namespace TycoonRevitAddin
         {
             try
             {
+                // Store reference for dynamic button creation
+                _uiControlledApp = application;
+
                 // Initialize logger first (safely)
                 _logger = new Logger("Tycoon", debugMode: true);
                 _logger.Log("🚀 Starting Tycoon AI-BIM Platform v0.17.0 (AI Actions System - Revolutionary AI Automation)...");
@@ -425,6 +434,93 @@ namespace TycoonRevitAddin
             {
                 _logger?.LogError($"Failed to resolve assembly: {args.Name}", ex);
                 return null;
+            }
+        }
+
+        /// <summary>
+        /// 🎯 Dynamic Button Creation: Idling Event Handler
+        /// Creates ribbon buttons from a valid UI context (when Revit is idle)
+        /// </summary>
+        private void CreateDynamicButtonsOnIdle(object sender, Autodesk.Revit.UI.Events.IdlingEventArgs e)
+        {
+            try
+            {
+                // Unsubscribe immediately to avoid running multiple times
+                (sender as UIApplication).Idling -= CreateDynamicButtonsOnIdle;
+
+                if (_scriptsToCreate.Count == 0)
+                    return;
+
+                // Find the Production panel
+                var productionPanel = _uiControlledApp.GetRibbonPanels("Tycoon AI-BIM")
+                    .FirstOrDefault(p => p.Name.Contains("Production"));
+
+                if (productionPanel == null)
+                {
+                    _logger?.LogWarning("Production panel not found for dynamic button creation");
+                    return;
+                }
+
+                // Get ScriptsPlugin to access button creation methods
+                var scriptsPlugin = _pluginManager?.GetPlugin("scripts") as ScriptsPlugin;
+                if (scriptsPlugin == null)
+                {
+                    _logger?.LogWarning("ScriptsPlugin not found for dynamic button creation");
+                    return;
+                }
+
+                // Create buttons for all queued scripts
+                int buttonsCreated = 0;
+                while (_scriptsToCreate.Count > 0)
+                {
+                    var scriptInfo = _scriptsToCreate.Dequeue();
+                    try
+                    {
+                        scriptsPlugin.CreateDynamicScriptButton(productionPanel, scriptInfo);
+                        buttonsCreated++;
+                        _logger?.Log($"✅ Created dynamic button: {scriptInfo.Manifest.Name}");
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger?.LogError($"Failed to create dynamic button for {scriptInfo.Manifest.Name}", ex);
+                    }
+                }
+
+                _logger?.Log($"🎯 Dynamic button creation completed: {buttonsCreated} buttons created");
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError("Failed to create dynamic buttons during idle", ex);
+            }
+        }
+
+        /// <summary>
+        /// 🎯 Queue Scripts for Dynamic Button Creation
+        /// Called from ReloadScriptsCommand to queue scripts for button creation during idle
+        /// </summary>
+        public static void QueueScriptsForCreation(UIApplication app, List<TycoonRevitAddin.Scripting.ScriptInfo> scripts)
+        {
+            try
+            {
+                // Clear existing queue
+                _scriptsToCreate.Clear();
+
+                // Queue new scripts
+                foreach (var script in scripts)
+                {
+                    _scriptsToCreate.Enqueue(script);
+                }
+
+                if (_scriptsToCreate.Count > 0)
+                {
+                    // Subscribe to Idling event to process queue
+                    app.Idling += new Application().CreateDynamicButtonsOnIdle;
+                    _logger?.Log($"🎯 Queued {scripts.Count} scripts for dynamic button creation");
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError("Failed to queue scripts for creation", ex);
             }
         }
     }

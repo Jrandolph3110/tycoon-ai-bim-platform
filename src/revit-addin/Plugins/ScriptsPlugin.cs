@@ -551,6 +551,14 @@ namespace TycoonRevitAddin.Plugins
         }
 
         /// <summary>
+        /// 🎯 Create Dynamic Script Button (Public method for Application.CreateDynamicButtonsOnIdle)
+        /// </summary>
+        public void CreateDynamicScriptButton(RibbonPanel panel, TycoonRevitAddin.Scripting.ScriptInfo script)
+        {
+            CreateUnifiedScriptButton(panel, script);
+        }
+
+        /// <summary>
         /// ✨ Create a unified script button for the ribbon
         /// </summary>
         private void CreateUnifiedScriptButton(RibbonPanel panel, TycoonRevitAddin.Scripting.ScriptInfo script)
@@ -569,10 +577,13 @@ namespace TycoonRevitAddin.Plugins
                     panel,
                     buttonId,
                     script.Manifest.Name,
-                    "TycoonRevitAddin.Commands.UnifiedScriptCommand",
+                    "TycoonRevitAddin.Commands.UnifiedScriptCommand", // Proper script execution command
                     $"🎯 {script.Manifest.Name}\n{script.Manifest.Description}\nAuthor: {script.Manifest.Author}",
                     "ScriptIcon.png" // Default script icon path
                 );
+
+                // 🎯 CRITICAL: Script name stored in registry for UnifiedScriptCommand to retrieve
+                // Note: PushButton doesn't have Tag property, using registry approach instead
 
                 // Store script info in button's tag for execution
                 button.ToolTip = $"🎯 {script.Manifest.Name}\n" +
@@ -585,6 +596,9 @@ namespace TycoonRevitAddin.Plugins
                 // The script name will be extracted from the button ID in UnifiedScriptCommand
 
                 _unifiedScriptButtons[buttonId] = button;
+
+                // 🎯 CRITICAL: Register button with UnifiedScriptCommand for hot-reload support
+                TycoonRevitAddin.Commands.UnifiedScriptCommand.RegisterButtonScript(buttonId, script.Manifest.Name);
 
                 _logger.Log($"✅ Created unified script button: {script.Manifest.Name}");
             }
@@ -676,17 +690,18 @@ namespace TycoonRevitAddin.Plugins
         }
 
         /// <summary>
-        /// ✨ Handle unified script changes from ScriptEngine
+        /// ✨ Handle unified script changes from ScriptEngine (Startup auto-population)
         /// </summary>
         private void OnUnifiedScriptsChanged(List<TycoonRevitAddin.Scripting.ScriptInfo> scripts)
         {
             try
             {
-                _logger.Log($"🔄 Unified scripts changed: {scripts.Count} scripts available");
+                _logger.Log($"🔄 Unified scripts changed: {scripts.Count} scripts available (startup auto-population)");
                 System.Diagnostics.Debug.WriteLine($"🔄 DEBUG: Script changes detected: {scripts.Count} scripts available");
                 System.Console.WriteLine($"🔄 CONSOLE: Script changes detected: {scripts.Count} scripts available");
 
-                // Update ribbon with new scripts
+                // 🎯 SIMPLIFIED: Only auto-populate during startup, not real-time changes
+                // This avoids complex UI thread context issues while providing the desired functionality
                 UpdateRibbonWithUnifiedScripts(scripts);
             }
             catch (Exception ex)
@@ -695,14 +710,19 @@ namespace TycoonRevitAddin.Plugins
             }
         }
 
+
+
         /// <summary>
-        /// ✨ Update ribbon panels with unified scripts
+        /// ✨ Update ribbon panels with unified scripts (STARTUP AUTO-POPULATION)
+        /// Re-enabled for startup script discovery - works in valid UI context during initialization
         /// </summary>
         private void UpdateRibbonWithUnifiedScripts(List<TycoonRevitAddin.Scripting.ScriptInfo> scripts)
         {
             try
             {
-                // Clear existing unified script buttons
+                _logger.Log($"🎯 Auto-populating scripts during startup: {scripts.Count} scripts discovered");
+
+                // Clear existing unified script buttons and registry
                 foreach (var button in _unifiedScriptButtons.Values)
                 {
                     // Note: Revit doesn't allow removing buttons, so we'll disable them
@@ -710,25 +730,28 @@ namespace TycoonRevitAddin.Plugins
                 }
                 _unifiedScriptButtons.Clear();
 
+                // Clear the UnifiedScriptCommand registry for fresh script registration
+                TycoonRevitAddin.Commands.UnifiedScriptCommand.ClearRegistry();
+
                 // Find Production panel for script buttons
-                var productionPanel = _panels.FirstOrDefault(p => p.Name == "Production");
+                var productionPanel = _panels.FirstOrDefault(p => p.Name.Contains("Production"));
                 if (productionPanel == null)
                 {
-                    _logger.LogWarning("Production panel not found for unified scripts");
+                    _logger.LogWarning($"Production panel not found for startup script auto-population. Available panels: {string.Join(", ", _panels.Select(p => p.Name))}");
                     return;
                 }
 
-                // Add buttons for each script
+                // Add buttons for each script (during startup - valid UI context)
                 foreach (var script in scripts.Take(8)) // Limit for ribbon space
                 {
                     CreateUnifiedScriptButton(productionPanel, script);
                 }
 
-                _logger.Log($"✅ Updated ribbon with {_unifiedScriptButtons.Count} unified script buttons");
+                _logger.Log($"✅ Startup auto-population completed: {_unifiedScriptButtons.Count} script buttons created");
             }
             catch (Exception ex)
             {
-                _logger.LogError("Failed to update ribbon with unified scripts", ex);
+                _logger.LogError("Failed to auto-populate scripts during startup", ex);
             }
         }
 

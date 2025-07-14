@@ -107,7 +107,7 @@ namespace TycoonRevitAddin.Commands
                     return Result.Failed;
                 }
 
-                // Trigger script refresh
+                // Trigger script refresh and queue for dynamic button creation
                 _ = Task.Run(async () =>
                 {
                     try
@@ -120,6 +120,20 @@ namespace TycoonRevitAddin.Commands
                         logger?.LogError("Failed to refresh scripts", ex);
                     }
                 });
+
+                // Queue scripts for dynamic button creation (must be on main thread)
+                var scripts = scriptEngine.GetLoadedScripts();
+                if (scripts.Any())
+                {
+                    try
+                    {
+                        TycoonRevitAddin.Application.QueueScriptsForCreation(commandData.Application, scripts);
+                    }
+                    catch (Exception ex)
+                    {
+                        logger?.LogError("Failed to queue scripts for creation", ex);
+                    }
+                }
 
                 MessageBox.Show("🔄 Script refresh initiated!\n\nScripts are being reloaded in the background.\nCheck the ribbon in a few seconds.",
                               "Script Reload", MessageBoxButtons.OK, MessageBoxIcon.Information);
