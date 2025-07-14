@@ -200,24 +200,38 @@ namespace TycoonRevitAddin.Services
         /// <summary>
         /// Clean up JSON string to handle various encoding and formatting issues
         /// </summary>
-        private static string CleanupJsonString(string json)
+        private string CleanupJsonString(string json)
         {
             if (string.IsNullOrEmpty(json)) return json;
 
+            _logger.Log($"🔍 CLEANUP INPUT: Length={json.Length}, StartsWith{{={json.StartsWith("{")}");
+            _logger.Log($"🔍 CLEANUP INPUT first 100 chars: {json.Substring(0, Math.Min(100, json.Length))}");
+
             // Trim whitespace and newlines from start and end
+            var originalLength = json.Length;
             json = json.Trim();
+            _logger.Log($"🔍 CLEANUP after trim: Length={json.Length} (removed {originalLength - json.Length} chars)");
 
             // Ensure the JSON starts with { and ends with }
             if (!json.StartsWith("{"))
             {
+                _logger.Log($"🔍 CLEANUP: JSON doesn't start with {{, looking for first {{ character");
                 // Look for the first { character
                 int braceIndex = json.IndexOf('{');
+                _logger.Log($"🔍 CLEANUP: First {{ found at index {braceIndex}");
                 if (braceIndex > 0)
                 {
+                    var beforeSubstring = json.Length;
                     json = json.Substring(braceIndex);
+                    _logger.Log($"🔍 CLEANUP: Substring from index {braceIndex}, length changed from {beforeSubstring} to {json.Length}");
                 }
             }
+            else
+            {
+                _logger.Log($"🔍 CLEANUP: JSON already starts with {{, no changes needed");
+            }
 
+            _logger.Log($"🔍 CLEANUP OUTPUT: Length={json.Length}, StartsWith{{={json.StartsWith("{")}");
             return json;
         }
 
