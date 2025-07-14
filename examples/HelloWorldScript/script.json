@@ -1,0 +1,11 @@
+{
+  "name": "Hello World",
+  "description": "Demonstrates the new Unified Script Architecture with type-safe API and automatic transaction management",
+  "author": "F.L. Crane & Sons Development Team",
+  "version": "1.0.0",
+  "entryAssembly": "HelloWorldScript.dll",
+  "entryType": "HelloWorldScript.HelloWorldScript",
+  "panel": "Production",
+  "tags": ["demo", "example", "unified-architecture"],
+  "requiresSelection": false
+}
