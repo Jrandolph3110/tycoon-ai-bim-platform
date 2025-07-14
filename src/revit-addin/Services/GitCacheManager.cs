@@ -184,16 +184,26 @@ namespace TycoonRevitAddin.Services
         /// <summary>
         /// Remove BOM (Byte Order Mark) from JSON string if present
         /// </summary>
-        private static string RemoveBOM(string json)
+        private string RemoveBOM(string json)
         {
             if (string.IsNullOrEmpty(json)) return json;
+
+            _logger.Log($"🔍 BOM INPUT: Length={json.Length}, StartsWith{{={json.StartsWith("{")}");
+            _logger.Log($"🔍 BOM INPUT first 10 chars: '{json.Substring(0, Math.Min(10, json.Length))}'");
+            _logger.Log($"🔍 BOM INPUT first char code: {(json.Length > 0 ? ((int)json[0]).ToString() : "empty")}");
+            _logger.Log($"🔍 BOM check: StartsWith \\uFEFF = {json.StartsWith("\uFEFF")}");
 
             // Remove UTF-8 BOM if present - this causes JSON parsing errors
             if (json.StartsWith("\uFEFF"))
             {
-                return json.Substring(1);
+                _logger.Log($"🔍 BOM FOUND: Removing BOM character");
+                var result = json.Substring(1);
+                _logger.Log($"🔍 BOM OUTPUT: Length={result.Length}, StartsWith{{={result.StartsWith("{")}");
+                return result;
             }
 
+            _logger.Log($"🔍 BOM NOT FOUND: No changes made");
+            _logger.Log($"🔍 BOM OUTPUT: Length={json.Length}, StartsWith{{={json.StartsWith("{")}");
             return json;
         }
 
