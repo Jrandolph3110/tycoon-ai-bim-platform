@@ -3,8 +3,9 @@
   "description": "A simple Hello World script to test hot-reload functionality",
   "author": "Tycoon AI-BIM Platform",
   "version": "1.0.0",
-  "type": "csharp",
-  "entryPoint": "HelloWorld.cs",
-  "dependencies": [],
-  "tags": ["test", "hello", "demo"]
+  "entryAssembly": "bin/Release/net48/HelloWorld.dll",
+  "entryType": "HelloWorldScript.HelloWorldScript",
+  "panel": "Production",
+  "tags": ["test", "hello", "demo"],
+  "requiresSelection": false
 }
