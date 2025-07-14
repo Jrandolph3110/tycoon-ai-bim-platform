@@ -191,10 +191,31 @@ namespace TycoonRevitAddin.Services
             _logger.Log($"🔍 BOM INPUT: Length={json.Length}, StartsWith{{={json.StartsWith("{")}");
             _logger.Log($"🔍 BOM INPUT first 10 chars: '{json.Substring(0, Math.Min(10, json.Length))}'");
             _logger.Log($"🔍 BOM INPUT first char code: {(json.Length > 0 ? ((int)json[0]).ToString() : "empty")}");
-            _logger.Log($"🔍 BOM check: StartsWith \\uFEFF = {json.StartsWith("\uFEFF")}");
 
-            // Remove UTF-8 BOM if present - this causes JSON parsing errors
-            if (json.StartsWith("\uFEFF"))
+            // Enhanced BOM detection with character-by-character analysis
+            bool hasBOM = false;
+            if (json.Length > 0)
+            {
+                char firstChar = json[0];
+                int firstCharCode = (int)firstChar;
+                _logger.Log($"🔍 BOM detailed analysis: First char='{firstChar}', Code={firstCharCode}, BOM code=65279");
+
+                // Check for actual BOM character (U+FEFF = 65279)
+                hasBOM = firstCharCode == 65279;
+                _logger.Log($"🔍 BOM precise check: hasBOM={hasBOM}");
+
+                // Also check the problematic StartsWith method
+                bool startsWithBOM = json.StartsWith("\uFEFF");
+                _logger.Log($"🔍 BOM StartsWith check: {startsWithBOM}");
+
+                if (hasBOM != startsWithBOM)
+                {
+                    _logger.Log($"🔍 BOM MISMATCH: Precise check={hasBOM}, StartsWith={startsWithBOM}");
+                }
+            }
+
+            // Use precise BOM detection instead of StartsWith
+            if (hasBOM)
             {
                 _logger.Log($"🔍 BOM FOUND: Removing BOM character");
                 var result = json.Substring(1);
