@@ -77,9 +77,10 @@ namespace TycoonRevitAddin.Plugins
         // 🔄 GitHub Cache Management System
         private readonly GitCacheManager _gitCacheManager;
 
-        // 🔄 Safe Ribbon Refresh Mechanism (UIApplication.Idling pattern)
+        // 🔄 Safe Ribbon Refresh Mechanism (ExternalEvent pattern)
         private readonly object _refreshLock = new object();
         private bool _isRefreshPending = false;
+        private ExternalEvent _ribbonRefreshEvent;
 
         public override string Id => "scripts";
         public override string Name => "Scripts";
@@ -114,8 +115,9 @@ namespace TycoonRevitAddin.Plugins
             // 🔄 Initialize GitHub Cache Management System
             _gitCacheManager = new GitCacheManager(logger);
 
-            // 🎯 Initialize ScriptService with async-first architecture
-            ScriptService.Instance.Initialize(_gitCacheManager, logger, _scriptsPath);
+            // 🚧 DISABLED: Legacy ScriptService initialization removed
+            // ScriptService.Instance.Initialize(_gitCacheManager, logger, _scriptsPath);
+            // This will be replaced with the new ScriptEngine initialization
 
             // 📡 Subscribe to ScriptService events for UI updates
             ScriptService.Instance.LocalScriptsUpdated += OnLocalScriptsUpdated;
@@ -127,10 +129,20 @@ namespace TycoonRevitAddin.Plugins
             EventBus.Instance.Subscribe<LayoutChangedEvent>(OnLayoutChanged);
             _logger.Log("📡 Subscribed to LayoutChanged events from Layout Manager");
 
-            // Ensure scripts directory exists
-            EnsureScriptsDirectory();
+            // 🚧 DISABLED: Legacy scripts directory creation removed
+            // EnsureScriptsDirectory(); // Disabled during unified architecture implementation
 
             _logger.Log("🎯 ScriptsPlugin initialized with async-first ScriptService architecture");
+        }
+
+        public override List<RibbonPanel> Initialize(UIControlledApplication application, string tabName)
+        {
+            // Initialize ExternalEvent for safe ribbon refresh
+            _ribbonRefreshEvent = ExternalEvent.Create(new RibbonRefreshEventHandler(this, _logger));
+            _logger.Log("🔄 ExternalEvent created for safe ribbon refresh");
+
+            // Call base initialization
+            return base.Initialize(application, tabName);
         }
 
         protected override void CreatePanels()
@@ -188,81 +200,25 @@ namespace TycoonRevitAddin.Plugins
 
 
         /// <summary>
-        /// 🟢 Create Production Script Buttons (Chat's P1-Deterministic)
-        /// Bulletproof scripts with green theme for universal access
+        /// 🚧 LEGACY: Create Production Script Buttons (Chat's P1-Deterministic)
+        /// This method is disabled during unified architecture implementation
         /// </summary>
         private void CreateProductionScriptButtons(RibbonPanel panel)
         {
-            _logger.Log("🟢 Creating Production (P1-Deterministic) script buttons");
-
-            // Get all P1 scripts from directory
-            var p1Scripts = GetScriptsByCapability(ScriptCapabilityLevel.P1_Deterministic);
-
-            foreach (var scriptFile in p1Scripts.Take(8)) // Limit for ribbon space
-            {
-                var metadata = _scriptMetadata[scriptFile];
-                var displayName = FormatScriptName(metadata.Name);
-
-                var button = AddPushButton(
-                    panel,
-                    $"P1_{metadata.Name}",
-                    displayName,
-                    "TycoonRevitAddin.Commands.DynamicScriptCommand",
-                    $"🟢 BULLETPROOF: {displayName}\n{metadata.Description}\nAuthor: {metadata.Author}",
-                    GetCapabilityIcon(metadata.CapabilityLevel)
-                );
-
-                // Store metadata for execution
-                button.ToolTip = $"🟢 P1-BULLETPROOF: {displayName}\n" +
-                               $"Never fails • Instant execution\n" +
-                               $"Path: {scriptFile}";
-
-                _scriptButtons.Add(button);
-                _buttonsByCapability[ScriptCapabilityLevel.P1_Deterministic].Add(button);
-            }
-
-            _logger.Log($"🟢 Created {p1Scripts.Count()} Production script buttons");
+            // 🚧 DISABLED: Legacy P# auto-placement system removed
+            // This will be replaced with the new ScriptEngine manifest-based system
+            _logger.Log("🚧 Legacy CreateProductionScriptButtons disabled - awaiting unified architecture");
         }
 
         /// <summary>
-        /// 🧠 Create Smart Tools Buttons (Chat's P2-Analytic + P3-Adaptive)
-        /// AI-assisted scripts with yellow/orange theme for authorized users
+        /// 🚧 LEGACY: Create Smart Tools Buttons (Chat's P2-Analytic + P3-Adaptive)
+        /// This method is disabled during unified architecture implementation
         /// </summary>
         private void CreateSmartToolsButtons(RibbonPanel panel)
         {
-            _logger.Log("🧠 Creating Smart Tools (P2/P3 AI-Assisted) script buttons");
-
-            // Get P2 and P3 scripts
-            var p2Scripts = GetScriptsByCapability(ScriptCapabilityLevel.P2_Analytic);
-            var p3Scripts = GetScriptsByCapability(ScriptCapabilityLevel.P3_Adaptive);
-            var allSmartScripts = p2Scripts.Concat(p3Scripts);
-
-            foreach (var scriptFile in allSmartScripts.Take(8)) // Limit for ribbon space
-            {
-                var metadata = _scriptMetadata[scriptFile];
-                var displayName = FormatScriptName(metadata.Name);
-                var badge = GetCapabilityBadge(metadata.CapabilityLevel);
-
-                var button = AddPushButton(
-                    panel,
-                    $"Smart_{metadata.Name}",
-                    displayName,
-                    "TycoonRevitAddin.Commands.DynamicScriptCommand",
-                    $"{badge}: {displayName}\n{metadata.Description}\nAuthor: {metadata.Author}",
-                    GetCapabilityIcon(metadata.CapabilityLevel)
-                );
-
-                // Enhanced tooltip with AI capabilities
-                button.ToolTip = $"{badge}: {displayName}\n" +
-                               $"AI-powered • Context-aware\n" +
-                               $"Requires authorization\n" +
-                               $"Path: {scriptFile}";
-
-                _scriptButtons.Add(button);
-                _buttonsByCapability[metadata.CapabilityLevel].Add(button);
-            }
-
-            _logger.Log($"🧠 Created {allSmartScripts.Count()} Smart Tools script buttons");
+            // 🚧 DISABLED: Legacy P# auto-placement system removed
+            // This will be replaced with the new ScriptEngine manifest-based system
+            _logger.Log("🚧 Legacy CreateSmartToolsButtons disabled - awaiting unified architecture");
         }
 
         /// <summary>
@@ -536,26 +492,14 @@ namespace TycoonRevitAddin.Plugins
         }
 
         /// <summary>
-        /// Ensure scripts directory exists and create sample scripts
+        /// 🚧 LEGACY: Ensure scripts directory exists and create sample scripts
+        /// This method is disabled during unified architecture implementation
         /// </summary>
         private void EnsureScriptsDirectory()
         {
-            try
-            {
-                if (!Directory.Exists(_scriptsPath))
-                {
-                    Directory.CreateDirectory(_scriptsPath);
-                    _logger.Log($"📁 Created scripts directory: {_scriptsPath}");
-
-                    // 🎯 GITHUB-ONLY SYSTEM: No sample scripts created
-                    // All scripts now come from GitHub repository only
-                    _logger.Log("🔄 Pure GitHub-driven system - no local sample scripts created");
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError("Failed to create scripts directory", ex);
-            }
+            // 🚧 DISABLED: Legacy local scripts directory system removed
+            // The new ScriptEngine will handle script discovery through manifests
+            _logger.Log("🚧 Legacy EnsureScriptsDirectory disabled - awaiting unified ScriptEngine");
         }
 
         // 🎯 REMOVED: CreateSampleScripts() method
@@ -629,37 +573,14 @@ namespace TycoonRevitAddin.Plugins
         }
 
         /// <summary>
-        /// 🔥 PyRevit-Style Hot-Reload Implementation (Simplified Unified Approach)
-        /// Instantly refreshes script buttons without Revit restart using unified event-driven system
+        /// 🚧 LEGACY: PyRevit-Style Hot-Reload Implementation
+        /// This method is disabled during unified architecture implementation
         /// </summary>
         public void RefreshScripts()
         {
-            try
-            {
-                _logger.Log("🔥 Starting simplified hot-reload via unified event system");
-
-                // 1. Clear existing metadata and button tracking
-                _scriptMetadata.Clear();
-                foreach (var capabilityList in _buttonsByCapability.Values)
-                {
-                    capabilityList.Clear();
-                }
-
-                // 2. 🎯 UNIFIED REFRESH: Let the event-driven system handle everything
-                RefreshRibbonViaEvents();
-
-                var p1Count = _scriptMetadata.Count(kvp => kvp.Value.CapabilityLevel == ScriptCapabilityLevel.P1_Deterministic);
-                var p2Count = _scriptMetadata.Count(kvp => kvp.Value.CapabilityLevel == ScriptCapabilityLevel.P2_Analytic);
-                var p3Count = _scriptMetadata.Count(kvp => kvp.Value.CapabilityLevel == ScriptCapabilityLevel.P3_Adaptive);
-
-                _logger.Log($"🔥 Unified hot-reload complete: P1={p1Count}, P2={p2Count}, P3={p3Count}");
-                _logger.Log($"🎯 {_dynamicButtons.Count} buttons configured via unified system");
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError("Failed to refresh scripts with unified hot-reload", ex);
-                throw;
-            }
+            // 🚧 DISABLED: Legacy hot-reload system removed
+            // This will be replaced with the new ScriptEngine AppDomain-based hot-reload
+            _logger.Log("🚧 Legacy RefreshScripts disabled - awaiting unified ScriptEngine implementation");
         }
 
         /// <summary>
@@ -1455,30 +1376,27 @@ namespace TycoonRevitAddin.Plugins
             {
                 if (_isRefreshPending) return; // A refresh is already queued
 
-                _logger.Log("🔄 Received request for ribbon refresh. Subscribing to Idling event.");
+                _logger.Log("🔄 Received request for ribbon refresh. Raising ExternalEvent.");
                 _isRefreshPending = true;
 
-                // Subscribe to the Idling event for safe UI updates
-                _uiApp.Idling += HandleRibbonRefreshOnIdle;
+                // Raise ExternalEvent for safe UI updates
+                _ribbonRefreshEvent?.Raise();
             }
         }
 
         /// <summary>
-        /// 🔄 Handle ribbon refresh in valid Revit API context via Idling event
+        /// 🔄 Internal method called by ExternalEvent to perform ribbon refresh
         /// </summary>
-        private void HandleRibbonRefreshOnIdle(object sender, Autodesk.Revit.UI.Events.IdlingEventArgs e)
+        internal void ExecuteRibbonRefresh()
         {
-            // 1. Unsubscribe immediately to prevent continuous execution
-            _uiApp.Idling -= HandleRibbonRefreshOnIdle;
-            _logger.Log("🔄 Idling event fired. Unsubscribed and proceeding with ribbon refresh.");
-
-            // 2. Reset the pending flag
             lock (_refreshLock)
             {
                 _isRefreshPending = false;
             }
 
-            // 3. Execute the actual refresh logic in valid Revit context
+            _logger.Log("🔄 ExternalEvent fired. Proceeding with ribbon refresh in valid Revit context.");
+
+            // Execute the actual refresh logic in valid Revit context
             RefreshRibbonViaEvents();
         }
 
@@ -1745,5 +1663,38 @@ namespace TycoonRevitAddin.Plugins
 
         #endregion
 
+    }
+
+    /// <summary>
+    /// 🔄 ExternalEvent handler for safe ribbon refresh operations
+    /// </summary>
+    internal class RibbonRefreshEventHandler : IExternalEventHandler
+    {
+        private readonly ScriptsPlugin _plugin;
+        private readonly Logger _logger;
+
+        public RibbonRefreshEventHandler(ScriptsPlugin plugin, Logger logger)
+        {
+            _plugin = plugin ?? throw new ArgumentNullException(nameof(plugin));
+            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        }
+
+        public void Execute(UIApplication app)
+        {
+            try
+            {
+                _logger.Log("🔄 RibbonRefreshEventHandler executing in valid Revit context");
+                _plugin.ExecuteRibbonRefresh();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError("Failed to execute ribbon refresh via ExternalEvent", ex);
+            }
+        }
+
+        public string GetName()
+        {
+            return "TycoonRibbonRefreshEvent";
+        }
     }
 }

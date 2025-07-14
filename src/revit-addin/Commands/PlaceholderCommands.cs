@@ -82,51 +82,23 @@ namespace TycoonRevitAddin.Commands
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
-            try
-            {
-                // 🔄 Chat's Hot-Reload Implementation - Simplified Approach
+            // 🚧 DISABLED: Legacy reload system removed during unified architecture implementation
+            // This will be replaced with the new ScriptEngine hot-reload system
 
-                // Try to access the Plugin Manager directly
-                var pluginManager = TycoonRevitAddin.Plugins.PluginManager.Instance;
-                if (pluginManager != null)
-                {
-                    // Reload script metadata and refresh buttons
-                    pluginManager.RefreshScriptButtons();
+            MessageBox.Show("🚧 Script Reload System Under Reconstruction\n\n" +
+                          "The legacy script reload system has been disabled during\n" +
+                          "the implementation of the new unified script architecture.\n\n" +
+                          "✨ Coming Soon:\n" +
+                          "• True hot-reload without Revit restart\n" +
+                          "• Development mode with FileSystemWatcher\n" +
+                          "• Production mode with GitHub integration\n" +
+                          "• Type-safe script execution\n\n" +
+                          "Please restart Revit to reload scripts for now.",
+                          "🔄 System Upgrade in Progress",
+                          MessageBoxButtons.OK,
+                          MessageBoxIcon.Information);
 
-                    MessageBox.Show("🔥 PyRevit-Style Hot-Reload Complete!\n\n" +
-                                  "✅ Script directory scanned\n" +
-                                  "✅ Script metadata refreshed\n" +
-                                  "✅ Capability classification updated\n" +
-                                  "✅ NEW BUTTONS CREATED INSTANTLY!\n\n" +
-                                  "🎯 Check your Production/Smart Tools panels\n" +
-                                  "🔥 No restart required - buttons added dynamically!",
-                                  "🚀 PyRevit-Style Hot-Reload Success",
-                                  MessageBoxButtons.OK,
-                                  MessageBoxIcon.Information);
-                }
-                else
-                {
-                    MessageBox.Show("⚠️ Plugin Manager not available.\n\n" +
-                                  "This can happen if:\n" +
-                                  "• Tycoon is still initializing\n" +
-                                  "• Plugin system not fully loaded\n\n" +
-                                  "Please restart Revit to reload scripts.",
-                                  "Scripts Reload",
-                                  MessageBoxButtons.OK,
-                                  MessageBoxIcon.Warning);
-                }
-
-                return Result.Succeeded;
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"❌ Error reloading scripts:\n\n{ex.Message}\n\n" +
-                              "Please restart Revit to reload scripts.",
-                              "Scripts Reload Error",
-                              MessageBoxButtons.OK,
-                              MessageBoxIcon.Error);
-                return Result.Failed;
-            }
+            return Result.Succeeded;
         }
     }
 
@@ -224,15 +196,6 @@ namespace TycoonRevitAddin.Commands
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
-            // Detect Shift+Click for console display
-            bool showConsole = System.Windows.Forms.Control.ModifierKeys.HasFlag(Keys.Shift);
-
-            if (showConsole)
-            {
-                TycoonConsoleManager.ShowConsole();
-                TycoonConsoleManager.AppendLog("🔥 Script execution started with console output", TycoonRevitAddin.UI.LogLevel.Info);
-            }
-
             try
             {
                 // Get script path from button metadata (stored in ToolTip)
@@ -266,37 +229,19 @@ namespace TycoonRevitAddin.Commands
 
                 if (result.Success)
                 {
-                    if (showConsole)
-                    {
-                        TycoonConsoleManager.AppendLog($"✅ Script completed successfully in {result.ExecutionTimeMs:F0}ms", TycoonRevitAddin.UI.LogLevel.Success);
-                    }
                     return Result.Succeeded;
                 }
                 else
                 {
                     var errorMsg = $"Script execution failed: {result.Message}";
-                    if (showConsole)
-                    {
-                        TycoonConsoleManager.AppendLog($"❌ {errorMsg}", TycoonRevitAddin.UI.LogLevel.Error);
-                    }
-                    else
-                    {
-                        MessageBox.Show(errorMsg, "Script Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                    }
+                    MessageBox.Show(errorMsg, "Script Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                     return Result.Failed;
                 }
             }
             catch (Exception ex)
             {
                 var errorMsg = $"Error executing script: {ex.Message}";
-                if (showConsole)
-                {
-                    TycoonConsoleManager.AppendLog($"❌ {errorMsg}", TycoonRevitAddin.UI.LogLevel.Error);
-                }
-                else
-                {
-                    MessageBox.Show(errorMsg, "Script Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                }
+                MessageBox.Show(errorMsg, "Script Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return Result.Failed;
             }
         }
