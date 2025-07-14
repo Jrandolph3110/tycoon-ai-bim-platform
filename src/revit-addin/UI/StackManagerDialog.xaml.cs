@@ -814,8 +814,11 @@ namespace TycoonRevitAddin.UI
                             MessageBox.Show("GitHub scripts refreshed successfully!",
                                 "GitHub Refresh", MessageBoxButton.OK, MessageBoxImage.Information);
 
-                            // Refresh the GitHub Scripts panel
+                            // Refresh the GitHub Scripts panel (dialog UI)
                             RefreshGitHubScriptsPanel();
+
+                            // 🔄 NEW: Trigger safe ribbon refresh via ScriptsPlugin
+                            TriggerRibbonRefresh();
                         }
                         else
                         {
@@ -844,6 +847,38 @@ namespace TycoonRevitAddin.UI
                 MessageBox.Show($"Failed to refresh GitHub scripts: {ex.Message}", "Refresh Error",
                     MessageBoxButton.OK, MessageBoxImage.Error);
                 _logger.LogError("Failed to refresh GitHub scripts", ex);
+            }
+        }
+
+        /// <summary>
+        /// 🔄 Trigger safe ribbon refresh via ScriptsPlugin
+        /// </summary>
+        private void TriggerRibbonRefresh()
+        {
+            try
+            {
+                var pluginManager = PluginManager.Instance;
+                if (pluginManager != null)
+                {
+                    var scriptsPlugin = pluginManager.GetPlugin("scripts");
+                    if (scriptsPlugin is ScriptsPlugin plugin)
+                    {
+                        _logger.Log("🔄 Requesting ribbon refresh via ScriptsPlugin");
+                        plugin.RequestRibbonRefresh();
+                    }
+                    else
+                    {
+                        _logger.LogWarning("🔄 Could not access ScriptsPlugin for ribbon refresh");
+                    }
+                }
+                else
+                {
+                    _logger.LogWarning("🔄 PluginManager not available for ribbon refresh");
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError("Failed to trigger ribbon refresh", ex);
             }
         }
 

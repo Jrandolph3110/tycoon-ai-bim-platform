@@ -77,6 +77,10 @@ namespace TycoonRevitAddin.Plugins
         // 🔄 GitHub Cache Management System
         private readonly GitCacheManager _gitCacheManager;
 
+        // 🔄 Safe Ribbon Refresh Mechanism (UIApplication.Idling pattern)
+        private readonly object _refreshLock = new object();
+        private bool _isRefreshPending = false;
+
         public override string Id => "scripts";
         public override string Name => "Scripts";
         public override string Description => "PyRevit-style script execution and management";
@@ -1442,6 +1446,43 @@ namespace TycoonRevitAddin.Plugins
         #region Unified Event-Driven System
 
         /// <summary>
+        /// 🔄 Safely requests a ribbon refresh on the Revit UI thread
+        /// This method is thread-safe and can be called from any context
+        /// </summary>
+        public void RequestRibbonRefresh()
+        {
+            lock (_refreshLock)
+            {
+                if (_isRefreshPending) return; // A refresh is already queued
+
+                _logger.Log("🔄 Received request for ribbon refresh. Subscribing to Idling event.");
+                _isRefreshPending = true;
+
+                // Subscribe to the Idling event for safe UI updates
+                _uiApp.Idling += HandleRibbonRefreshOnIdle;
+            }
+        }
+
+        /// <summary>
+        /// 🔄 Handle ribbon refresh in valid Revit API context via Idling event
+        /// </summary>
+        private void HandleRibbonRefreshOnIdle(object sender, Autodesk.Revit.UI.Events.IdlingEventArgs e)
+        {
+            // 1. Unsubscribe immediately to prevent continuous execution
+            _uiApp.Idling -= HandleRibbonRefreshOnIdle;
+            _logger.Log("🔄 Idling event fired. Unsubscribed and proceeding with ribbon refresh.");
+
+            // 2. Reset the pending flag
+            lock (_refreshLock)
+            {
+                _isRefreshPending = false;
+            }
+
+            // 3. Execute the actual refresh logic in valid Revit context
+            RefreshRibbonViaEvents();
+        }
+
+        /// <summary>
         /// 🔄 Refresh ribbon using ScriptService data
         /// Called by ScriptService event handlers when scripts are updated
         /// </summary>
@@ -1588,7 +1629,7 @@ namespace TycoonRevitAddin.Plugins
                 // Update layout with new local scripts
                 var githubScripts = ScriptService.Instance.GetCurrentGitHubScripts();
                 UpdateScriptMetadataFromScriptService(scripts, githubScripts);
-                RefreshRibbonViaEvents();
+                RequestRibbonRefresh(); // Use safe refresh method
             }
             catch (Exception ex)
             {
@@ -1608,7 +1649,7 @@ namespace TycoonRevitAddin.Plugins
                 // Update layout with new GitHub scripts
                 var localScripts = ScriptService.Instance.GetCurrentLocalScripts();
                 UpdateScriptMetadataFromScriptService(localScripts, scripts);
-                RefreshRibbonViaEvents();
+                RequestRibbonRefresh(); // Use safe refresh method
             }
             catch (Exception ex)
             {
