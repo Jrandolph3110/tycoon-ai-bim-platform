@@ -51,6 +51,9 @@
                     <File Id="TycoonRevitAddin2022.dll"
                           Source="..\revit-addin\bin\Release\TycoonRevitAddin.dll"
                           Name="TycoonRevitAddin.dll" />
+                    <File Id="TycoonScriptingContracts2022.dll"
+                          Source="..\Tycoon.Scripting.Contracts\bin\Release\Tycoon.Scripting.Contracts.dll"
+                          Name="Tycoon.Scripting.Contracts.dll" />
                     <File Id="Newtonsoft2022.Json.dll"
                           Source="..\revit-addin\bin\Release\Newtonsoft.Json.dll"
                           Name="Newtonsoft.Json.dll" />
@@ -73,6 +76,9 @@
                     <File Id="TycoonRevitAddin2023.dll"
                           Source="..\revit-addin\bin\Release\TycoonRevitAddin.dll"
                           Name="TycoonRevitAddin.dll" />
+                    <File Id="TycoonScriptingContracts2023.dll"
+                          Source="..\Tycoon.Scripting.Contracts\bin\Release\Tycoon.Scripting.Contracts.dll"
+                          Name="Tycoon.Scripting.Contracts.dll" />
                     <File Id="Newtonsoft2023.Json.dll"
                           Source="..\revit-addin\bin\Release\Newtonsoft.Json.dll"
                           Name="Newtonsoft.Json.dll" />
@@ -95,6 +101,9 @@
                     <File Id="TycoonRevitAddin2024.dll"
                           Source="..\revit-addin\bin\Release\TycoonRevitAddin.dll"
                           Name="TycoonRevitAddin.dll" />
+                    <File Id="TycoonScriptingContracts2024.dll"
+                          Source="..\Tycoon.Scripting.Contracts\bin\Release\Tycoon.Scripting.Contracts.dll"
+                          Name="Tycoon.Scripting.Contracts.dll" />
                     <File Id="Newtonsoft2024.Json.dll"
                           Source="..\revit-addin\bin\Release\Newtonsoft.Json.dll"
                           Name="Newtonsoft.Json.dll" />
@@ -132,6 +141,9 @@
                     <File Id="TycoonRevitAddin2025.dll"
                           Source="..\revit-addin\bin\Release\TycoonRevitAddin.dll"
                           Name="TycoonRevitAddin.dll" />
+                    <File Id="TycoonScriptingContracts2025.dll"
+                          Source="..\Tycoon.Scripting.Contracts\bin\Release\Tycoon.Scripting.Contracts.dll"
+                          Name="Tycoon.Scripting.Contracts.dll" />
                     <File Id="Newtonsoft2025.Json.dll"
                           Source="..\revit-addin\bin\Release\Newtonsoft.Json.dll"
                           Name="Newtonsoft.Json.dll" />
