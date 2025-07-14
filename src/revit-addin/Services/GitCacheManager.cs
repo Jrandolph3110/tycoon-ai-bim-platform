@@ -255,11 +255,27 @@ namespace TycoonRevitAddin.Services
                 // Additional cleanup for JSON parsing issues
                 manifestJson = CleanupJsonString(manifestJson);
 
-                // Debug logging
-                _logger.Log($"🔍 Decoded manifest JSON length: {manifestJson.Length}");
-                _logger.Log($"🔍 First 200 chars: {manifestJson.Substring(0, Math.Min(200, manifestJson.Length))}");
-                _logger.Log($"🔍 Starts with '{{': {manifestJson.TrimStart().StartsWith("{")}");
-                _logger.Log($"🔍 First char code: {(manifestJson.Length > 0 ? ((int)manifestJson[0]).ToString() : "empty")}");
+                // Debug logging - BEFORE cleanup
+                _logger.Log($"🔍 RAW decoded JSON length: {manifestJson.Length}");
+                _logger.Log($"🔍 RAW first 300 chars: {manifestJson.Substring(0, Math.Min(300, manifestJson.Length))}");
+                _logger.Log($"🔍 RAW starts with '{{': {manifestJson.StartsWith("{")}");
+                _logger.Log($"🔍 RAW first 5 lines:");
+                var rawLines = manifestJson.Split('\n');
+                for (int i = 0; i < Math.Min(5, rawLines.Length); i++)
+                {
+                    _logger.Log($"🔍   Line {i + 1}: '{rawLines[i]}'");
+                }
+
+                // Debug logging - AFTER cleanup
+                _logger.Log($"🔍 CLEANED JSON length: {manifestJson.Length}");
+                _logger.Log($"🔍 CLEANED first 300 chars: {manifestJson.Substring(0, Math.Min(300, manifestJson.Length))}");
+                _logger.Log($"🔍 CLEANED starts with '{{': {manifestJson.StartsWith("{")}");
+                _logger.Log($"🔍 CLEANED first 5 lines:");
+                var cleanedLines = manifestJson.Split('\n');
+                for (int i = 0; i < Math.Min(5, cleanedLines.Length); i++)
+                {
+                    _logger.Log($"🔍   Line {i + 1}: '{cleanedLines[i]}'");
+                }
 
                 // Try to deserialize with more detailed error handling and proper settings
                 try
