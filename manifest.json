@@ -1,7 +1,7 @@
 ﻿{
-  "Version": "2025.07.13",
-  "Build": "2025.07.13-csharp-scripts",
-  "Generated": "2025-07-13T20:00:00Z",
+  "Version": "2025.07.14",
+  "Build": "2025.07.14-basic-test-scripts",
+  "Generated": "2025-07-14T16:00:00Z",
   "Templates": {
     "default-layout.json": {
       "Hash": "b6969ec3",
@@ -89,21 +89,36 @@
         "deterministic"
       ]
     },
-    "ReNumber.cs": {
-      "Hash": "07c354ad",
-      "Path": "Utilities/ReNumber.cs",
-      "Size": 12374,
-      "Version": "2.0.0",
+    "Hello.cs": {
+      "Hash": "a1b2c3d4",
+      "Path": "Utilities/Hello.cs",
+      "Size": 1024,
+      "Version": "1.0.0",
       "Category": "Utilities",
-      "Description": "F.L. Crane & Sons ReNumber Script - Production C# Implementation",
+      "Description": "Hello World Test Script - Compilation Test",
       "Author": "F.L. Crane & Sons Development Team",
       "Capability": "P1-Deterministic",
-      "LastModified": "2025-07-13T20:00:00Z",
+      "LastModified": "2025-07-14T16:00:00Z",
       "Capabilities": [
         "selection-optional",
         "deterministic",
-        "production-ready",
-        "native-performance"
+        "test-script"
+      ]
+    },
+    "ReNumber.cs": {
+      "Hash": "e5f6g7h8",
+      "Path": "Utilities/ReNumber.cs",
+      "Size": 2048,
+      "Version": "2.1.0",
+      "Category": "Utilities",
+      "Description": "F.L. Crane & Sons ReNumber Script - Basic Test Version",
+      "Author": "F.L. Crane & Sons Development Team",
+      "Capability": "P1-Deterministic",
+      "LastModified": "2025-07-14T16:00:00Z",
+      "Capabilities": [
+        "selection-optional",
+        "deterministic",
+        "test-script"
       ]
     }
   }
