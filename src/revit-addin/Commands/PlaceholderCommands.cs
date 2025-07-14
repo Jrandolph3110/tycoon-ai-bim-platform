@@ -8,6 +8,7 @@ using Autodesk.Revit.UI;
 using TycoonRevitAddin.AIActions.Commands;
 using TycoonRevitAddin.Plugins;
 using TycoonRevitAddin.Utils;
+using TycoonRevitAddin.UI;
 
 namespace TycoonRevitAddin.Commands
 {
@@ -223,6 +224,15 @@ namespace TycoonRevitAddin.Commands
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
+            // Detect Shift+Click for console display
+            bool showConsole = System.Windows.Forms.Control.ModifierKeys.HasFlag(Keys.Shift);
+
+            if (showConsole)
+            {
+                TycoonConsoleManager.ShowConsole();
+                TycoonConsoleManager.AppendLog("🔥 Script execution started with console output", TycoonRevitAddin.UI.LogLevel.Info);
+            }
+
             try
             {
                 // Get script path from button metadata (stored in ToolTip)
@@ -256,19 +266,37 @@ namespace TycoonRevitAddin.Commands
 
                 if (result.Success)
                 {
-                    // Optional: Show success message for debugging
-                    // MessageBox.Show($"Script executed successfully in {result.ExecutionTimeMs:F0}ms", "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    if (showConsole)
+                    {
+                        TycoonConsoleManager.AppendLog($"✅ Script completed successfully in {result.ExecutionTimeMs:F0}ms", TycoonRevitAddin.UI.LogLevel.Success);
+                    }
                     return Result.Succeeded;
                 }
                 else
                 {
-                    MessageBox.Show($"Script execution failed: {result.Message}", "Script Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    var errorMsg = $"Script execution failed: {result.Message}";
+                    if (showConsole)
+                    {
+                        TycoonConsoleManager.AppendLog($"❌ {errorMsg}", TycoonRevitAddin.UI.LogLevel.Error);
+                    }
+                    else
+                    {
+                        MessageBox.Show(errorMsg, "Script Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    }
                     return Result.Failed;
                 }
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Error executing script: {ex.Message}", "Script Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                var errorMsg = $"Error executing script: {ex.Message}";
+                if (showConsole)
+                {
+                    TycoonConsoleManager.AppendLog($"❌ {errorMsg}", TycoonRevitAddin.UI.LogLevel.Error);
+                }
+                else
+                {
+                    MessageBox.Show(errorMsg, "Script Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
                 return Result.Failed;
             }
         }

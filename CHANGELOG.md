@@ -1,4 +1,42 @@
-﻿## [0.16.0.6] - 2025-07-11
+﻿## [0.17.0] - 2025-07-14
+
+PyRevit-Style Console Implementation
+
+### 🎯 **MAJOR FEATURE: PYREVIT-STYLE CONSOLE SYSTEM**
+- **MILESTONE:** Complete PyRevit-style console implementation with real-time output streaming
+- **ARCHITECTURE:** TycoonConsoleWindow with WPF modeless dialog and color-coded output
+- **INNOVATION:** Shift+Click behavior for script buttons (normal click = silent, Shift+Click = show console)
+- **INTEGRATION:** MCP server integration for AI assistant log monitoring and debugging
+
+### ✅ **Console Features Implementation**
+- **TycoonConsoleWindow:** Professional WPF console with real-time log streaming and color-coded output
+- **Shift+Click Behavior:** Intelligent script execution mode selection (silent vs. console output)
+- **Color-Coded Output:** Structured log parsing with different colors for info, warnings, errors, and success
+- **Real-Time Streaming:** Live output display during script execution with auto-scroll functionality
+- **MCP Integration:** AI assistant can monitor and analyze script execution logs for debugging assistance
+
+### 🔧 **Technical Implementation**
+- **Modeless Dialog:** Non-blocking console window allowing continued Revit interaction
+- **Memory Management:** Efficient log buffer management preventing memory overflow during long operations
+- **Thread Safety:** Proper UI thread marshaling for real-time output updates from background processes
+- **Enhanced Debugging:** Comprehensive logging infrastructure for F.L. Crane C# script development workflow
+- **Developer Experience:** PyRevit-style workflow with immediate feedback and professional debugging capabilities
+
+### 📊 **User Experience Enhancement**
+- **Professional Debugging:** Enterprise-grade debugging experience matching PyRevit standards
+- **Workflow Efficiency:** Developers can choose silent execution or detailed console output as needed
+- **Real-Time Feedback:** Immediate visibility into script execution progress and potential issues
+- **AI-Assisted Debugging:** MCP integration enables AI assistant to help analyze and resolve script issues
+- **F.L. Crane Optimization:** Tailored for F.L. Crane C# script development and steel framing workflows
+
+### 🎯 **Development Workflow Integration**
+- **Hot-Reload Development:** Enhanced debugging for immediate script testing and iteration
+- **Symbolic Link Support:** Optimized for symlink development workflow with instant feedback
+- **GitHub Integration:** Console output helps validate GitHub-driven script architecture
+- **Quality Assurance:** Enhanced error detection and resolution for production script deployment
+- **Maintenance Support:** Comprehensive logging for ongoing platform maintenance and troubleshooting
+
+## [0.16.0.6] - 2025-07-11
 
 GitHub Script Refresh Debugging Enhancement
 

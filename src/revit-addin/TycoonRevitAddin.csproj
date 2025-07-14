@@ -117,10 +117,14 @@
     <Compile Include="UI\TestLayoutDialog.xaml.cs">
       <DependentUpon>TestLayoutDialog.xaml</DependentUpon>
     </Compile>
+    <Compile Include="UI\TycoonConsoleWindow.xaml.cs">
+      <DependentUpon>TycoonConsoleWindow.xaml</DependentUpon>
+    </Compile>
     <Compile Include="UI\DynamicRibbonManager.cs" />
     <Compile Include="UI\PluginSelectorControl.cs" />
     <Compile Include="Converters\LayoutConverters.cs" />
     <Compile Include="Utils\Logger.cs" />
+    <Compile Include="Utils\TycoonConsoleManager.cs" />
     <Compile Include="Storage\StreamingDataVault.cs" />
     <Compile Include="Utils\SelectionManager.cs" />
     <Compile Include="Utils\DynamicMemoryOptimizer.cs" />
@@ -169,6 +173,10 @@
       <Generator>MSBuild:Compile</Generator>
     </Page>
     <Page Include="UI\TestLayoutDialog.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="UI\TycoonConsoleWindow.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>

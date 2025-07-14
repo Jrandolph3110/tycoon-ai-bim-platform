@@ -1,0 +1,118 @@
+<Window x:Class="TycoonRevitAddin.UI.TycoonConsoleWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="🔥 Tycoon Script Console" 
+        Height="600" Width="900"
+        MinHeight="300" MinWidth="500"
+        WindowStartupLocation="CenterScreen"
+        ShowInTaskbar="True"
+        Topmost="False"
+        Icon="pack://application:,,,/TycoonRevitAddin;component/Resources/TycoonIcon.ico">
+    
+    <Window.Resources>
+        <!-- Console Styles -->
+        <Style x:Key="ConsoleTextStyle" TargetType="Run">
+            <Setter Property="FontFamily" Value="Consolas, Courier New, monospace"/>
+            <Setter Property="FontSize" Value="12"/>
+        </Style>
+        
+        <Style x:Key="ErrorTextStyle" TargetType="Run" BasedOn="{StaticResource ConsoleTextStyle}">
+            <Setter Property="Foreground" Value="#FF4444"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+        </Style>
+        
+        <Style x:Key="SuccessTextStyle" TargetType="Run" BasedOn="{StaticResource ConsoleTextStyle}">
+            <Setter Property="Foreground" Value="#44AA44"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+        </Style>
+        
+        <Style x:Key="InfoTextStyle" TargetType="Run" BasedOn="{StaticResource ConsoleTextStyle}">
+            <Setter Property="Foreground" Value="#4488CC"/>
+        </Style>
+        
+        <Style x:Key="WarningTextStyle" TargetType="Run" BasedOn="{StaticResource ConsoleTextStyle}">
+            <Setter Property="Foreground" Value="#FFAA44"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+        </Style>
+        
+        <Style x:Key="TimestampTextStyle" TargetType="Run" BasedOn="{StaticResource ConsoleTextStyle}">
+            <Setter Property="Foreground" Value="#888888"/>
+            <Setter Property="FontSize" Value="10"/>
+        </Style>
+    </Window.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Toolbar -->
+        <ToolBar Grid.Row="0" Background="#F5F5F5">
+            <Button Name="ClearButton" Content="🗑️ Clear" ToolTip="Clear console (Ctrl+L)" Click="ClearButton_Click"/>
+            <Button Name="CopyButton" Content="📋 Copy" ToolTip="Copy all text (Ctrl+C)" Click="CopyButton_Click"/>
+            <Button Name="SaveButton" Content="💾 Save" ToolTip="Save to file" Click="SaveButton_Click"/>
+            <Separator/>
+            <ToggleButton Name="AutoScrollButton" Content="📜 Auto-scroll" IsChecked="True" ToolTip="Auto-scroll to bottom"/>
+            <ToggleButton Name="TopMostButton" Content="📌 Stay on Top" ToolTip="Keep window on top"/>
+            <Separator/>
+            <TextBlock Text="Filter:" VerticalAlignment="Center" Margin="5,0"/>
+            <ComboBox Name="FilterComboBox" Width="100" SelectedIndex="0">
+                <ComboBoxItem Content="All"/>
+                <ComboBoxItem Content="Errors"/>
+                <ComboBoxItem Content="Success"/>
+                <ComboBoxItem Content="Info"/>
+                <ComboBoxItem Content="Warnings"/>
+            </ComboBox>
+            <Separator/>
+            <Button Name="PauseButton" Content="⏸️ Pause" ToolTip="Pause log updates" Click="PauseButton_Click"/>
+        </ToolBar>
+
+        <!-- Console Output -->
+        <ScrollViewer Grid.Row="1" Name="ConsoleScrollViewer" 
+                      VerticalScrollBarVisibility="Auto" 
+                      HorizontalScrollBarVisibility="Auto"
+                      Background="#1E1E1E"
+                      Padding="10">
+            <RichTextBox Name="ConsoleRichTextBox" 
+                         Background="Transparent"
+                         Foreground="White"
+                         BorderThickness="0"
+                         IsReadOnly="True"
+                         FontFamily="Consolas, Courier New, monospace"
+                         FontSize="12"
+                         VerticalScrollBarVisibility="Disabled"
+                         HorizontalScrollBarVisibility="Disabled">
+                <RichTextBox.Document>
+                    <FlowDocument Name="ConsoleDocument">
+                        <Paragraph Name="ConsoleParagraph">
+                            <Run Text="🔥 Tycoon Script Console Ready" Foreground="#44AA44" FontWeight="Bold"/>
+                            <LineBreak/>
+                            <Run Text="💡 Tip: Use Shift+Click on script buttons to show console output" Foreground="#4488CC"/>
+                            <LineBreak/>
+                            <Run Text="⌨️ Shortcuts: Ctrl+L (Clear), Ctrl+C (Copy), Ctrl+S (Save)" Foreground="#888888"/>
+                            <LineBreak/>
+                            <LineBreak/>
+                        </Paragraph>
+                    </FlowDocument>
+                </RichTextBox.Document>
+            </RichTextBox>
+        </ScrollViewer>
+
+        <!-- Status Bar -->
+        <StatusBar Grid.Row="2" Background="#F5F5F5">
+            <StatusBarItem>
+                <TextBlock Name="StatusText" Text="Ready"/>
+            </StatusBarItem>
+            <StatusBarItem HorizontalAlignment="Right">
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Text="Lines: "/>
+                    <TextBlock Name="LineCountText" Text="0"/>
+                    <TextBlock Text=" | Last Update: "/>
+                    <TextBlock Name="LastUpdateText" Text="Never"/>
+                </StackPanel>
+            </StatusBarItem>
+        </StatusBar>
+    </Grid>
+</Window>
