@@ -257,11 +257,20 @@ namespace TycoonRevitAddin.Services
                 base64Content = base64Content.Replace("\n", "").Replace("\r", "").Replace(" ", "").Replace("\t", "");
                 _logger.Log($"🔍 CLEANED base64 length: {base64Content.Length}");
 
-                // Decode with error handling
+                // Decode with error handling and detailed debugging
                 byte[] decodedBytes;
                 try
                 {
                     decodedBytes = Convert.FromBase64String(base64Content);
+                    _logger.Log($"🔍 Base64 decoded to {decodedBytes.Length} bytes");
+
+                    // Check first 50 bytes
+                    var firstBytes = decodedBytes.Take(50).Select(b => b.ToString("X2")).ToArray();
+                    _logger.Log($"🔍 First 50 bytes (hex): {string.Join(" ", firstBytes)}");
+
+                    // Check for null bytes or unusual patterns
+                    var nullCount = decodedBytes.Count(b => b == 0);
+                    _logger.Log($"🔍 Null bytes found: {nullCount}");
                 }
                 catch (FormatException ex)
                 {
@@ -270,6 +279,7 @@ namespace TycoonRevitAddin.Services
                 }
 
                 var manifestJson = Encoding.UTF8.GetString(decodedBytes);
+                _logger.Log($"🔍 UTF8 conversion resulted in {manifestJson.Length} characters");
 
                 // Remove BOM (Byte Order Mark) if present - this causes JSON parsing errors
                 manifestJson = RemoveBOM(manifestJson);
