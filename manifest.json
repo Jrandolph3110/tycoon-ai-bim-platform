@@ -1,0 +1,111 @@
+﻿{
+  "Version": "2025.07.13",
+  "Build": "2025.07.13-csharp-scripts",
+  "Generated": "2025-07-13T20:00:00Z",
+  "Templates": {
+    "default-layout.json": {
+      "Hash": "b6969ec3",
+      "Description": "Default layout template",
+      "LastModified": "2025-07-11T16:00:00Z",
+      "Size": 1024
+    }
+  },
+  "Scripts": {
+    "ElementCounter.py": {
+      "Hash": "3b1cab5f",
+      "Path": "Analysis/ElementCounter.py",
+      "Size": 2659,
+      "Version": "1.0.0",
+      "Category": "Analysis",
+      "Description": "Count selected elements by category and type",
+      "Author": "Tycoon AI-BIM Platform",
+      "Capability": "P1-Deterministic",
+      "LastModified": "2025-07-11T16:00:00Z",
+      "Capabilities": [
+        "selection-optional",
+        "deterministic"
+      ]
+    },
+    "WallAnalyzer.py": {
+      "Hash": "0395cef0",
+      "Path": "Analysis/WallAnalyzer.py",
+      "Size": 4822,
+      "Version": "1.0.0",
+      "Category": "Analysis",
+      "Description": "Analyze wall properties and geometry with AI-powered insights",
+      "Author": "Tycoon AI-BIM Platform",
+      "Capability": "P2-Analytic",
+      "LastModified": "2025-07-11T16:00:00Z",
+      "Capabilities": [
+        "selection-required",
+        "analytic",
+        "ai-powered"
+      ]
+    },
+    "PanelManager.py": {
+      "Hash": "c407bd37",
+      "Path": "Management/PanelManager.py",
+      "Size": 7012,
+      "Version": "1.0.0",
+      "Category": "Management",
+      "Description": "AI-powered panel management and optimization for FLC workflows",
+      "Author": "Tycoon AI-BIM Platform",
+      "Capability": "P3-Generative",
+      "LastModified": "2025-07-11T16:00:00Z",
+      "Capabilities": [
+        "selection-required",
+        "generative",
+        "ai-powered",
+        "advanced"
+      ]
+    },
+    "SelectionHelper.py": {
+      "Hash": "1312172a",
+      "Path": "Utilities/SelectionHelper.py",
+      "Size": 6510,
+      "Version": "1.0.0",
+      "Category": "Utilities",
+      "Description": "Advanced selection utilities for BIM workflows",
+      "Author": "Tycoon AI-BIM Platform",
+      "Capability": "P1-Deterministic",
+      "LastModified": "2025-07-11T16:00:00Z",
+      "Capabilities": [
+        "selection-optional",
+        "deterministic"
+      ]
+    },
+    "ParameterManager.py": {
+      "Hash": "7be93253",
+      "Path": "Utilities/ParameterManager.py",
+      "Size": 9020,
+      "Version": "1.0.0",
+      "Category": "Utilities",
+      "Description": "Manage and batch edit parameters for FLC workflows",
+      "Author": "Tycoon AI-BIM Platform",
+      "Capability": "P1-Deterministic",
+      "LastModified": "2025-07-11T16:00:00Z",
+      "Capabilities": [
+        "selection-optional",
+        "deterministic"
+      ]
+    },
+    "ReNumber.cs": {
+      "Hash": "07c354ad",
+      "Path": "Utilities/ReNumber.cs",
+      "Size": 12374,
+      "Version": "2.0.0",
+      "Category": "Utilities",
+      "Description": "F.L. Crane & Sons ReNumber Script - Production C# Implementation",
+      "Author": "F.L. Crane & Sons Development Team",
+      "Capability": "P1-Deterministic",
+      "LastModified": "2025-07-13T20:00:00Z",
+      "Capabilities": [
+        "selection-optional",
+        "deterministic",
+        "production-ready",
+        "native-performance"
+      ]
+    }
+  }
+}
+

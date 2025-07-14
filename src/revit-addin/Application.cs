@@ -68,7 +68,7 @@ namespace TycoonRevitAddin
             {
                 // Initialize logger first (safely)
                 _logger = new Logger("Tycoon", debugMode: true);
-                _logger.Log("🚀 Starting Tycoon AI-BIM Platform v0.16.0.7 (AI Actions System - Revolutionary AI Automation)...");
+                _logger.Log("🚀 Starting Tycoon AI-BIM Platform v0.16.8 (AI Actions System - Revolutionary AI Automation)...");
 
                 // Initialize plugin manager
                 _pluginManager = new PluginManager(_logger);

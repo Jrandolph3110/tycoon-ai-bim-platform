@@ -37,8 +37,9 @@ $VersionLocations = @(
     @{
         File = "Bundle.wxs"
         Path = Join-Path $ScriptDir "Bundle.wxs"
-        Pattern = 'Version="([\d\.]+)"'
-        Replacement = 'Version="' + $MasterVersion + '"'
+        Pattern = '<Bundle[^>]*\s+Version="([\d\.]+)"'
+        Replacement = '<Bundle Name="Tycoon AI-BIM Platform Setup"
+          Version="' + $MasterVersion + '"'
         Description = "WiX bootstrapper bundle"
     },
     @{
