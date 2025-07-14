@@ -3,15 +3,14 @@
      xmlns:bal="http://schemas.microsoft.com/wix/BalExtension" 
      xmlns:util="http://schemas.microsoft.com/wix/UtilExtension">
 
-  <!-- Resource Directory Definition -->
-  <?define ResourcesDir = ".\Resources" ?>
+  <!-- Resource Directory Definition - passed from Build.ps1 -->
 
   <!-- Bundle Definition -->
   <Bundle Name="Tycoon AI-BIM Platform Setup"
           Version="0.17.0"
           Manufacturer="F.L. Crane &amp; Sons"
           UpgradeCode="87654321-4321-4321-4321-210987654321"
-          IconSourceFile="Resources\TycoonIcon.ico"
+          IconSourceFile="$(var.ResourcesDir)\TycoonIcon.ico"
           AboutUrl="https://flcrane.com/tycoon"
           HelpUrl="https://flcrane.com/tycoon-support"
           UpdateUrl="https://flcrane.com/tycoon-updates">
@@ -63,7 +62,7 @@
     <!-- Node.js LTS Package Group -->
     <PackageGroup Id="NodeJSLTS">
       <ExePackage Id="NodeJSLTS"
-                  SourceFile="node-v20.11.0-x64.msi"
+                  SourceFile="$(var.NodeMsiPath)"
                   Cache="yes"
                   Compressed="no"
                   PerMachine="yes"

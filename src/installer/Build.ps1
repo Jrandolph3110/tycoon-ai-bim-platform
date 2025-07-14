@@ -187,6 +187,22 @@ if ($BuildBootstrapper) {
         Write-Error "WiX tools not found"
         exit 1
     }
+
+    # Create dummy Node.js MSI for bootstrapper (if it doesn't exist)
+    $NodeMsiPath = Join-Path $ScriptDir "node-v20.11.0-x64.msi"
+    if (-not (Test-Path $NodeMsiPath)) {
+        Write-Host "Creating dummy Node.js MSI for bootstrapper..." -ForegroundColor Yellow
+        # Create a minimal dummy MSI file
+        $dummyContent = [byte[]](0x4D, 0x53, 0x43, 0x46) # "MSCF" header for MSI
+        [System.IO.File]::WriteAllBytes($NodeMsiPath, $dummyContent)
+    }
+
+    # Ensure Resources directory exists in the working directory for WiX linker
+    $WorkingResourcesDir = Join-Path $ScriptDir "Resources"
+    if (-not (Test-Path $WorkingResourcesDir)) {
+        Write-Host "Resources directory not found at expected location: $WorkingResourcesDir" -ForegroundColor Red
+        exit 1
+    }
     
     # Create dummy Node.js MSI
     $DummyNodeMsi = Join-Path $ScriptDir "node-v20.11.0-x64.msi"
@@ -204,7 +220,8 @@ if ($BuildBootstrapper) {
         }
         
         Write-Host "Compiling Bundle.wxs..." -ForegroundColor Gray
-        & $CandlePath -ext WixBalExtension -ext WixUtilExtension "-dTycoonInstaller.TargetPath=$MSIPath" $BundleWxs -o $BundleObj
+        $ResourcesDir = Join-Path $ScriptDir "Resources"
+        & $CandlePath -ext WixBalExtension -ext WixUtilExtension "-dTycoonInstaller.TargetPath=$MSIPath" "-dResourcesDir=$ResourcesDir" "-dNodeMsiPath=$NodeMsiPath" $BundleWxs -o $BundleObj
         
         if ($LASTEXITCODE -ne 0) {
             Write-Error "Bundle compilation failed"
