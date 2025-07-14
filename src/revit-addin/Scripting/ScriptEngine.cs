@@ -3,9 +3,10 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using Autodesk.Revit.UI;
+using Autodesk.Revit.DB;
 using TycoonRevitAddin.Utils;
 using Tycoon.Scripting.Contracts;
-using Newtonsoft.Json;
 
 namespace TycoonRevitAddin.Scripting
 {
@@ -87,19 +88,19 @@ namespace TycoonRevitAddin.Scripting
         /// <summary>
         /// Execute a script by name in isolated AppDomain
         /// </summary>
-        public async Task<ScriptExecutionResult> ExecuteScriptAsync(string scriptName)
+        public async Task<ScriptExecutionResult> ExecuteScriptAsync(string scriptName, UIApplication uiApp = null, Document doc = null)
         {
             try
             {
                 _logger.Log($"🚀 Executing script: {scriptName}");
-                
+
                 // Find script
                 ScriptInfo script;
                 lock (_lock)
                 {
                     script = _loadedScripts.FirstOrDefault(s => s.Manifest.Name == scriptName);
                 }
-                
+
                 if (script == null)
                 {
                     return new ScriptExecutionResult
@@ -108,9 +109,9 @@ namespace TycoonRevitAddin.Scripting
                         ErrorMessage = $"Script '{scriptName}' not found"
                     };
                 }
-                
-                // Execute in isolated AppDomain
-                return await ExecuteScriptInAppDomain(script);
+
+                // Execute in isolated AppDomain with Revit context
+                return await ExecuteScriptInAppDomain(script, uiApp, doc);
             }
             catch (Exception ex)
             {
@@ -180,13 +181,19 @@ namespace TycoonRevitAddin.Scripting
         /// <summary>
         /// Execute script in isolated AppDomain with transaction management
         /// </summary>
-        private async Task<ScriptExecutionResult> ExecuteScriptInAppDomain(ScriptInfo script)
+        private async Task<ScriptExecutionResult> ExecuteScriptInAppDomain(ScriptInfo script, UIApplication uiApp = null, Document doc = null)
         {
             try
             {
                 // Ensure we have a fresh AppDomain and proxy
                 EnsureScriptDomain();
-                
+
+                // Initialize proxy with Revit context if provided
+                if (uiApp != null && doc != null)
+                {
+                    _scriptProxy.Initialize(uiApp, doc);
+                }
+
                 // Execute script through proxy (with automatic transaction management)
                 return await Task.Run(() => _scriptProxy.ExecuteScript(script));
             }

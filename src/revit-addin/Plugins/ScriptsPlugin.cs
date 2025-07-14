@@ -11,7 +11,8 @@ using TycoonRevitAddin.Layout;
 using TycoonRevitAddin.Services;
 using TycoonRevitAddin.Events;
 using TycoonRevitAddin.Models;
-using Newtonsoft.Json;
+using TycoonRevitAddin.Scripting;
+using Tycoon.Scripting.Contracts;
 
 namespace TycoonRevitAddin.Plugins
 {
@@ -51,16 +52,21 @@ namespace TycoonRevitAddin.Plugins
     }
 
     /// <summary>
-    /// 📜 Scripts Plugin - Chat's Three-Tier Architecture Implementation
-    /// Provides capability-based script segregation with P1/P2/P3 levels
+    /// 📜 Scripts Plugin - Unified Script Architecture Implementation
+    /// Uses ScriptEngine with AppDomain isolation for hot-reload capability
     /// </summary>
     public class ScriptsPlugin : PluginBase
     {
+        // 🚧 LEGACY: Keeping for compatibility during transition
         private readonly string _scriptsPath;
         private readonly Dictionary<string, DateTime> _scriptModificationTimes;
         private readonly List<PushButton> _scriptButtons;
-        private readonly Dictionary<string, ScriptMetadata> _scriptMetadata; // Chat's capability tracking
-        private readonly Dictionary<ScriptCapabilityLevel, List<PushButton>> _buttonsByCapability; // Chat's segregation
+        private readonly Dictionary<string, ScriptMetadata> _scriptMetadata;
+        private readonly Dictionary<ScriptCapabilityLevel, List<PushButton>> _buttonsByCapability;
+
+        // ✨ NEW: Unified Script Architecture
+        private ScriptEngine _scriptEngine;
+        private readonly Dictionary<string, PushButton> _unifiedScriptButtons;
 
         // 🔥 PyRevit-Style Hot-Reload Infrastructure
         private readonly Dictionary<string, RibbonPanel> _activePanels;
@@ -90,19 +96,24 @@ namespace TycoonRevitAddin.Plugins
 
         public ScriptsPlugin(Logger logger) : base(logger)
         {
-            // Set up scripts directory
+            // 🚧 LEGACY: Set up scripts directory for compatibility
             var appDataPath = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
             _scriptsPath = Path.Combine(appDataPath, "Tycoon", "Scripts");
 
+            // 🚧 LEGACY: Initialize legacy collections for compatibility
             _scriptModificationTimes = new Dictionary<string, DateTime>();
             _scriptButtons = new List<PushButton>();
-            _scriptMetadata = new Dictionary<string, ScriptMetadata>(); // Chat's capability tracking
+            _scriptMetadata = new Dictionary<string, ScriptMetadata>();
             _buttonsByCapability = new Dictionary<ScriptCapabilityLevel, List<PushButton>>
             {
                 { ScriptCapabilityLevel.P1_Deterministic, new List<PushButton>() },
                 { ScriptCapabilityLevel.P2_Analytic, new List<PushButton>() },
                 { ScriptCapabilityLevel.P3_Adaptive, new List<PushButton>() }
             };
+
+            // ✨ NEW: Initialize unified script architecture
+            _unifiedScriptButtons = new Dictionary<string, PushButton>();
+            _scriptEngine = new ScriptEngine(_logger);
 
             // 🔥 Initialize PyRevit-Style Hot-Reload Infrastructure
             _activePanels = new Dictionary<string, RibbonPanel>();
@@ -142,7 +153,12 @@ namespace TycoonRevitAddin.Plugins
             _logger.Log("🔄 ExternalEvent created for safe ribbon refresh");
 
             // Call base initialization
-            return base.Initialize(application, tabName);
+            var panels = base.Initialize(application, tabName);
+
+            // ✨ Initialize ScriptEngine with Development mode for efficient workflow
+            InitializeScriptEngineAsync();
+
+            return panels;
         }
 
         protected override void CreatePanels()
@@ -198,6 +214,43 @@ namespace TycoonRevitAddin.Plugins
         }
 
 
+
+        /// <summary>
+        /// ✨ Initialize ScriptEngine with Development mode for efficient workflow
+        /// </summary>
+        private async void InitializeScriptEngineAsync()
+        {
+            try
+            {
+                _logger.Log("🚀 Initializing ScriptEngine with unified architecture");
+
+                // Configure for Development mode (your workflow)
+                var config = new ScriptEngineConfig
+                {
+                    DevelopmentPath = @"C:\RevitAI\tycoon-ai-bim-platform\test-scripts",
+                    GitHubConfig = new GitHubScriptConfig
+                    {
+                        RepositoryUrl = "https://github.com/your-org/scripts", // TODO: Update with actual repo
+                        CachePath = Path.Combine(Environment.GetFolderPath(
+                            Environment.SpecialFolder.ApplicationData),
+                            "Tycoon", "UnifiedScriptCache"),
+                        CacheExpiry = TimeSpan.FromHours(24)
+                    }
+                };
+
+                // Initialize in Development mode for hot-reload
+                await _scriptEngine.InitializeAsync(ScriptEngineMode.Development, config);
+
+                // Subscribe to script changes for ribbon updates
+                _scriptEngine.ScriptsChanged += OnUnifiedScriptsChanged;
+
+                _logger.Log("✅ ScriptEngine initialized successfully in Development mode");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError("Failed to initialize ScriptEngine", ex);
+            }
+        }
 
         /// <summary>
         /// 🚧 LEGACY: Create Production Script Buttons (Chat's P1-Deterministic)
@@ -492,6 +545,50 @@ namespace TycoonRevitAddin.Plugins
         }
 
         /// <summary>
+        /// ✨ Create a unified script button for the ribbon
+        /// </summary>
+        private void CreateUnifiedScriptButton(RibbonPanel panel, ScriptInfo script)
+        {
+            try
+            {
+                var buttonId = $"UnifiedScript_{script.Manifest.Name.Replace(" ", "")}";
+
+                // Skip if button already exists
+                if (_unifiedScriptButtons.ContainsKey(buttonId))
+                {
+                    return;
+                }
+
+                var button = AddPushButton(
+                    panel,
+                    buttonId,
+                    script.Manifest.Name,
+                    "TycoonRevitAddin.Commands.UnifiedScriptCommand",
+                    $"🎯 {script.Manifest.Name}\n{script.Manifest.Description}\nAuthor: {script.Manifest.Author}",
+                    LoadIcon("ScriptIcon.png", 32) // Default script icon
+                );
+
+                // Store script info in button's tag for execution
+                button.ToolTip = $"🎯 {script.Manifest.Name}\n" +
+                               $"{script.Manifest.Description}\n" +
+                               $"Author: {script.Manifest.Author}\n" +
+                               $"Version: {script.Manifest.Version}\n" +
+                               $"Source: {script.Source}";
+
+                // Store script name for execution
+                button.Tag = script.Manifest.Name;
+
+                _unifiedScriptButtons[buttonId] = button;
+
+                _logger.Log($"✅ Created unified script button: {script.Manifest.Name}");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Failed to create unified script button for {script.Manifest.Name}", ex);
+            }
+        }
+
+        /// <summary>
         /// 🚧 LEGACY: Ensure scripts directory exists and create sample scripts
         /// This method is disabled during unified architecture implementation
         /// </summary>
@@ -570,6 +667,61 @@ namespace TycoonRevitAddin.Plugins
             base.OnCleanup();
             _scriptButtons.Clear();
             _scriptModificationTimes.Clear();
+        }
+
+        /// <summary>
+        /// ✨ Handle unified script changes from ScriptEngine
+        /// </summary>
+        private void OnUnifiedScriptsChanged(List<ScriptInfo> scripts)
+        {
+            try
+            {
+                _logger.Log($"🔄 Unified scripts changed: {scripts.Count} scripts available");
+
+                // Update ribbon with new scripts
+                UpdateRibbonWithUnifiedScripts(scripts);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError("Failed to handle unified script changes", ex);
+            }
+        }
+
+        /// <summary>
+        /// ✨ Update ribbon panels with unified scripts
+        /// </summary>
+        private void UpdateRibbonWithUnifiedScripts(List<ScriptInfo> scripts)
+        {
+            try
+            {
+                // Clear existing unified script buttons
+                foreach (var button in _unifiedScriptButtons.Values)
+                {
+                    // Note: Revit doesn't allow removing buttons, so we'll disable them
+                    button.Enabled = false;
+                }
+                _unifiedScriptButtons.Clear();
+
+                // Find Production panel for script buttons
+                var productionPanel = _panels.FirstOrDefault(p => p.Name == "Production");
+                if (productionPanel == null)
+                {
+                    _logger.LogWarning("Production panel not found for unified scripts");
+                    return;
+                }
+
+                // Add buttons for each script
+                foreach (var script in scripts.Take(8)) // Limit for ribbon space
+                {
+                    CreateUnifiedScriptButton(productionPanel, script);
+                }
+
+                _logger.Log($"✅ Updated ribbon with {_unifiedScriptButtons.Count} unified script buttons");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError("Failed to update ribbon with unified scripts", ex);
+            }
         }
 
         /// <summary>
@@ -1658,6 +1810,49 @@ namespace TycoonRevitAddin.Plugins
             catch (Exception ex)
             {
                 _logger.LogError("Failed to update script metadata from ScriptService", ex);
+            }
+        }
+
+        #endregion
+
+        #region Unified Script Architecture Public API
+
+        /// <summary>
+        /// ✨ Get the ScriptEngine for external access (e.g., from commands)
+        /// </summary>
+        public ScriptEngine GetScriptEngine()
+        {
+            return _scriptEngine;
+        }
+
+        /// <summary>
+        /// ✨ Execute a script by name through the unified architecture
+        /// </summary>
+        public async Task<ScriptExecutionResult> ExecuteUnifiedScriptAsync(string scriptName, UIApplication uiApp, Document doc)
+        {
+            try
+            {
+                if (_scriptEngine == null)
+                {
+                    return new ScriptExecutionResult
+                    {
+                        Success = false,
+                        ErrorMessage = "ScriptEngine not initialized"
+                    };
+                }
+
+                // The ScriptProxy will be initialized with Revit context during execution
+                // This is handled internally by the ScriptEngine
+                return await _scriptEngine.ExecuteScriptAsync(scriptName);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Failed to execute unified script '{scriptName}'", ex);
+                return new ScriptExecutionResult
+                {
+                    Success = false,
+                    ErrorMessage = ex.Message
+                };
             }
         }
 
