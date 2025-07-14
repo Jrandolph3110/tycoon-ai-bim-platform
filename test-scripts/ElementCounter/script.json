@@ -3,7 +3,7 @@
   "description": "Counts elements by category in the model or analyzes selected elements. Perfect for understanding model composition and testing the unified script architecture.",
   "author": "F.L. Crane & Sons Development Team",
   "version": "1.0.0",
-  "entryAssembly": "ElementCounter.dll",
+  "entryAssembly": "bin/Release/ElementCounter.dll",
   "entryType": "TestScripts.ElementCounter",
   "panel": "Production",
   "tags": ["analysis", "counting", "elements", "test"],
