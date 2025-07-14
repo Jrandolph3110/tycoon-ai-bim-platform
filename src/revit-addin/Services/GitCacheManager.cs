@@ -246,8 +246,30 @@ namespace TycoonRevitAddin.Services
                     return null;
                 }
                 
-                // Decode base64 content
-                var manifestJson = Encoding.UTF8.GetString(Convert.FromBase64String(githubFile.Content.Replace("\n", "")));
+                // Decode base64 content with enhanced error handling
+                string base64Content = githubFile.Content;
+
+                // Debug the raw base64 content
+                _logger.Log($"🔍 RAW base64 length: {base64Content.Length}");
+                _logger.Log($"🔍 RAW base64 first 100 chars: {base64Content.Substring(0, Math.Min(100, base64Content.Length))}");
+
+                // Clean base64 content more carefully
+                base64Content = base64Content.Replace("\n", "").Replace("\r", "").Replace(" ", "").Replace("\t", "");
+                _logger.Log($"🔍 CLEANED base64 length: {base64Content.Length}");
+
+                // Decode with error handling
+                byte[] decodedBytes;
+                try
+                {
+                    decodedBytes = Convert.FromBase64String(base64Content);
+                }
+                catch (FormatException ex)
+                {
+                    _logger.LogError($"Base64 decoding failed: {ex.Message}");
+                    return null;
+                }
+
+                var manifestJson = Encoding.UTF8.GetString(decodedBytes);
 
                 // Remove BOM (Byte Order Mark) if present - this causes JSON parsing errors
                 manifestJson = RemoveBOM(manifestJson);
