@@ -159,7 +159,7 @@ namespace TycoonRevitAddin.Scripting
                 }
                 
                 // Read cache info
-                var cacheInfoJson = await File.ReadAllTextAsync(cacheInfoPath);
+                var cacheInfoJson = File.ReadAllText(cacheInfoPath);
                 var cacheInfo = JsonConvert.DeserializeObject<CacheInfo>(cacheInfoJson);
                 
                 if (cacheInfo == null)
@@ -291,7 +291,7 @@ namespace TycoonRevitAddin.Scripting
                 
                 var cacheInfoPath = Path.Combine(_config.CachePath, "cache-info.json");
                 var cacheInfoJson = JsonConvert.SerializeObject(cacheInfo, Formatting.Indented);
-                await File.WriteAllTextAsync(cacheInfoPath, cacheInfoJson);
+                File.WriteAllText(cacheInfoPath, cacheInfoJson);
                 
                 _logger.Log($"💾 Cache updated with {scripts.Count} scripts");
             }

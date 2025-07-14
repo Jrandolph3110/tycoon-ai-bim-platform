@@ -1,13 +1,12 @@
 <Window x:Class="TycoonRevitAddin.UI.TycoonConsoleWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="🔥 Tycoon Script Console" 
+        Title="🔥 Tycoon Script Console"
         Height="600" Width="900"
         MinHeight="300" MinWidth="500"
         WindowStartupLocation="CenterScreen"
         ShowInTaskbar="True"
-        Topmost="False"
-        Icon="pack://application:,,,/TycoonRevitAddin;component/Resources/TycoonIcon.ico">
+        Topmost="False">
     
     <Window.Resources>
         <!-- Console Styles -->

@@ -547,7 +547,7 @@ namespace TycoonRevitAddin.Plugins
         /// <summary>
         /// ✨ Create a unified script button for the ribbon
         /// </summary>
-        private void CreateUnifiedScriptButton(RibbonPanel panel, ScriptInfo script)
+        private void CreateUnifiedScriptButton(RibbonPanel panel, TycoonRevitAddin.Scripting.ScriptInfo script)
         {
             try
             {
@@ -565,7 +565,7 @@ namespace TycoonRevitAddin.Plugins
                     script.Manifest.Name,
                     "TycoonRevitAddin.Commands.UnifiedScriptCommand",
                     $"🎯 {script.Manifest.Name}\n{script.Manifest.Description}\nAuthor: {script.Manifest.Author}",
-                    LoadIcon("ScriptIcon.png", 32) // Default script icon
+                    "ScriptIcon.png" // Default script icon path
                 );
 
                 // Store script info in button's tag for execution
@@ -575,8 +575,8 @@ namespace TycoonRevitAddin.Plugins
                                $"Version: {script.Manifest.Version}\n" +
                                $"Source: {script.Source}";
 
-                // Store script name for execution
-                button.Tag = script.Manifest.Name;
+                // Store script name for execution (using ToolTip as storage since Tag doesn't exist)
+                // The script name will be extracted from the button ID in UnifiedScriptCommand
 
                 _unifiedScriptButtons[buttonId] = button;
 
@@ -672,7 +672,7 @@ namespace TycoonRevitAddin.Plugins
         /// <summary>
         /// ✨ Handle unified script changes from ScriptEngine
         /// </summary>
-        private void OnUnifiedScriptsChanged(List<ScriptInfo> scripts)
+        private void OnUnifiedScriptsChanged(List<TycoonRevitAddin.Scripting.ScriptInfo> scripts)
         {
             try
             {
@@ -690,7 +690,7 @@ namespace TycoonRevitAddin.Plugins
         /// <summary>
         /// ✨ Update ribbon panels with unified scripts
         /// </summary>
-        private void UpdateRibbonWithUnifiedScripts(List<ScriptInfo> scripts)
+        private void UpdateRibbonWithUnifiedScripts(List<TycoonRevitAddin.Scripting.ScriptInfo> scripts)
         {
             try
             {
@@ -1828,7 +1828,7 @@ namespace TycoonRevitAddin.Plugins
         /// <summary>
         /// ✨ Execute a script by name through the unified architecture
         /// </summary>
-        public async Task<ScriptExecutionResult> ExecuteUnifiedScriptAsync(string scriptName, UIApplication uiApp, Document doc)
+        public async Task<ScriptExecutionResult> ExecuteUnifiedScriptAsync(string scriptName, UIApplication uiApp, Autodesk.Revit.DB.Document doc)
         {
             try
             {

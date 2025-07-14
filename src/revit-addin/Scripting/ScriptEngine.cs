@@ -280,8 +280,11 @@ namespace TycoonRevitAddin.Scripting
         /// </summary>
         public void Dispose()
         {
-            _currentProvider?.ScriptsChanged -= OnProviderScriptsChanged;
-            _currentProvider?.Dispose();
+            if (_currentProvider != null)
+            {
+                _currentProvider.ScriptsChanged -= OnProviderScriptsChanged;
+                _currentProvider.Dispose();
+            }
             UnloadScriptDomain();
             
             _logger.Log("🎯 ScriptEngine disposed");

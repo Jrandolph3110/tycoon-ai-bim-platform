@@ -22,25 +22,34 @@ namespace TycoonRevitAddin.Utils
         /// </summary>
         public static void ShowConsole()
         {
-            lock (_lockObject)
+            try
             {
-                if (_consoleWindow == null || !_consoleWindow.IsLoaded)
+                lock (_lockObject)
                 {
-                    _consoleWindow = new TycoonConsoleWindow();
-                    _consoleWindow.Closed += (s, e) => _consoleWindow = null;
-                    
-                    // Start monitoring log files
-                    StartLogMonitoring();
-                }
+                    if (_consoleWindow == null)
+                    {
+                        _consoleWindow = new TycoonConsoleWindow();
+                        _consoleWindow.Closed += (s, e) => _consoleWindow = null;
 
-                if (_consoleWindow.WindowState == WindowState.Minimized)
-                {
-                    _consoleWindow.WindowState = WindowState.Normal;
-                }
+                        // Start monitoring log files
+                        StartLogMonitoring();
+                    }
 
-                _consoleWindow.Show();
-                _consoleWindow.Activate();
-                _consoleWindow.Focus();
+                    if (_consoleWindow.WindowState == WindowState.Minimized)
+                    {
+                        _consoleWindow.WindowState = WindowState.Normal;
+                    }
+
+                    _consoleWindow.Show();
+                    _consoleWindow.Activate();
+                    _consoleWindow.Focus();
+                }
+            }
+            catch (Exception ex)
+            {
+                // Fallback to simple message if console fails
+                System.Windows.MessageBox.Show($"Console initialization failed: {ex.Message}\n\nCheck log files manually at: %APPDATA%\\Tycoon\\",
+                    "Console Error", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Warning);
             }
         }
 

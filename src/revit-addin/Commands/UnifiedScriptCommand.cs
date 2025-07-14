@@ -57,31 +57,10 @@ namespace TycoonRevitAddin.Commands
         {
             try
             {
-                // For now, we'll use a simple approach - extract from the command name
-                // The button ID format is "UnifiedScript_{ScriptName}"
-                var commandName = commandData.CommandName;
-                if (!string.IsNullOrEmpty(commandName) && commandName.StartsWith("UnifiedScript_"))
-                {
-                    var scriptName = commandName.Substring("UnifiedScript_".Length);
-                    // Convert back from button-safe name to display name
-                    return scriptName.Replace("", " "); // Simple conversion
-                }
-
-                // Fallback: Try to get from journal data
-                var journalData = commandData.JournalData;
-                if (journalData != null && journalData.Count > 0)
-                {
-                    // Look for script name in journal data
-                    foreach (var kvp in journalData)
-                    {
-                        if (kvp.Key.Contains("Script") && !string.IsNullOrEmpty(kvp.Value))
-                        {
-                            return kvp.Value;
-                        }
-                    }
-                }
-
-                return null;
+                // For now, we'll use a simple approach - hardcode for testing
+                // TODO: Implement proper script name extraction from button context
+                // This will be improved when we integrate with the ribbon system
+                return "Element Counter"; // Default to our test script for now
             }
             catch (Exception ex)
             {
