@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
 using System.Windows.Forms;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
@@ -82,23 +83,54 @@ namespace TycoonRevitAddin.Commands
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
-            // 🚧 DISABLED: Legacy reload system removed during unified architecture implementation
-            // This will be replaced with the new ScriptEngine hot-reload system
+            try
+            {
+                // 🔄 NEW: Connect to unified ScriptEngine for hot-reload
+                var logger = TycoonRevitAddin.Application.Logger;
+                logger?.Log("🔄 Manual script reload requested via Reload Scripts button");
 
-            MessageBox.Show("🚧 Script Reload System Under Reconstruction\n\n" +
-                          "The legacy script reload system has been disabled during\n" +
-                          "the implementation of the new unified script architecture.\n\n" +
-                          "✨ Coming Soon:\n" +
-                          "• True hot-reload without Revit restart\n" +
-                          "• Development mode with FileSystemWatcher\n" +
-                          "• Production mode with GitHub integration\n" +
-                          "• Type-safe script execution\n\n" +
-                          "Please restart Revit to reload scripts for now.",
-                          "🔄 System Upgrade in Progress",
-                          MessageBoxButtons.OK,
-                          MessageBoxIcon.Information);
+                // Get the ScriptEngine instance from PluginManager
+                var pluginManager = PluginManager.Instance;
+                if (pluginManager == null)
+                {
+                    MessageBox.Show("❌ PluginManager not available.\nPlease restart Revit to initialize the plugin system.",
+                                  "Script Reload Failed", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return Result.Failed;
+                }
 
-            return Result.Succeeded;
+                var scriptsPlugin = pluginManager.GetPlugin("scripts") as ScriptsPlugin;
+                var scriptEngine = scriptsPlugin?.GetScriptEngine();
+                if (scriptEngine == null)
+                {
+                    MessageBox.Show("❌ ScriptEngine not available.\nPlease ensure the Scripts plugin is properly initialized.",
+                                  "Script Reload Failed", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return Result.Failed;
+                }
+
+                // Trigger script refresh
+                _ = Task.Run(async () =>
+                {
+                    try
+                    {
+                        await scriptEngine.RefreshScriptsAsync();
+                        logger?.Log("✅ Script refresh completed successfully");
+                    }
+                    catch (Exception ex)
+                    {
+                        logger?.LogError("Failed to refresh scripts", ex);
+                    }
+                });
+
+                MessageBox.Show("🔄 Script refresh initiated!\n\nScripts are being reloaded in the background.\nCheck the ribbon in a few seconds.",
+                              "Script Reload", MessageBoxButtons.OK, MessageBoxIcon.Information);
+
+                return Result.Succeeded;
+            }
+            catch (Exception ex)
+            {
+                message = $"Failed to reload scripts: {ex.Message}";
+                return Result.Failed;
+            }
         }
     }
 

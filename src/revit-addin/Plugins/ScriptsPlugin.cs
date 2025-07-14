@@ -223,6 +223,8 @@ namespace TycoonRevitAddin.Plugins
             try
             {
                 _logger.Log("🚀 Initializing ScriptEngine with unified architecture");
+                System.Diagnostics.Debug.WriteLine("🚀 DEBUG: Initializing ScriptEngine with unified architecture");
+                System.Console.WriteLine("🚀 CONSOLE: Initializing ScriptEngine with unified architecture");
 
                 // Configure for Development mode (your workflow)
                 var config = new ScriptEngineConfig
@@ -245,10 +247,14 @@ namespace TycoonRevitAddin.Plugins
                 _scriptEngine.ScriptsChanged += OnUnifiedScriptsChanged;
 
                 _logger.Log("✅ ScriptEngine initialized successfully in Development mode");
+                System.Diagnostics.Debug.WriteLine("✅ DEBUG: ScriptEngine initialized successfully in Development mode");
+                System.Console.WriteLine("✅ CONSOLE: ScriptEngine initialized successfully in Development mode");
             }
             catch (Exception ex)
             {
                 _logger.LogError("Failed to initialize ScriptEngine", ex);
+                System.Diagnostics.Debug.WriteLine($"❌ DEBUG: ScriptEngine initialization failed: {ex.Message}");
+                System.Console.WriteLine($"❌ CONSOLE: ScriptEngine initialization failed: {ex.Message}");
             }
         }
 
@@ -677,6 +683,8 @@ namespace TycoonRevitAddin.Plugins
             try
             {
                 _logger.Log($"🔄 Unified scripts changed: {scripts.Count} scripts available");
+                System.Diagnostics.Debug.WriteLine($"🔄 DEBUG: Script changes detected: {scripts.Count} scripts available");
+                System.Console.WriteLine($"🔄 CONSOLE: Script changes detected: {scripts.Count} scripts available");
 
                 // Update ribbon with new scripts
                 UpdateRibbonWithUnifiedScripts(scripts);
