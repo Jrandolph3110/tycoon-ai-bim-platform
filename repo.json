@@ -1,7 +1,7 @@
-{
-  "Version": "2025.07.11",
-  "Build": "2025.07.11-restored",
-  "Generated": "2025-07-11T16:00:00Z",
+﻿{
+  "Version": "2025.07.13",
+  "Build": "2025.07.13-csharp-scripts",
+  "Generated": "2025-07-13T20:00:00Z",
   "Templates": {
     "default-layout.json": {
       "Hash": "b6969ec3",
@@ -88,6 +88,24 @@
         "selection-optional",
         "deterministic"
       ]
+    },
+    "ReNumber.cs": {
+      "Hash": "07c354ad",
+      "Path": "Utilities/ReNumber.cs",
+      "Size": 12374,
+      "Version": "2.0.0",
+      "Category": "Utilities",
+      "Description": "F.L. Crane & Sons ReNumber Script - Production C# Implementation",
+      "Author": "F.L. Crane & Sons Development Team",
+      "Capability": "P1-Deterministic",
+      "LastModified": "2025-07-13T20:00:00Z",
+      "Capabilities": [
+        "selection-optional",
+        "deterministic",
+        "production-ready",
+        "native-performance"
+      ]
     }
   }
 }
+
