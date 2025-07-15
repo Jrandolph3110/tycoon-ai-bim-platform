@@ -152,6 +152,10 @@ namespace TycoonRevitAddin.Plugins
             _ribbonRefreshEvent = ExternalEvent.Create(new RibbonRefreshEventHandler(this, _logger));
             _logger.Log("🔄 ExternalEvent created for safe ribbon refresh");
 
+            // Subscribe to document opened event for delayed script population
+            application.ControlledApplication.DocumentOpened += OnDocumentOpenedForScriptPopulation;
+            _logger.Log("🎯 Subscribed to DocumentOpened event for script population");
+
             // Call base initialization
             var panels = base.Initialize(application, tabName);
 
@@ -264,6 +268,7 @@ namespace TycoonRevitAddin.Plugins
         /// <summary>
         /// 🎯 Trigger initial script population after ScriptEngine initialization
         /// This ensures scripts are auto-populated on startup without waiting for changes
+        /// Uses Revit Idling event to ensure UI is ready for button creation
         /// </summary>
         private async Task TriggerInitialScriptPopulation()
         {
@@ -277,8 +282,15 @@ namespace TycoonRevitAddin.Plugins
                 {
                     _logger.Log($"🎯 Found {scripts.Count} scripts during initial population");
 
-                    // Trigger auto-population with current scripts
-                    OnUnifiedScriptsChanged(scripts);
+                    // Store scripts for delayed population when UI is ready
+                    _pendingScriptsForPopulation = scripts;
+
+                    // We need UIApplication for Idling event, but we only have UIControlledApplication during initialization
+                    // The solution is to wait for a document to open, which gives us access to UIApplication
+                    _logger.Log("🎯 Scripts will be populated when first document opens (UIApplication available)");
+
+                    // Set flag to populate scripts when document opens
+                    _shouldPopulateScriptsOnDocumentOpen = true;
                 }
                 else
                 {
@@ -291,6 +303,46 @@ namespace TycoonRevitAddin.Plugins
             catch (Exception ex)
             {
                 _logger.LogError("Failed to trigger initial script population", ex);
+            }
+        }
+
+        // Store scripts for delayed population
+        private List<TycoonRevitAddin.Scripting.ScriptInfo> _pendingScriptsForPopulation;
+        private UIApplication _uiApplication;
+        private bool _shouldPopulateScriptsOnDocumentOpen = false;
+
+        /// <summary>
+        /// Handle document opened event to populate scripts when UI is ready
+        /// This ensures button creation happens after Revit UI is fully initialized
+        /// </summary>
+        private void OnDocumentOpenedForScriptPopulation(object sender, Autodesk.Revit.DB.Events.DocumentOpenedEventArgs e)
+        {
+            try
+            {
+                // Only populate if we have pending scripts and the flag is set
+                if (!_shouldPopulateScriptsOnDocumentOpen || _pendingScriptsForPopulation == null || _pendingScriptsForPopulation.Count == 0)
+                {
+                    return;
+                }
+
+                _logger.Log("🎯 Document opened - UI ready for script population");
+
+                // Get UIApplication from the document's application
+                var uiApp = new UIApplication(e.Document.Application);
+
+                // Use the existing Application class pattern for dynamic button creation
+                // This ensures buttons are created in the proper UI context
+                Application.QueueScriptsForCreation(uiApp, _pendingScriptsForPopulation);
+
+                _logger.Log($"🎯 Queued {_pendingScriptsForPopulation.Count} scripts for creation via Application.QueueScriptsForCreation");
+
+                // Clear pending scripts and flag
+                _pendingScriptsForPopulation = null;
+                _shouldPopulateScriptsOnDocumentOpen = false;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError("Failed to populate scripts during document opened event", ex);
             }
         }
 
