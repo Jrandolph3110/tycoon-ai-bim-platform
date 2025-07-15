@@ -246,6 +246,9 @@ namespace TycoonRevitAddin.Plugins
                 // Subscribe to script changes for ribbon updates
                 _scriptEngine.ScriptsChanged += OnUnifiedScriptsChanged;
 
+                // 🎯 TRIGGER INITIAL AUTO-POPULATION: Force initial script discovery and population
+                await TriggerInitialScriptPopulation();
+
                 _logger.Log("✅ ScriptEngine initialized successfully in Development mode");
                 System.Diagnostics.Debug.WriteLine("✅ DEBUG: ScriptEngine initialized successfully in Development mode");
                 System.Console.WriteLine("✅ CONSOLE: ScriptEngine initialized successfully in Development mode");
@@ -255,6 +258,39 @@ namespace TycoonRevitAddin.Plugins
                 _logger.LogError("Failed to initialize ScriptEngine", ex);
                 System.Diagnostics.Debug.WriteLine($"❌ DEBUG: ScriptEngine initialization failed: {ex.Message}");
                 System.Console.WriteLine($"❌ CONSOLE: ScriptEngine initialization failed: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// 🎯 Trigger initial script population after ScriptEngine initialization
+        /// This ensures scripts are auto-populated on startup without waiting for changes
+        /// </summary>
+        private async Task TriggerInitialScriptPopulation()
+        {
+            try
+            {
+                _logger.Log("🎯 Triggering initial script population after ScriptEngine initialization");
+
+                // Get current scripts from ScriptEngine
+                var scripts = _scriptEngine.GetLoadedScripts();
+                if (scripts != null && scripts.Count > 0)
+                {
+                    _logger.Log($"🎯 Found {scripts.Count} scripts during initial population");
+
+                    // Trigger auto-population with current scripts
+                    OnUnifiedScriptsChanged(scripts);
+                }
+                else
+                {
+                    _logger.Log("⚠️ No scripts found during initial population - will wait for script discovery");
+
+                    // Force script refresh to trigger discovery
+                    await _scriptEngine.RefreshScriptsAsync();
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError("Failed to trigger initial script population", ex);
             }
         }
 
