@@ -96,13 +96,26 @@ namespace TycoonRevitAddin.Scripting
         }
 
         /// <summary>
-        /// Initialize proxy with Revit context (called from main AppDomain)
+        /// Initialize proxy - gets Revit context from current application
+        /// Note: In isolated AppDomain, this will be limited. Consider using main AppDomain for Revit API access.
         /// </summary>
-        public void Initialize(UIApplication uiApp, Document doc)
+        public void Initialize()
         {
-            _uiApplication = uiApp ?? throw new ArgumentNullException(nameof(uiApp));
-            _document = doc ?? throw new ArgumentNullException(nameof(doc));
-            _logger.Log("🔗 ScriptProxy initialized with Revit context");
+            try
+            {
+                // In isolated AppDomain, we can't easily access the main Revit application
+                // For now, we'll note this limitation and execute scripts without full Revit context
+                _logger.Log("🔗 ScriptProxy initialized in isolated AppDomain (limited Revit API access)");
+
+                // TODO: Implement bridge pattern for Revit API calls back to main AppDomain
+                _uiApplication = null; // Will be null in isolated AppDomain
+                _document = null; // Will be null in isolated AppDomain
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError("Failed to initialize ScriptProxy", ex);
+                throw;
+            }
         }
 
         /// <summary>
@@ -163,6 +176,15 @@ namespace TycoonRevitAddin.Scripting
         /// </summary>
         private void ExecuteWithTransaction(IScript script, string scriptName)
         {
+            // Check if we have Revit context (may be null in isolated AppDomain)
+            if (_document == null)
+            {
+                _logger.Log($"⚠️ No Revit document context - executing script without transaction management");
+                // Execute script directly without transaction (limited functionality)
+                script.Execute(this);
+                return;
+            }
+
             using (var transaction = new Transaction(_document, $"Tycoon Script: {scriptName}"))
             {
                 _currentTransaction = transaction;

@@ -188,11 +188,8 @@ namespace TycoonRevitAddin.Scripting
                 // Ensure we have a fresh AppDomain and proxy
                 EnsureScriptDomain();
 
-                // Initialize proxy with Revit context if provided
-                if (uiApp != null && doc != null)
-                {
-                    _scriptProxy.Initialize(uiApp, doc);
-                }
+                // Initialize proxy (no Revit objects passed due to serialization issues)
+                _scriptProxy.Initialize();
 
                 // Execute script through proxy (with automatic transaction management)
                 return await Task.Run(() => _scriptProxy.ExecuteScript(script));
