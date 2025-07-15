@@ -185,8 +185,8 @@ namespace TycoonRevitAddin.Scripting
             {
                 _logger.Log($"🚀 Executing script '{script.Manifest.Name}' in main AppDomain with full Revit API access");
 
-                // Execute script directly in main AppDomain for full Revit functionality
-                return await Task.Run(() => ExecuteScriptDirectly(script, uiApp, doc));
+                // Execute script using external event handler for proper Revit context
+                return await ExecuteScriptWithExternalEvent(script, uiApp, doc);
             }
             catch (Exception ex)
             {
@@ -200,101 +200,22 @@ namespace TycoonRevitAddin.Scripting
         }
 
         /// <summary>
-        /// Execute script directly in main AppDomain with full Revit API access
+        /// Execute script using Revit's IExternalEventHandler for proper document modification context
         /// </summary>
-        private ScriptExecutionResult ExecuteScriptDirectly(ScriptInfo script, UIApplication uiApp, Document doc)
+        private async Task<ScriptExecutionResult> ExecuteScriptWithExternalEvent(ScriptInfo script, UIApplication uiApp, Document doc)
         {
-            var stopwatch = Stopwatch.StartNew();
+            var tcs = new TaskCompletionSource<ScriptExecutionResult>();
+            var eventHandler = new ScriptExternalEventHandler(script, uiApp, doc, _logger, tcs);
+            var externalEvent = ExternalEvent.Create(eventHandler);
 
-            try
-            {
-                _logger.Log($"🔧 Loading script assembly: {script.AssemblyPath}");
+            // Raise the external event to execute in proper Revit context
+            externalEvent.Raise();
 
-                // Load script assembly
-                var assembly = Assembly.LoadFrom(script.AssemblyPath);
-                var scriptType = assembly.GetType(script.Manifest.EntryType);
-
-                if (scriptType == null)
-                {
-                    throw new InvalidOperationException($"Script type '{script.Manifest.EntryType}' not found in assembly");
-                }
-
-                // Create script instance
-                var scriptInstance = Activator.CreateInstance(scriptType) as IScript;
-                if (scriptInstance == null)
-                {
-                    throw new InvalidOperationException($"Script type '{script.Manifest.EntryType}' does not implement IScript");
-                }
-
-                // Create host with full Revit context
-                var host = new DirectRevitHost(uiApp, doc, _logger);
-
-                // Execute with transaction management
-                ExecuteScriptWithTransaction(scriptInstance, host, script.Manifest.Name, doc);
-
-                stopwatch.Stop();
-                _logger.Log($"✅ Script '{script.Manifest.Name}' executed successfully in {stopwatch.ElapsedMilliseconds}ms");
-
-                return new ScriptExecutionResult
-                {
-                    Success = true,
-                    ExecutionTime = stopwatch.Elapsed
-                };
-            }
-            catch (Exception ex)
-            {
-                stopwatch.Stop();
-                _logger.LogError($"❌ Script '{script.Manifest.Name}' failed", ex);
-
-                return new ScriptExecutionResult
-                {
-                    Success = false,
-                    ErrorMessage = ex.Message,
-                    ExecutionTime = stopwatch.Elapsed
-                };
-            }
+            // Wait for the external event to complete
+            return await tcs.Task;
         }
 
-        /// <summary>
-        /// Execute script with automatic transaction management in main AppDomain
-        /// </summary>
-        private void ExecuteScriptWithTransaction(IScript script, IRevitHost host, string scriptName, Document document)
-        {
-            // Check if we have Revit context
-            if (document == null)
-            {
-                _logger.Log($"⚠️ No Revit document context - executing script without transaction management");
-                script.Execute(host);
-                return;
-            }
-
-            using (var transaction = new Transaction(document, $"Tycoon Script: {scriptName}"))
-            {
-                try
-                {
-                    transaction.Start();
-                    _logger.Log($"🔄 Transaction started for script: {scriptName}");
-
-                    // Execute script - any exceptions will cause rollback
-                    script.Execute(host);
-
-                    transaction.Commit();
-                    _logger.Log($"✅ Transaction committed for script: {scriptName}");
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError($"Script execution failed, rolling back transaction", ex);
-
-                    if (transaction.GetStatus() == TransactionStatus.Started)
-                    {
-                        transaction.RollBack();
-                        _logger.Log($"🔄 Transaction rolled back for script: {scriptName}");
-                    }
-
-                    throw; // Re-throw to be handled by caller
-                }
-            }
-        }
+        // Note: Script execution now handled by ScriptExternalEventHandler for proper Revit context
 
         // Note: AppDomain methods removed - scripts now execute directly in main AppDomain for full Revit API access
 
