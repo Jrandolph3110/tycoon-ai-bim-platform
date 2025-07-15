@@ -559,6 +559,23 @@ namespace TycoonRevitAddin.Plugins
         }
 
         /// <summary>
+        /// Get the appropriate command class for a script based on its name
+        /// </summary>
+        private string GetCommandClassForScript(string scriptName)
+        {
+            switch (scriptName)
+            {
+                case "Element Counter":
+                    return "TycoonRevitAddin.Commands.ElementCounterScriptCommand";
+                case "Hello World":
+                    return "TycoonRevitAddin.Commands.HelloWorldScriptCommand";
+                default:
+                    // Fallback to generic unified command
+                    return "TycoonRevitAddin.Commands.UnifiedScriptCommand";
+            }
+        }
+
+        /// <summary>
         /// ✨ Create a unified script button for the ribbon
         /// </summary>
         private void CreateUnifiedScriptButton(RibbonPanel panel, TycoonRevitAddin.Scripting.ScriptInfo script)
@@ -573,11 +590,14 @@ namespace TycoonRevitAddin.Plugins
                     return;
                 }
 
+                // Use specific command class based on script name for proper button-to-script mapping
+                var commandClass = GetCommandClassForScript(script.Manifest.Name);
+
                 var button = AddPushButton(
                     panel,
                     buttonId,
                     script.Manifest.Name,
-                    "TycoonRevitAddin.Commands.UnifiedScriptCommand", // Proper script execution command
+                    commandClass,
                     $"🎯 {script.Manifest.Name}\n{script.Manifest.Description}\nAuthor: {script.Manifest.Author}",
                     "ScriptIcon.png" // Default script icon path
                 );
