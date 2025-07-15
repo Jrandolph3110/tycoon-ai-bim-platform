@@ -48,6 +48,31 @@ namespace TycoonRevitAddin.Scripting
                 // Extract simple name from full assembly name
                 string assemblyName = new AssemblyName(args.Name).Name;
 
+                // Special handling for Revit API assemblies
+                if (assemblyName == "RevitAPI" || assemblyName == "RevitAPIUI")
+                {
+                    _logger.Log($"🔧 Handling Revit API assembly: {assemblyName}");
+
+                    // Try to find Revit API assemblies in common locations
+                    string[] revitPaths = {
+                        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "Autodesk", "Revit 2024"),
+                        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "Autodesk", "Revit 2023"),
+                        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "Autodesk", "Revit 2022"),
+                        // Also check where TycoonRevitAddin is located (likely same directory)
+                        Path.GetDirectoryName(typeof(ScriptProxy).Assembly.Location)
+                    };
+
+                    foreach (string revitPath in revitPaths)
+                    {
+                        string revitAssemblyPath = Path.Combine(revitPath, assemblyName + ".dll");
+                        if (File.Exists(revitAssemblyPath))
+                        {
+                            _logger.Log($"✅ Found Revit API assembly at: {revitAssemblyPath}");
+                            return Assembly.LoadFrom(revitAssemblyPath);
+                        }
+                    }
+                }
+
                 // Look for assembly in the same directory as ScriptProxy
                 string assemblyPath = Path.Combine(
                     Path.GetDirectoryName(typeof(ScriptProxy).Assembly.Location),
