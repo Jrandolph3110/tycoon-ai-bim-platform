@@ -35,6 +35,7 @@ namespace TycoonRevitAddin.Scripting
     /// <summary>
     /// Information about a discovered script
     /// </summary>
+    [Serializable]
     public class ScriptInfo
     {
         /// <summary>
