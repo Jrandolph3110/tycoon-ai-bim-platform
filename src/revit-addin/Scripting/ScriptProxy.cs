@@ -228,9 +228,16 @@ namespace TycoonRevitAddin.Scripting
         {
             try
             {
+                // Check if we have Revit context (may be null in isolated AppDomain)
+                if (_uiApplication == null || _document == null)
+                {
+                    _logger.Log("⚠️ No Revit context available - returning empty selection");
+                    throw new InvalidOperationException("Revit API access not available in isolated AppDomain. Consider using main AppDomain for full Revit functionality.");
+                }
+
                 var selection = _uiApplication.ActiveUIDocument.Selection;
                 var selectedIds = selection.GetElementIds();
-                
+
                 var elements = new List<ElementDto>();
                 foreach (var id in selectedIds)
                 {
@@ -240,7 +247,7 @@ namespace TycoonRevitAddin.Scripting
                         elements.Add(ConvertToElementDto(element));
                     }
                 }
-                
+
                 _logger.Log($"📋 Retrieved {elements.Count} selected elements");
                 return elements;
             }
@@ -258,13 +265,20 @@ namespace TycoonRevitAddin.Scripting
         {
             try
             {
+                // Check if we have Revit context (may be null in isolated AppDomain)
+                if (_document == null)
+                {
+                    _logger.Log($"⚠️ No Revit document context - cannot get elements by category {category}");
+                    throw new InvalidOperationException("Revit API access not available in isolated AppDomain. Consider using main AppDomain for full Revit functionality.");
+                }
+
                 var builtInCategory = ConvertToBuiltInCategory(category);
                 var collector = new FilteredElementCollector(_document)
                     .OfCategory(builtInCategory)
                     .WhereElementIsNotElementType();
-                
+
                 var elements = collector.Select(ConvertToElementDto).ToList();
-                
+
                 _logger.Log($"📋 Retrieved {elements.Count} elements from category {category}");
                 return elements;
             }
@@ -392,13 +406,22 @@ namespace TycoonRevitAddin.Scripting
         {
             try
             {
+                // In isolated AppDomain, TaskDialog might not work properly
+                // For now, just log the message - in production, implement bridge pattern
+                if (_uiApplication == null)
+                {
+                    _logger.Log($"💬 [ISOLATED APPDOMAIN] {title}: {message}");
+                    return;
+                }
+
                 TaskDialog.Show(title, message);
                 _logger.Log($"💬 Showed message dialog: {title}");
             }
             catch (Exception ex)
             {
                 _logger.LogError($"Failed to show message dialog: {title}", ex);
-                throw;
+                // In isolated AppDomain, fall back to logging
+                _logger.Log($"💬 [FALLBACK] {title}: {message}");
             }
         }
 
