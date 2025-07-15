@@ -72,6 +72,7 @@ namespace TycoonRevitAddin.Scripting
     /// <summary>
     /// Result of script execution
     /// </summary>
+    [Serializable]
     public class ScriptExecutionResult
     {
         public bool Success { get; set; }
