@@ -230,7 +230,9 @@ namespace TycoonRevitAddin.Scripting
             var domainSetup = new AppDomainSetup
             {
                 ApplicationBase = AppDomain.CurrentDomain.BaseDirectory,
-                ConfigurationFile = AppDomain.CurrentDomain.SetupInformation.ConfigurationFile
+                ConfigurationFile = AppDomain.CurrentDomain.SetupInformation.ConfigurationFile,
+                // Add current assembly location to private bin path for ScriptProxy loading
+                PrivateBinPath = Path.GetDirectoryName(typeof(ScriptProxy).Assembly.Location)
             };
             
             _scriptDomain = AppDomain.CreateDomain("TycoonScriptDomain", null, domainSetup);
