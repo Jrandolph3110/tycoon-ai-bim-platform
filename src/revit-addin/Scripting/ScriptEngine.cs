@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Threading.Tasks;
 using Autodesk.Revit.UI;
 using Autodesk.Revit.DB;
@@ -33,9 +35,7 @@ namespace TycoonRevitAddin.Scripting
         private IScriptProvider _currentProvider;
         private List<ScriptInfo> _loadedScripts = new List<ScriptInfo>();
         
-        // AppDomain management
-        private AppDomain _scriptDomain;
-        private ScriptProxy _scriptProxy;
+        // Note: AppDomain isolation removed for full Revit API access
         
         // Events
         public event Action<List<ScriptInfo>> ScriptsChanged;
@@ -86,7 +86,7 @@ namespace TycoonRevitAddin.Scripting
         }
 
         /// <summary>
-        /// Execute a script by name in isolated AppDomain
+        /// Execute a script by name with full Revit API access
         /// </summary>
         public async Task<ScriptExecutionResult> ExecuteScriptAsync(string scriptName, UIApplication uiApp = null, Document doc = null)
         {
@@ -110,7 +110,7 @@ namespace TycoonRevitAddin.Scripting
                     };
                 }
 
-                // Execute in isolated AppDomain with Revit context
+                // Execute with full Revit API access
                 return await ExecuteScriptInAppDomain(script, uiApp, doc);
             }
             catch (Exception ex)
@@ -153,8 +153,7 @@ namespace TycoonRevitAddin.Scripting
                 _currentProvider.Dispose();
             }
             
-            // Cleanup AppDomain
-            UnloadScriptDomain();
+            // Note: No AppDomain cleanup needed - scripts run in main AppDomain
             
             // Initialize with new mode
             await InitializeAsync(newMode, config);
@@ -171,32 +170,27 @@ namespace TycoonRevitAddin.Scripting
                 _logger.Log($"📜 Scripts updated: {scripts.Count} scripts loaded");
             }
             
-            // Unload old AppDomain when scripts change (for hot-reload)
-            UnloadScriptDomain();
+            // Note: No AppDomain unloading needed - scripts run in main AppDomain
             
             // Notify listeners
             ScriptsChanged?.Invoke(scripts.ToList());
         }
 
         /// <summary>
-        /// Execute script in isolated AppDomain with transaction management
+        /// Execute script directly in main AppDomain with full Revit API access
         /// </summary>
         private async Task<ScriptExecutionResult> ExecuteScriptInAppDomain(ScriptInfo script, UIApplication uiApp = null, Document doc = null)
         {
             try
             {
-                // Ensure we have a fresh AppDomain and proxy
-                EnsureScriptDomain();
+                _logger.Log($"🚀 Executing script '{script.Manifest.Name}' in main AppDomain with full Revit API access");
 
-                // Initialize proxy (no Revit objects passed due to serialization issues)
-                _scriptProxy.Initialize();
-
-                // Execute script through proxy (with automatic transaction management)
-                return await Task.Run(() => _scriptProxy.ExecuteScript(script));
+                // Execute script directly in main AppDomain for full Revit functionality
+                return await Task.Run(() => ExecuteScriptDirectly(script, uiApp, doc));
             }
             catch (Exception ex)
             {
-                _logger.LogError($"AppDomain execution failed for script '{script.Manifest.Name}'", ex);
+                _logger.LogError($"Script execution failed for script '{script.Manifest.Name}'", ex);
                 return new ScriptExecutionResult
                 {
                     Success = false,
@@ -206,74 +200,103 @@ namespace TycoonRevitAddin.Scripting
         }
 
         /// <summary>
-        /// Ensure we have a valid AppDomain and proxy
+        /// Execute script directly in main AppDomain with full Revit API access
         /// </summary>
-        private void EnsureScriptDomain()
+        private ScriptExecutionResult ExecuteScriptDirectly(ScriptInfo script, UIApplication uiApp, Document doc)
         {
-            if (_scriptDomain == null || _scriptProxy == null)
+            var stopwatch = Stopwatch.StartNew();
+
+            try
             {
-                CreateScriptDomain();
+                _logger.Log($"🔧 Loading script assembly: {script.AssemblyPath}");
+
+                // Load script assembly
+                var assembly = Assembly.LoadFrom(script.AssemblyPath);
+                var scriptType = assembly.GetType(script.Manifest.EntryType);
+
+                if (scriptType == null)
+                {
+                    throw new InvalidOperationException($"Script type '{script.Manifest.EntryType}' not found in assembly");
+                }
+
+                // Create script instance
+                var scriptInstance = Activator.CreateInstance(scriptType) as IScript;
+                if (scriptInstance == null)
+                {
+                    throw new InvalidOperationException($"Script type '{script.Manifest.EntryType}' does not implement IScript");
+                }
+
+                // Create host with full Revit context
+                var host = new DirectRevitHost(uiApp, doc, _logger);
+
+                // Execute with transaction management
+                ExecuteScriptWithTransaction(scriptInstance, host, script.Manifest.Name, doc);
+
+                stopwatch.Stop();
+                _logger.Log($"✅ Script '{script.Manifest.Name}' executed successfully in {stopwatch.ElapsedMilliseconds}ms");
+
+                return new ScriptExecutionResult
+                {
+                    Success = true,
+                    ExecutionTime = stopwatch.Elapsed
+                };
+            }
+            catch (Exception ex)
+            {
+                stopwatch.Stop();
+                _logger.LogError($"❌ Script '{script.Manifest.Name}' failed", ex);
+
+                return new ScriptExecutionResult
+                {
+                    Success = false,
+                    ErrorMessage = ex.Message,
+                    ExecutionTime = stopwatch.Elapsed
+                };
             }
         }
 
         /// <summary>
-        /// Create new isolated AppDomain for script execution
+        /// Execute script with automatic transaction management in main AppDomain
         /// </summary>
-        private void CreateScriptDomain()
+        private void ExecuteScriptWithTransaction(IScript script, IRevitHost host, string scriptName, Document document)
         {
-            _logger.Log("🏗️ Creating new script AppDomain");
-            
-            // Create AppDomain with proper security and setup
-            var currentAssemblyLocation = typeof(ScriptProxy).Assembly.Location;
-            var domainSetup = new AppDomainSetup
+            // Check if we have Revit context
+            if (document == null)
             {
-                ApplicationBase = Path.GetDirectoryName(currentAssemblyLocation),
-                ConfigurationFile = AppDomain.CurrentDomain.SetupInformation.ConfigurationFile,
-                // Add current assembly location to private bin path for ScriptProxy loading
-                PrivateBinPath = Path.GetDirectoryName(currentAssemblyLocation)
-            };
+                _logger.Log($"⚠️ No Revit document context - executing script without transaction management");
+                script.Execute(host);
+                return;
+            }
 
-            _scriptDomain = AppDomain.CreateDomain("TycoonScriptDomain", null, domainSetup);
-            
-            // Create proxy in the new domain (no parameters to avoid serialization issues)
-            var proxyType = typeof(ScriptProxy);
-            var assemblyPath = proxyType.Assembly.Location;
-
-            _logger.Log($"🔍 Loading ScriptProxy from assembly: {assemblyPath}");
-            _logger.Log($"🔍 Assembly FullName: {proxyType.Assembly.FullName}");
-            _logger.Log($"🔍 Type FullName: {proxyType.FullName}");
-
-            _scriptProxy = (ScriptProxy)_scriptDomain.CreateInstanceFromAndUnwrap(
-                assemblyPath,
-                proxyType.FullName);
-            
-            _logger.Log("✅ Script AppDomain created with proxy");
-        }
-
-        /// <summary>
-        /// Unload the script AppDomain (for hot-reload)
-        /// </summary>
-        private void UnloadScriptDomain()
-        {
-            if (_scriptDomain != null)
+            using (var transaction = new Transaction(document, $"Tycoon Script: {scriptName}"))
             {
-                _logger.Log("🗑️ Unloading script AppDomain for hot-reload");
-                
                 try
                 {
-                    AppDomain.Unload(_scriptDomain);
+                    transaction.Start();
+                    _logger.Log($"🔄 Transaction started for script: {scriptName}");
+
+                    // Execute script - any exceptions will cause rollback
+                    script.Execute(host);
+
+                    transaction.Commit();
+                    _logger.Log($"✅ Transaction committed for script: {scriptName}");
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError("Failed to unload script AppDomain", ex);
-                }
-                finally
-                {
-                    _scriptDomain = null;
-                    _scriptProxy = null;
+                    _logger.LogError($"Script execution failed, rolling back transaction", ex);
+
+                    if (transaction.GetStatus() == TransactionStatus.Started)
+                    {
+                        transaction.RollBack();
+                        _logger.Log($"🔄 Transaction rolled back for script: {scriptName}");
+                    }
+
+                    throw; // Re-throw to be handled by caller
                 }
             }
         }
+
+        // Note: AppDomain methods removed - scripts now execute directly in main AppDomain for full Revit API access
 
         /// <summary>
         /// Dispose resources
@@ -285,7 +308,7 @@ namespace TycoonRevitAddin.Scripting
                 _currentProvider.ScriptsChanged -= OnProviderScriptsChanged;
                 _currentProvider.Dispose();
             }
-            UnloadScriptDomain();
+            // Note: No AppDomain cleanup needed - scripts run in main AppDomain
             
             _logger.Log("🎯 ScriptEngine disposed");
         }

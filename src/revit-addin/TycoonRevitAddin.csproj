@@ -76,6 +76,7 @@
     <Compile Include="Scripting\ScriptEngine.cs" />
     <Compile Include="Scripting\ScriptModels.cs" />
     <Compile Include="Scripting\ScriptProxy.cs" />
+    <Compile Include="Scripting\DirectRevitHost.cs" />
     <Compile Include="Scripting\LocalScriptProvider.cs" />
     <Compile Include="Scripting\GitHubScriptProvider.cs" />
 
