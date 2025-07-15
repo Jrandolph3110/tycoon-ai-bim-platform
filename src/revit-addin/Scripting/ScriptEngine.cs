@@ -227,20 +227,27 @@ namespace TycoonRevitAddin.Scripting
             _logger.Log("🏗️ Creating new script AppDomain");
             
             // Create AppDomain with proper security and setup
+            var currentAssemblyLocation = typeof(ScriptProxy).Assembly.Location;
             var domainSetup = new AppDomainSetup
             {
-                ApplicationBase = AppDomain.CurrentDomain.BaseDirectory,
+                ApplicationBase = Path.GetDirectoryName(currentAssemblyLocation),
                 ConfigurationFile = AppDomain.CurrentDomain.SetupInformation.ConfigurationFile,
                 // Add current assembly location to private bin path for ScriptProxy loading
-                PrivateBinPath = Path.GetDirectoryName(typeof(ScriptProxy).Assembly.Location)
+                PrivateBinPath = Path.GetDirectoryName(currentAssemblyLocation)
             };
-            
+
             _scriptDomain = AppDomain.CreateDomain("TycoonScriptDomain", null, domainSetup);
             
             // Create proxy in the new domain (no parameters to avoid serialization issues)
             var proxyType = typeof(ScriptProxy);
-            _scriptProxy = (ScriptProxy)_scriptDomain.CreateInstanceAndUnwrap(
-                proxyType.Assembly.FullName,
+            var assemblyPath = proxyType.Assembly.Location;
+
+            _logger.Log($"🔍 Loading ScriptProxy from assembly: {assemblyPath}");
+            _logger.Log($"🔍 Assembly FullName: {proxyType.Assembly.FullName}");
+            _logger.Log($"🔍 Type FullName: {proxyType.FullName}");
+
+            _scriptProxy = (ScriptProxy)_scriptDomain.CreateInstanceFromAndUnwrap(
+                assemblyPath,
                 proxyType.FullName);
             
             _logger.Log("✅ Script AppDomain created with proxy");

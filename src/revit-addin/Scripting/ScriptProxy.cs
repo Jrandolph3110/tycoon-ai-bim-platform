@@ -28,9 +28,46 @@ namespace TycoonRevitAddin.Scripting
             // Create logger in the new AppDomain to avoid serialization issues
             _logger = new Logger("ScriptProxy", debugMode: true);
 
+            // Set up assembly resolution for dependencies in isolated AppDomain
+            AppDomain.CurrentDomain.AssemblyResolve += OnAssemblyResolve;
+
             // Get current Revit context
             // Note: This will be injected properly when integrated with main application
             _logger.Log("🔗 ScriptProxy created in isolated AppDomain");
+        }
+
+        /// <summary>
+        /// Assembly resolution handler for isolated AppDomain
+        /// </summary>
+        private Assembly OnAssemblyResolve(object sender, ResolveEventArgs args)
+        {
+            try
+            {
+                _logger.Log($"🔍 Resolving assembly: {args.Name}");
+
+                // Extract simple name from full assembly name
+                string assemblyName = new AssemblyName(args.Name).Name;
+
+                // Look for assembly in the same directory as ScriptProxy
+                string assemblyPath = Path.Combine(
+                    Path.GetDirectoryName(typeof(ScriptProxy).Assembly.Location),
+                    assemblyName + ".dll"
+                );
+
+                if (File.Exists(assemblyPath))
+                {
+                    _logger.Log($"✅ Found assembly at: {assemblyPath}");
+                    return Assembly.LoadFrom(assemblyPath);
+                }
+
+                _logger.Log($"❌ Assembly not found: {assemblyName}");
+                return null; // Let default loader continue
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Error resolving assembly {args.Name}", ex);
+                return null;
+            }
         }
 
         /// <summary>
