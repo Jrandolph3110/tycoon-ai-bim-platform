@@ -235,17 +235,11 @@ namespace TycoonRevitAddin.Scripting
             
             _scriptDomain = AppDomain.CreateDomain("TycoonScriptDomain", null, domainSetup);
             
-            // Create proxy in the new domain
+            // Create proxy in the new domain (no parameters to avoid serialization issues)
             var proxyType = typeof(ScriptProxy);
             _scriptProxy = (ScriptProxy)_scriptDomain.CreateInstanceAndUnwrap(
-                proxyType.Assembly.FullName, 
-                proxyType.FullName,
-                false,
-                System.Reflection.BindingFlags.Default,
-                null,
-                new object[] { _logger },
-                null,
-                null);
+                proxyType.Assembly.FullName,
+                proxyType.FullName);
             
             _logger.Log("✅ Script AppDomain created with proxy");
         }

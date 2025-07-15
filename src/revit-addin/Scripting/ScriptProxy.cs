@@ -23,13 +23,14 @@ namespace TycoonRevitAddin.Scripting
         private UIApplication _uiApplication;
         private Transaction _currentTransaction;
 
-        public ScriptProxy(Logger logger)
+        public ScriptProxy()
         {
-            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-            
+            // Create logger in the new AppDomain to avoid serialization issues
+            _logger = new Logger("ScriptProxy", debugMode: true);
+
             // Get current Revit context
             // Note: This will be injected properly when integrated with main application
-            _logger.Log("🔗 ScriptProxy created in main AppDomain");
+            _logger.Log("🔗 ScriptProxy created in isolated AppDomain");
         }
 
         /// <summary>
