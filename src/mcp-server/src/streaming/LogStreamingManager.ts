@@ -15,6 +15,8 @@ import { join } from 'path';
 import { tmpdir } from 'os';
 import { homedir } from 'os';
 import chalk from 'chalk';
+import { OperationalMonitor as OpMonitor } from '../monitoring/OperationalMonitor.js';
+import { SecurityLayer, SecurityConfig } from '../security/SecurityLayer.js';
 
 export interface LogStreamSession {
     id: string;
@@ -122,14 +124,31 @@ class OperationalMonitor {
  */
 export class LogStreamingManager extends EventEmitter {
     private sessions: Map<string, LogStreamSession> = new Map();
-    private operationalMonitor: OperationalMonitor;
+    private operationalMonitor: OpMonitor;
+    private securityLayer: SecurityLayer;
     private debugMode: boolean;
 
     constructor(debugMode: boolean = false) {
         super();
         this.debugMode = debugMode;
-        this.operationalMonitor = new OperationalMonitor(this.sessions);
-        
+        this.operationalMonitor = new OpMonitor();
+
+        // Initialize security layer with production config
+        const securityConfig: SecurityConfig = {
+            enableTLS: false, // Will be enabled in production with proper certificates
+            enableUserAuth: true,
+            enableAuditLogging: true,
+            enablePiiRedaction: true,
+            complianceMode: 'gdpr',
+            sessionTimeoutMinutes: 60,
+            maxFailedAttempts: 5,
+            rateLimitRequestsPerMinute: 100
+        };
+        this.securityLayer = new SecurityLayer(securityConfig);
+
+        // Start operational monitoring
+        this.operationalMonitor.startMonitoring(5000); // 5-second intervals
+
         // Cleanup stale sessions every 5 minutes
         setInterval(() => this.cleanupStaleSessions(), 5 * 60 * 1000);
     }
@@ -255,7 +274,7 @@ export class LogStreamingManager extends EventEmitter {
                 messageCount: session.messageCount,
                 lastActivity: session.lastActivity
             })),
-            kpiDashboard: this.operationalMonitor.generateKPIDashboard()
+            kpiDashboard: this.operationalMonitor.getKPIDashboard()
         };
     }
 

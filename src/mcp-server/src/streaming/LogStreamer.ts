@@ -12,6 +12,7 @@ import { EventEmitter } from 'events';
 import { watch, FSWatcher, readFile, stat } from 'fs';
 import { promisify } from 'util';
 import chalk from 'chalk';
+import { NetworkRecoveryManager, RecoveryConfig } from './ErrorRecoveryManager.js';
 
 const readFileAsync = promisify(readFile);
 const statAsync = promisify(stat);
@@ -44,15 +45,35 @@ export interface StreamMetrics {
 }
 
 /**
- * Security manager for PII redaction and access control
+ * Enhanced security manager for PII redaction and access control
  */
 class LogSecurityManager {
     private piiPatterns: RegExp[] = [
         /\b\d{3}-\d{2}-\d{4}\b/g,           // SSN
         /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/g, // Email
         /\b\d{4}[\s-]?\d{4}[\s-]?\d{4}[\s-]?\d{4}\b/g,          // Credit card
-        /\b(?:password|pwd|token|key|secret)[\s:=]+\S+/gi        // Credentials
+        /\b(?:password|pwd|token|key|secret)[\s:=]+\S+/gi,       // Credentials
+        /\b(?:api[_-]?key|access[_-]?token|bearer\s+\S+)/gi,     // API keys/tokens
+        /\b(?:username|user|login)[\s:=]+\S+/gi,                 // Usernames
+        /\b(?:phone|tel|mobile)[\s:=]*[\+]?[\d\s\-\(\)]{10,}/g,  // Phone numbers
+        /\b(?:ip|address)[\s:=]*\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}/gi, // IP addresses
+        /\b[A-Z0-9]{20,}\b/g,                                    // Long alphanumeric strings (likely tokens)
+        /\b(?:guid|uuid)[\s:=]*[a-f0-9\-]{32,36}/gi             // GUIDs/UUIDs
     ];
+
+    private userPermissions: Map<string, Set<string>> = new Map();
+    private auditLog: Array<{timestamp: Date, userId: string, action: string, source: string}> = [];
+
+    constructor() {
+        this.initializeDefaultPermissions();
+    }
+
+    private initializeDefaultPermissions(): void {
+        // Default permissions - in production, load from configuration
+        this.userPermissions.set('admin', new Set(['tycoon', 'scripts', 'revit_journal']));
+        this.userPermissions.set('developer', new Set(['tycoon', 'scripts']));
+        this.userPermissions.set('user', new Set(['scripts']));
+    }
 
     redactSensitiveData(logEntry: string): string {
         let sanitized = logEntry;
@@ -63,8 +84,46 @@ class LogSecurityManager {
     }
 
     checkUserPermissions(userId: string, logSource: string): boolean {
-        // TODO: Implement per-user source ACLs
-        return true; // Allow all for now
+        const userPerms = this.userPermissions.get(userId);
+        const hasPermission = userPerms ? userPerms.has(logSource) : false;
+
+        // Log access attempt for audit
+        this.auditLog.push({
+            timestamp: new Date(),
+            userId,
+            action: hasPermission ? 'ACCESS_GRANTED' : 'ACCESS_DENIED',
+            source: logSource
+        });
+
+        // Keep audit log size manageable
+        if (this.auditLog.length > 1000) {
+            this.auditLog.shift();
+        }
+
+        return hasPermission;
+    }
+
+    addUserPermission(userId: string, logSource: string): void {
+        if (!this.userPermissions.has(userId)) {
+            this.userPermissions.set(userId, new Set());
+        }
+        this.userPermissions.get(userId)!.add(logSource);
+    }
+
+    removeUserPermission(userId: string, logSource: string): void {
+        const userPerms = this.userPermissions.get(userId);
+        if (userPerms) {
+            userPerms.delete(logSource);
+        }
+    }
+
+    getAuditLog(): Array<{timestamp: Date, userId: string, action: string, source: string}> {
+        return [...this.auditLog];
+    }
+
+    getUserPermissions(userId: string): string[] {
+        const perms = this.userPermissions.get(userId);
+        return perms ? Array.from(perms) : [];
     }
 }
 
@@ -123,16 +182,29 @@ export class ReliableLogWatcher extends EventEmitter {
     private isRunning: boolean = false;
     private securityManager: LogSecurityManager;
     private backPressureManager: BackPressureManager;
+    private networkRecoveryManager: NetworkRecoveryManager;
     private config: LogStreamConfig;
     private debugMode: boolean;
+    private streamId: string;
 
     constructor(filePath: string, config: LogStreamConfig, debugMode: boolean = false) {
         super();
         this.filePath = filePath;
         this.config = config;
         this.debugMode = debugMode;
+        this.streamId = `stream_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
         this.securityManager = new LogSecurityManager();
         this.backPressureManager = new BackPressureManager(config.maxQueueDepth);
+
+        // Initialize network recovery with production-ready config
+        const recoveryConfig: RecoveryConfig = {
+            maxRetries: 5,
+            initialDelayMs: 1000,
+            maxDelayMs: 30000,
+            backoffMultiplier: 2,
+            jitterEnabled: true
+        };
+        this.networkRecoveryManager = new NetworkRecoveryManager(recoveryConfig, debugMode);
     }
 
     async start(): Promise<void> {
@@ -145,6 +217,9 @@ export class ReliableLogWatcher extends EventEmitter {
             // Initialize file position
             await this.initializeFilePosition();
 
+            // Initialize network recovery for this stream
+            this.networkRecoveryManager.initializeStreamRecovery(this.streamId, this.lastPosition);
+
             // Start FileSystemWatcher (primary)
             this.startFileSystemWatcher();
 
@@ -152,7 +227,7 @@ export class ReliableLogWatcher extends EventEmitter {
             this.startPollingBackup();
 
             // Initial read in case file already has content
-            await this.readChanges();
+            await this.readChangesWithRecovery();
 
         } catch (error) {
             this.logError('Failed to start log watcher', error);
@@ -177,6 +252,9 @@ export class ReliableLogWatcher extends EventEmitter {
             clearInterval(this.pollingTimer);
             this.pollingTimer = null;
         }
+
+        // Clean up network recovery
+        this.networkRecoveryManager.cleanupStreamRecovery(this.streamId);
 
         // Reset back-pressure manager
         this.backPressureManager.reset();
@@ -382,5 +460,60 @@ export class ReliableLogWatcher extends EventEmitter {
 
     private logError(message: string, error: any): void {
         console.error(chalk.red(`[LogStreamer] ${message}:`), error);
+    }
+
+    /**
+     * Enhanced read changes with network recovery support
+     */
+    private async readChangesWithRecovery(): Promise<void> {
+        try {
+            const result = await this.networkRecoveryManager.recoverStream(
+                this.streamId,
+                this.filePath,
+                async (offset: number) => {
+                    const stats = await statAsync(this.filePath);
+
+                    if (stats.size <= offset) {
+                        return { content: '', newOffset: offset };
+                    }
+
+                    const buffer = Buffer.alloc(stats.size - offset);
+                    const fs = await import('fs');
+                    const fd = await fs.promises.open(this.filePath, 'r');
+
+                    try {
+                        await fd.read(buffer, 0, buffer.length, offset);
+                        const content = buffer.toString('utf8');
+                        return { content, newOffset: stats.size };
+                    } finally {
+                        await fd.close();
+                    }
+                }
+            );
+
+            if (result.content.trim()) {
+                await this.processNewContent(result.content);
+            }
+
+            this.lastPosition = result.newOffset;
+
+        } catch (error) {
+            this.logError('Enhanced read with recovery failed', error);
+            // Fall back to regular read method
+            await this.readChanges();
+        }
+    }
+
+    /**
+     * Get enhanced metrics including recovery information
+     */
+    getEnhancedMetrics(): StreamMetrics & { recoveryMetrics: any } {
+        const baseMetrics = this.getMetrics();
+        const recoveryMetrics = this.networkRecoveryManager.getRecoveryMetrics(this.streamId);
+
+        return {
+            ...baseMetrics,
+            recoveryMetrics
+        };
     }
 }
