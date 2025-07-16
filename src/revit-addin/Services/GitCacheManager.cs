@@ -659,10 +659,27 @@ namespace TycoonRevitAddin.Services
         /// </summary>
         private async Task<bool> DownloadScriptFileAsync(string scriptPath, string localPath)
         {
+            _logger.Log($"📥 Starting script download: {scriptPath} -> {localPath}");
+
             // Script path already includes the full path (e.g., "github-scripts/GitScript")
             // Try to download as directory first, then as file
-            return await DownloadDirectoryFromGitHubAsync(scriptPath, localPath) ||
-                   await DownloadFileFromGitHubAsync(scriptPath, localPath);
+            var directorySuccess = await DownloadDirectoryFromGitHubAsync(scriptPath, localPath);
+            if (directorySuccess)
+            {
+                _logger.Log($"✅ Directory download successful: {scriptPath}");
+                return true;
+            }
+
+            _logger.Log($"🔄 Directory download failed, trying file download: {scriptPath}");
+            var fileSuccess = await DownloadFileFromGitHubAsync(scriptPath, localPath);
+            if (fileSuccess)
+            {
+                _logger.Log($"✅ File download successful: {scriptPath}");
+                return true;
+            }
+
+            _logger.Log($"❌ Both directory and file download failed: {scriptPath}");
+            return false;
         }
 
         /// <summary>
@@ -680,15 +697,19 @@ namespace TycoonRevitAddin.Services
         {
             try
             {
+                _logger.Log($"🔍 Attempting directory download for: {githubPath}");
                 var url = $"https://api.github.com/repos/{_repositoryOwner}/{_repositoryName}/contents/{githubPath}?ref={_branch}";
                 var response = await _httpClient.GetAsync(url);
 
                 if (!response.IsSuccessStatusCode)
                 {
+                    _logger.Log($"❌ Directory download failed - HTTP {response.StatusCode}: {githubPath}");
                     return false; // Not a directory or doesn't exist
                 }
 
                 var json = await response.Content.ReadAsStringAsync();
+                _logger.Log($"🔍 Directory response length: {json.Length} chars");
+                _logger.Log($"🔍 Directory response starts with: {json.Substring(0, Math.Min(100, json.Length))}");
 
                 // Try to deserialize as directory listing (array)
                 try
@@ -696,8 +717,11 @@ namespace TycoonRevitAddin.Services
                     var directoryContents = JsonConvert.DeserializeObject<GitHubFileResponse[]>(json);
                     if (directoryContents == null || directoryContents.Length == 0)
                     {
+                        _logger.Log($"❌ Directory is empty or null: {githubPath}");
                         return false;
                     }
+
+                    _logger.Log($"✅ Directory contains {directoryContents.Length} items: {githubPath}");
 
                     // Create local directory
                     Directory.CreateDirectory(localBasePath);
@@ -707,6 +731,7 @@ namespace TycoonRevitAddin.Services
                     foreach (var item in directoryContents)
                     {
                         var itemLocalPath = Path.Combine(localBasePath, item.Name);
+                        _logger.Log($"📁 Processing item: {item.Name} (Type: {item.Type})");
 
                         if (item.Type == "file" || item.Content != null) // It's a file
                         {
@@ -719,10 +744,13 @@ namespace TycoonRevitAddin.Services
                     }
 
                     var results = await Task.WhenAll(downloadTasks);
+                    var successCount = results.Count(r => r);
+                    _logger.Log($"📥 Directory download complete: {successCount}/{results.Length} items successful");
                     return results.All(r => r); // Return true if all downloads succeeded
                 }
-                catch (JsonException)
+                catch (JsonException ex)
                 {
+                    _logger.Log($"❌ Not a directory (JSON deserialization failed): {githubPath} - {ex.Message}");
                     // Not a directory (probably a file), return false to try file download
                     return false;
                 }
