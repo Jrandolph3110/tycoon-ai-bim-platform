@@ -120,21 +120,23 @@ namespace TycoonRevitAddin.Scripting
 
             try
             {
-                _logger?.Log("🔍 Discovering scripts from all sources...");
+                _logger?.Log("🔍 STARTUP: Discovering scripts from all sources...");
 
                 // 1. Discover local scripts
                 var localScripts = DiscoverLocalScripts();
                 allScripts.AddRange(localScripts);
+                _logger?.Log($"🔍 STARTUP: Found {localScripts.Count} local scripts");
 
                 // 2. Discover GitHub scripts
                 var githubScripts = DiscoverGitHubScripts();
                 allScripts.AddRange(githubScripts);
+                _logger?.Log($"🔍 STARTUP: Found {githubScripts.Count} GitHub scripts");
 
-                _logger?.Log($"✅ Total scripts discovered: {allScripts.Count} (Local: {localScripts.Count}, GitHub: {githubScripts.Count})");
+                _logger?.Log($"✅ STARTUP: Total scripts discovered: {allScripts.Count} (Local: {localScripts.Count}, GitHub: {githubScripts.Count})");
             }
             catch (Exception ex)
             {
-                _logger?.LogError("Failed to discover all scripts", ex);
+                _logger?.LogError("STARTUP: Failed to discover all scripts", ex);
             }
 
             return allScripts;
@@ -168,9 +170,13 @@ namespace TycoonRevitAddin.Scripting
 
             try
             {
+                _logger?.Log("🔍 STARTUP: Attempting to discover GitHub scripts from cache...");
                 var cachedScriptsPath = _gitCacheManager.GetCachedScriptsPath();
+                _logger?.Log($"🔍 STARTUP: Cached scripts path: {cachedScriptsPath ?? "NULL"}");
+
                 if (!string.IsNullOrEmpty(cachedScriptsPath) && Directory.Exists(cachedScriptsPath))
                 {
+                    _logger?.Log($"🔍 STARTUP: Cache directory exists, discovering scripts...");
                     scripts = DiscoverScripts(cachedScriptsPath);
 
                     // Mark as GitHub source
@@ -178,18 +184,27 @@ namespace TycoonRevitAddin.Scripting
                     {
                         script.Source = "GitHub";
                         script.SourcePath = cachedScriptsPath;
+                        _logger?.Log($"🔍 STARTUP: Marked script as GitHub source: {script.Name}");
                     }
 
-                    _logger?.Log($"🔍 GitHub scripts: {scripts.Count} from cache");
+                    _logger?.Log($"🔍 STARTUP: GitHub scripts: {scripts.Count} from cache");
                 }
                 else
                 {
-                    _logger?.Log("🔍 No GitHub scripts cached - download required");
+                    _logger?.Log("🔍 STARTUP: No GitHub scripts cached - download required");
+                    if (string.IsNullOrEmpty(cachedScriptsPath))
+                    {
+                        _logger?.Log("🔍 STARTUP: Cached scripts path is null or empty");
+                    }
+                    else if (!Directory.Exists(cachedScriptsPath))
+                    {
+                        _logger?.Log($"🔍 STARTUP: Cache directory does not exist: {cachedScriptsPath}");
+                    }
                 }
             }
             catch (Exception ex)
             {
-                _logger?.LogError("Failed to discover GitHub scripts", ex);
+                _logger?.LogError("STARTUP: Failed to discover GitHub scripts", ex);
             }
 
             return scripts;
