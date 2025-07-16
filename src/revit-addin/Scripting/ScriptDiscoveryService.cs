@@ -41,12 +41,12 @@ namespace TycoonRevitAddin.Scripting
                     return scripts;
                 }
 
-                // Look for script.json files in subdirectories, excluding build output directories
-                var scriptJsonFiles = Directory.GetFiles(baseDirectory, "script.json", SearchOption.AllDirectories)
+                // Look for *.json files in subdirectories, excluding build output directories
+                var scriptJsonFiles = Directory.GetFiles(baseDirectory, "*.json", SearchOption.AllDirectories)
                     .Where(file => !file.Contains("\\bin\\") && !file.Contains("\\obj\\") && !file.Contains("\\Debug\\") && !file.Contains("\\Release\\"))
                     .ToArray();
 
-                _logger?.Log($"🔍 Found {scriptJsonFiles.Length} script.json files");
+                _logger?.Log($"🔍 Found {scriptJsonFiles.Length} JSON script files");
 
                 foreach (var jsonFile in scriptJsonFiles)
                 {
