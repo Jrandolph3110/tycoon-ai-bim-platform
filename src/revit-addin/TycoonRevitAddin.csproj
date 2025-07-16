@@ -74,6 +74,7 @@
     <Compile Include="Commands\PlaceholderCommands.cs" />
     <Compile Include="Commands\UnifiedScriptCommand.cs" />
     <Compile Include="Commands\RefreshGitHubScriptsCommand.cs" />
+    <Compile Include="Commands\ShowConsoleCommand.cs" />
     <!-- 🎯 CLEAN ARCHITECTURE: New simplified script system -->
     <Compile Include="Scripting\ScriptProxy.cs" />
     <Compile Include="Scripting\DirectRevitHost.cs" />
@@ -133,19 +134,17 @@
     </Compile>
     -->
     <!-- TestLayoutDialog removed - replaced by clean architecture -->
-    <!-- 🚧 TEMPORARILY DISABLED: XAML dependency issues -->
-    <!--
+    <!-- ✅ RE-ENABLED: Console functionality for Scripts Control panel -->
     <Compile Include="UI\TycoonConsoleWindow.xaml.cs">
       <DependentUpon>TycoonConsoleWindow.xaml</DependentUpon>
     </Compile>
-    -->
     <!-- ✅ RE-ENABLED: Essential for Communication layer -->
     <Compile Include="UI\DynamicRibbonManager.cs" />
     <Compile Include="UI\PluginSelectorControl.cs" />
     <!-- LayoutConverters.cs removed - part of legacy layout system -->
     <Compile Include="Utils\Logger.cs" />
-    <!-- 🚧 TEMPORARILY DISABLED: Depends on TycoonConsoleWindow which was excluded -->
-    <!-- <Compile Include="Utils\TycoonConsoleManager.cs" /> -->
+    <!-- ✅ RE-ENABLED: Console functionality for Scripts Control panel -->
+    <Compile Include="Utils\TycoonConsoleManager.cs" />
     <!-- ✅ RE-ENABLED: Essential for Communication layer -->
     <Compile Include="Storage\StreamingDataVault.cs" />
     <!-- ✅ RE-ENABLED: Essential for Communication layer -->
@@ -201,13 +200,11 @@
     </Page>
     -->
     <!-- TestLayoutDialog.xaml removed - replaced by clean architecture -->
-    <!-- 🚧 TEMPORARILY DISABLED: XAML dependency issues -->
-    <!--
+    <!-- ✅ RE-ENABLED: Console functionality for Scripts Control panel -->
     <Page Include="UI\TycoonConsoleWindow.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
-    -->
   </ItemGroup>
 
   <!-- ✅ RE-ENABLED: Communication layer is cornerstone for AI-Revit manipulation -->

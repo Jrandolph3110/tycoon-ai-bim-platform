@@ -24,8 +24,6 @@ namespace TycoonRevitAddin.Commands
                 else
                 {
                     TycoonConsoleManager.ShowConsole();
-                    TycoonConsoleManager.AppendLog("🔥 Console opened manually", LogLevel.Info);
-                    TycoonConsoleManager.AppendLog("💡 Tip: Use Shift+Click on script buttons for automatic console display", LogLevel.Info);
                 }
 
                 return Result.Succeeded;
