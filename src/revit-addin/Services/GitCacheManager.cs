@@ -659,7 +659,8 @@ namespace TycoonRevitAddin.Services
         /// </summary>
         private async Task<bool> DownloadScriptFileAsync(string scriptPath, string localPath)
         {
-            return await DownloadFileFromGitHubAsync($"scripts/{scriptPath}", localPath);
+            // Script path already includes the full path (e.g., "github-scripts/GitScript")
+            return await DownloadFileFromGitHubAsync(scriptPath, localPath);
         }
 
         /// <summary>
