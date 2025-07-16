@@ -315,20 +315,32 @@ namespace TycoonRevitAddin.UI
         {
             lock (_lockObject)
             {
+                // Clear both TextBox and RichTextBox content
+                ConsoleTextBox.Clear();
                 ConsoleParagraph.Inlines.Clear();
+                ConsoleRichTextBox.Document.Blocks.Clear();
+
                 _lineCount = 0;
                 LineCountText.Text = "0";
-                
-                // Add welcome message back
+
+                // Add welcome message to TextBox
+                ConsoleTextBox.Text = "🔥 Console cleared - Ready for new output\n\n";
+
+                // Add welcome message to RichTextBox
+                var welcomeParagraph = new Paragraph();
                 var welcomeRun = new Run("🔥 Console cleared - Ready for new output")
                 {
                     Foreground = new SolidColorBrush(Color.FromRgb(68, 170, 68)),
                     FontWeight = FontWeights.Bold
                 };
+                welcomeParagraph.Inlines.Add(welcomeRun);
+                ConsoleRichTextBox.Document.Blocks.Add(welcomeParagraph);
+
+                // Also add to the original paragraph for compatibility
                 ConsoleParagraph.Inlines.Add(welcomeRun);
                 ConsoleParagraph.Inlines.Add(new LineBreak());
                 ConsoleParagraph.Inlines.Add(new LineBreak());
-                
+
                 _lineCount = 1;
                 LineCountText.Text = "1";
             }
@@ -338,9 +350,16 @@ namespace TycoonRevitAddin.UI
         {
             try
             {
-                var textRange = new TextRange(ConsoleDocument.ContentStart, ConsoleDocument.ContentEnd);
-                Clipboard.SetText(textRange.Text);
-                StatusText.Text = "Console content copied to clipboard";
+                // Copy from TextBox since it's the primary display
+                if (!string.IsNullOrEmpty(ConsoleTextBox.Text))
+                {
+                    Clipboard.SetText(ConsoleTextBox.Text);
+                    StatusText.Text = "Console content copied to clipboard";
+                }
+                else
+                {
+                    StatusText.Text = "No content to copy";
+                }
             }
             catch (Exception ex)
             {
@@ -361,8 +380,8 @@ namespace TycoonRevitAddin.UI
 
                 if (saveDialog.ShowDialog() == true)
                 {
-                    var textRange = new TextRange(ConsoleDocument.ContentStart, ConsoleDocument.ContentEnd);
-                    File.WriteAllText(saveDialog.FileName, textRange.Text);
+                    // Save from TextBox since it's the primary display
+                    File.WriteAllText(saveDialog.FileName, ConsoleTextBox.Text);
                     StatusText.Text = $"Console saved to: {Path.GetFileName(saveDialog.FileName)}";
                 }
             }
