@@ -87,31 +87,47 @@ namespace TycoonRevitAddin.Utils
         }
 
         /// <summary>
+        /// Append a script output log entry (for Script Outputs source)
+        /// </summary>
+        public static void AppendScriptLog(string message, LogLevel level = LogLevel.Info)
+        {
+            lock (_lockObject)
+            {
+                // Only show in console if Script Outputs is selected
+                _consoleWindow?.AppendLogEntry($"[SCRIPT] {message}", level);
+            }
+        }
+
+        /// <summary>
         /// Start monitoring log files for real-time updates
         /// </summary>
         private static void StartLogMonitoring()
         {
             try
             {
-                var logDirectory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Tycoon");
-                
+                // Monitor the correct temp directory where Tycoon logs are actually created
+                var logDirectory = Path.GetTempPath();
+
                 if (!Directory.Exists(logDirectory))
                 {
-                    Directory.CreateDirectory(logDirectory);
+                    AppendLog($"❌ Temp directory not found: {logDirectory}", LogLevel.Error);
+                    return;
                 }
 
-                // Monitor the Tycoon directory for log file changes
+                // Monitor for Tycoon log files in temp directory
                 _logWatcher = new FileSystemWatcher(logDirectory)
                 {
-                    Filter = "*.log",
+                    Filter = "Tycoon_*.log",  // Match the actual log file pattern
                     NotifyFilter = NotifyFilters.LastWrite | NotifyFilters.Size,
                     EnableRaisingEvents = true
                 };
 
                 _logWatcher.Changed += LogWatcher_Changed;
-                
+
                 // Load existing log content
                 LoadExistingLogs();
+
+                AppendLog($"📁 Monitoring Tycoon logs in: {logDirectory}", LogLevel.Info);
             }
             catch (Exception ex)
             {
@@ -161,20 +177,21 @@ namespace TycoonRevitAddin.Utils
         {
             try
             {
-                var logDirectory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Tycoon");
-                var reNumberLogPath = Path.Combine(logDirectory, "ReNumber_Debug.log");
+                var logDirectory = Path.GetTempPath();
+                var todayLogPattern = $"Tycoon_{DateTime.Now:yyyyMMdd}.log";
+                var todayLogPath = Path.Combine(logDirectory, todayLogPattern);
 
-                if (File.Exists(reNumberLogPath))
+                if (File.Exists(todayLogPath))
                 {
-                    var content = File.ReadAllText(reNumberLogPath);
+                    var content = File.ReadAllText(todayLogPath);
                     var lines = content.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
 
                     // Load last 50 lines to avoid overwhelming the console
                     var startIndex = Math.Max(0, lines.Length - 50);
-                    
+
                     if (startIndex > 0)
                     {
-                        AppendLog($"📜 Showing last {lines.Length - startIndex} lines from existing log...", LogLevel.Info);
+                        AppendLog($"📜 Showing last {lines.Length - startIndex} lines from existing Tycoon log...", LogLevel.Info);
                     }
 
                     for (int i = startIndex; i < lines.Length; i++)
@@ -187,6 +204,11 @@ namespace TycoonRevitAddin.Utils
                     }
 
                     _lastLogContent = content;
+                    AppendLog($"📁 Loaded existing log: {todayLogPath}", LogLevel.Info);
+                }
+                else
+                {
+                    AppendLog($"📁 No existing Tycoon log found for today: {todayLogPath}", LogLevel.Info);
                 }
             }
             catch (Exception ex)

@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Documents;
@@ -20,6 +21,7 @@ namespace TycoonRevitAddin.UI
         private bool _isPaused = false;
         private int _lineCount = 0;
         private readonly object _lockObject = new object();
+        private LogSource _currentLogSource = LogSource.ScriptOutputs;
 
         public TycoonConsoleWindow()
         {
@@ -47,6 +49,7 @@ namespace TycoonRevitAddin.UI
             TopMostButton.Unchecked += (s, e) => Topmost = false;
             
             FilterComboBox.SelectionChanged += FilterComboBox_SelectionChanged;
+            LogSourceComboBox.SelectionChanged += LogSourceComboBox_SelectionChanged;
             
             // Set window properties
             WindowState = WindowState.Normal;
@@ -179,6 +182,25 @@ namespace TycoonRevitAddin.UI
             StatusText.Text = $"Filter: {selectedFilter}";
         }
 
+        private void LogSourceComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (LogSourceComboBox.SelectedIndex < 0) return;
+
+            var newSource = (LogSource)LogSourceComboBox.SelectedIndex;
+            if (newSource == _currentLogSource) return;
+
+            _currentLogSource = newSource;
+
+            // Clear console and load new source
+            ClearConsole();
+
+            // Update status
+            StatusText.Text = $"Switched to: {GetLogSourceDisplayName(newSource)}";
+
+            // Load content for new source
+            LoadLogSourceContent(newSource);
+        }
+
         private void ClearConsole()
         {
             lock (_lockObject)
@@ -240,6 +262,116 @@ namespace TycoonRevitAddin.UI
             }
         }
 
+        private string GetLogSourceDisplayName(LogSource source)
+        {
+            return source switch
+            {
+                LogSource.TycoonLog => "Tycoon Log",
+                LogSource.RevitJournal => "Revit Journal",
+                LogSource.ScriptOutputs => "Script Outputs",
+                _ => "Unknown"
+            };
+        }
+
+        private void LoadLogSourceContent(LogSource source)
+        {
+            try
+            {
+                switch (source)
+                {
+                    case LogSource.TycoonLog:
+                        LoadTycoonLogContent();
+                        break;
+                    case LogSource.RevitJournal:
+                        LoadRevitJournalContent();
+                        break;
+                    case LogSource.ScriptOutputs:
+                        LoadScriptOutputsContent();
+                        break;
+                }
+            }
+            catch (Exception ex)
+            {
+                AppendLogEntry($"❌ Error loading {GetLogSourceDisplayName(source)}: {ex.Message}", LogLevel.Error);
+            }
+        }
+
+        private void LoadTycoonLogContent()
+        {
+            var logDirectory = Path.GetTempPath();
+            var todayLogPattern = $"Tycoon_{DateTime.Now:yyyyMMdd}.log";
+            var todayLogPath = Path.Combine(logDirectory, todayLogPattern);
+
+            if (File.Exists(todayLogPath))
+            {
+                var content = File.ReadAllText(todayLogPath);
+                var lines = content.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
+
+                AppendLogEntry($"📁 Loading Tycoon log: {todayLogPath}", LogLevel.Info);
+
+                // Load last 100 lines
+                var startIndex = Math.Max(0, lines.Length - 100);
+                for (int i = startIndex; i < lines.Length; i++)
+                {
+                    if (!string.IsNullOrWhiteSpace(lines[i]))
+                    {
+                        AppendLogEntry(lines[i], LogLevel.Info);
+                    }
+                }
+            }
+            else
+            {
+                AppendLogEntry($"📁 No Tycoon log found for today: {todayLogPath}", LogLevel.Warning);
+            }
+        }
+
+        private void LoadRevitJournalContent()
+        {
+            var journalDirectory = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "Autodesk", "Revit", "Autodesk Revit 2024", "Journals");
+
+            if (Directory.Exists(journalDirectory))
+            {
+                var journalFiles = Directory.GetFiles(journalDirectory, "journal.*.txt")
+                    .OrderByDescending(f => File.GetLastWriteTime(f))
+                    .FirstOrDefault();
+
+                if (journalFiles != null)
+                {
+                    var content = File.ReadAllText(journalFiles);
+                    var lines = content.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
+
+                    AppendLogEntry($"📁 Loading latest Revit journal: {Path.GetFileName(journalFiles)}", LogLevel.Info);
+
+                    // Load last 50 lines
+                    var startIndex = Math.Max(0, lines.Length - 50);
+                    for (int i = startIndex; i < lines.Length; i++)
+                    {
+                        if (!string.IsNullOrWhiteSpace(lines[i]))
+                        {
+                            AppendLogEntry(lines[i], LogLevel.Info);
+                        }
+                    }
+                }
+                else
+                {
+                    AppendLogEntry("📁 No Revit journal files found", LogLevel.Warning);
+                }
+            }
+            else
+            {
+                AppendLogEntry($"📁 Revit journal directory not found: {journalDirectory}", LogLevel.Warning);
+            }
+        }
+
+        private void LoadScriptOutputsContent()
+        {
+            AppendLogEntry("🔥 Script Outputs Console Ready", LogLevel.Success);
+            AppendLogEntry("💡 This view shows real-time script execution output", LogLevel.Info);
+            AppendLogEntry("⚡ Execute scripts to see output here", LogLevel.Info);
+        }
+
         protected override void OnClosed(EventArgs e)
         {
             _updateTimer?.Stop();
@@ -253,5 +385,12 @@ namespace TycoonRevitAddin.UI
         Success,
         Warning,
         Error
+    }
+
+    public enum LogSource
+    {
+        TycoonLog = 0,
+        RevitJournal = 1,
+        ScriptOutputs = 2
     }
 }
