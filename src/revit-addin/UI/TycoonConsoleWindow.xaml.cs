@@ -177,33 +177,48 @@ namespace TycoonRevitAddin.UI
             {
                 try
                 {
-                    // CRITICAL DIAGNOSTIC: Test both TextBox and RichTextBox approaches
+                    // OPTIMIZED: Conditional timestamp logic based on current log source
+                    string displayMessage;
+
+                    switch (_currentLogSource)
+                    {
+                        case LogSource.TycoonLog:
+                            // Tycoon logs already have timestamps - don't add console timestamp
+                            displayMessage = message;
+                            break;
+
+                        case LogSource.RevitJournal:
+                        case LogSource.ScriptOutputs:
+                        default:
+                            // Add console timestamp for sources without their own timestamps
+                            var timestamp = DateTime.Now.ToString("HH:mm:ss.fff");
+                            displayMessage = $"[{timestamp}] {message}";
+                            break;
+                    }
 
                     // APPROACH 1: Use TextBox (simple text append)
-                    var timestamp = DateTime.Now.ToString("HH:mm:ss.fff");
-                    var logEntry = $"[{timestamp}] {message}\n";
-                    ConsoleTextBox.AppendText(logEntry);
+                    ConsoleTextBox.AppendText(displayMessage + "\n");
 
                     // APPROACH 2: Also test RichTextBox with new paragraph
                     var newParagraph = new Paragraph();
-                    var messageRun = new Run($"[{timestamp}] {message}");
+                    var messageRun = new Run(displayMessage);
                     ApplyLogLevelStyling(messageRun, level);
                     newParagraph.Inlines.Add(messageRun);
 
                     // Add to hidden RichTextBox for comparison
                     ConsoleRichTextBox.Document.Blocks.Add(newParagraph);
 
-                    // Keep only last 100 entries
-                    while (ConsoleRichTextBox.Document.Blocks.Count > 100)
+                    // Keep only last 200 entries (increased capacity)
+                    while (ConsoleRichTextBox.Document.Blocks.Count > 200)
                     {
                         ConsoleRichTextBox.Document.Blocks.Remove(ConsoleRichTextBox.Document.Blocks.FirstBlock);
                     }
 
-                    // Keep TextBox manageable too
+                    // Keep TextBox manageable too (increased capacity)
                     var lines = ConsoleTextBox.Text.Split('\n');
-                    if (lines.Length > 100)
+                    if (lines.Length > 200)
                     {
-                        ConsoleTextBox.Text = string.Join("\n", lines.Skip(lines.Length - 100));
+                        ConsoleTextBox.Text = string.Join("\n", lines.Skip(lines.Length - 200));
                     }
 
                     _lineCount++;
@@ -217,11 +232,11 @@ namespace TycoonRevitAddin.UI
                         ConsoleScrollViewer.ScrollToEnd();
                     }
 
-                    System.Diagnostics.Debug.WriteLine($"DIAGNOSTIC: Added to both TextBox and RichTextBox: '{message}'");
+                    System.Diagnostics.Debug.WriteLine($"OPTIMIZED: Added message for {_currentLogSource}: '{displayMessage}'");
                 }
                 catch (Exception ex)
                 {
-                    System.Diagnostics.Debug.WriteLine($"DIAGNOSTIC ERROR in AppendLogEntryDirect: {ex.Message}");
+                    System.Diagnostics.Debug.WriteLine($"ERROR in AppendLogEntryDirect: {ex.Message}");
                 }
             }
         }
@@ -399,19 +414,38 @@ namespace TycoonRevitAddin.UI
 
             if (File.Exists(todayLogPath))
             {
-                var content = File.ReadAllText(todayLogPath);
-                var lines = content.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
-
-                AppendLogEntry($"📁 Loading Tycoon log: {todayLogPath}", LogLevel.Info);
-
-                // Load last 100 lines
-                var startIndex = Math.Max(0, lines.Length - 100);
-                for (int i = startIndex; i < lines.Length; i++)
+                try
                 {
-                    if (!string.IsNullOrWhiteSpace(lines[i]))
+                    // Use FileStream with proper sharing to handle locked files
+                    string content;
+                    using (var fileStream = new FileStream(todayLogPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+                    using (var reader = new StreamReader(fileStream))
                     {
-                        AppendLogEntry(lines[i], LogLevel.Info);
+                        content = reader.ReadToEnd();
                     }
+
+                    var lines = content.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
+
+                    AppendLogEntry($"📁 Loading Tycoon log: {todayLogPath}", LogLevel.Info);
+
+                    // Load last 200 lines (increased capacity)
+                    var startIndex = Math.Max(0, lines.Length - 200);
+                    for (int i = startIndex; i < lines.Length; i++)
+                    {
+                        if (!string.IsNullOrWhiteSpace(lines[i]))
+                        {
+                            AppendLogEntry(lines[i], LogLevel.Info);
+                        }
+                    }
+                }
+                catch (IOException ex)
+                {
+                    AppendLogEntry($"📁 Cannot access Tycoon log file (may be locked): {ex.Message}", LogLevel.Warning);
+                    AppendLogEntry("💡 Try using the refresh button to retry", LogLevel.Info);
+                }
+                catch (Exception ex)
+                {
+                    AppendLogEntry($"📁 Error reading Tycoon log: {ex.Message}", LogLevel.Error);
                 }
             }
             else
@@ -448,8 +482,8 @@ namespace TycoonRevitAddin.UI
 
                         AppendLogEntry($"📁 Loading latest Revit journal: {Path.GetFileName(journalFiles)}", LogLevel.Info);
 
-                        // Load last 50 lines
-                        var startIndex = Math.Max(0, lines.Length - 50);
+                        // Load last 200 lines (increased capacity)
+                        var startIndex = Math.Max(0, lines.Length - 200);
                         for (int i = startIndex; i < lines.Length; i++)
                         {
                             if (!string.IsNullOrWhiteSpace(lines[i]))
@@ -509,8 +543,8 @@ namespace TycoonRevitAddin.UI
                         {
                             AppendLogEntry($"📜 Loading existing script outputs ({lines.Length} entries)...", LogLevel.Info);
 
-                            // Load last 30 lines to avoid overwhelming
-                            var startIndex = Math.Max(0, lines.Length - 30);
+                            // Load last 200 lines (increased capacity)
+                            var startIndex = Math.Max(0, lines.Length - 200);
                             for (int i = startIndex; i < lines.Length; i++)
                             {
                                 if (!string.IsNullOrWhiteSpace(lines[i]))
