@@ -67,27 +67,44 @@ namespace TycoonRevitAddin.Plugins
         {
             try
             {
-                // Reload Scripts button
-                var reloadButton = AddPushButton(
-                    panel,
+                // Create button data for stacked buttons (Reload + Refresh GitHub)
+                var reloadButtonData = new PushButtonData(
                     "ReloadScripts",
-                    "Reload Scripts",
-                    "TycoonRevitAddin.Commands.ReloadScriptsCommand",
-                    "🔄 Reload all scripts from both local and GitHub sources\nRefresh the script list by scanning local directory and GitHub cache. Enables hot-reload development workflow."
+                    "Reload\nScripts",
+                    typeof(ScriptsPlugin).Assembly.Location,
+                    "TycoonRevitAddin.Commands.ReloadScriptsCommand"
                 );
-                _scriptButtons.Add(reloadButton);
+                reloadButtonData.ToolTip = "🔄 Reload all scripts from both local and GitHub sources\nRefresh the script list by scanning local directory and GitHub cache. Enables hot-reload development workflow.";
 
-                // Refresh GitHub Scripts button
-                var refreshGitHubButton = AddPushButton(
-                    panel,
+                var refreshGitHubButtonData = new PushButtonData(
                     "RefreshGitHubScripts",
-                    "Refresh GitHub",
-                    "TycoonRevitAddin.Commands.RefreshGitHubScriptsCommand",
-                    "📥 Download latest scripts from GitHub\nRefresh GitHub script cache with latest verified production scripts from repository."
+                    "Refresh\nGitHub",
+                    typeof(ScriptsPlugin).Assembly.Location,
+                    "TycoonRevitAddin.Commands.RefreshGitHubScriptsCommand"
                 );
-                _scriptButtons.Add(refreshGitHubButton);
+                refreshGitHubButtonData.ToolTip = "📥 Download latest scripts from GitHub\nRefresh GitHub script cache with latest verified production scripts from repository.";
 
-                _logger.Log("🎯 Created Scripts Control buttons (Reload + GitHub Refresh)");
+                // Create stacked buttons (Reload + Refresh GitHub)
+                var stackedItems = panel.AddStackedItems(reloadButtonData, refreshGitHubButtonData);
+
+                // Store the stacked buttons
+                if (stackedItems != null && stackedItems.Count >= 2)
+                {
+                    _scriptButtons.Add(stackedItems[0] as PushButton);
+                    _scriptButtons.Add(stackedItems[1] as PushButton);
+                }
+
+                // Console button (standalone)
+                var consoleButton = AddPushButton(
+                    panel,
+                    "ShowConsole",
+                    "Console",
+                    "TycoonRevitAddin.Commands.ShowConsoleCommand",
+                    "📟 Show/Hide Script Console\nView script execution logs, errors, and output messages from both local and GitHub scripts."
+                );
+                _scriptButtons.Add(consoleButton);
+
+                _logger.Log("🎯 Created Scripts Control buttons (Stacked: Reload + GitHub Refresh, Standalone: Console)");
             }
             catch (Exception ex)
             {
