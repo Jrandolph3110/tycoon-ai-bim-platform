@@ -17,6 +17,8 @@ import { homedir } from 'os';
 import chalk from 'chalk';
 import { OperationalMonitor as OpMonitor } from '../monitoring/OperationalMonitor.js';
 import { SecurityLayer, SecurityConfig } from '../security/SecurityLayer.js';
+import { IntelligentLogAnalyzer, DebugContext } from '../ai/IntelligentLogAnalyzer.js';
+import { PerformanceOptimizer, OptimizationConfig } from '../optimization/PerformanceOptimizer.js';
 
 export interface LogStreamSession {
     id: string;
@@ -126,6 +128,8 @@ export class LogStreamingManager extends EventEmitter {
     private sessions: Map<string, LogStreamSession> = new Map();
     private operationalMonitor: OpMonitor;
     private securityLayer: SecurityLayer;
+    private intelligentAnalyzer: IntelligentLogAnalyzer;
+    private performanceOptimizer: PerformanceOptimizer;
     private debugMode: boolean;
 
     constructor(debugMode: boolean = false) {
@@ -146,8 +150,27 @@ export class LogStreamingManager extends EventEmitter {
         };
         this.securityLayer = new SecurityLayer(securityConfig);
 
-        // Start operational monitoring
+        // Initialize AI-powered intelligent log analyzer
+        this.intelligentAnalyzer = new IntelligentLogAnalyzer(debugMode);
+
+        // Initialize performance optimizer for sub-10ms latency
+        const optimizationConfig: OptimizationConfig = {
+            targetLatency: 10, // 10ms target
+            maxBufferSize: 1000,
+            adaptiveBuffering: true,
+            priorityProcessing: true,
+            memoryOptimization: true,
+            performanceMonitoring: true,
+            autoTuning: true
+        };
+        this.performanceOptimizer = new PerformanceOptimizer(optimizationConfig);
+
+        // Start all monitoring and optimization systems
         this.operationalMonitor.startMonitoring(5000); // 5-second intervals
+        this.performanceOptimizer.start();
+
+        // Setup AI analyzer event handlers
+        this.setupIntelligentAnalyzerEvents();
 
         // Cleanup stale sessions every 5 minutes
         setInterval(() => this.cleanupStaleSessions(), 5 * 60 * 1000);
@@ -298,20 +321,73 @@ export class LogStreamingManager extends EventEmitter {
         }
     }
 
-    private handleLogEntry(sessionId: string, entry: LogEntry): void {
+    private async handleLogEntry(sessionId: string, entry: LogEntry): Promise<void> {
         const session = this.sessions.get(sessionId);
         if (!session) return;
 
         session.messageCount++;
         session.lastActivity = new Date();
 
-        // Send log entry to client
-        this.sendStreamMessage(session.connection, {
-            type: 'log_stream_data',
-            stream_id: sessionId,
-            queue_depth: entry.metadata?.queueDepth,
-            payload: entry
-        });
+        try {
+            // Process log entry with AI analysis and performance optimization
+            const analysisResult = await this.performanceOptimizer.processLogEntry(
+                entry,
+                async (logEntry) => {
+                    // Create debug context for the session
+                    const debugContext: Partial<DebugContext> = {
+                        sessionId,
+                        userId: 'system', // Would be actual user ID in production
+                        systemState: {
+                            memoryUsage: process.memoryUsage().heapUsed / 1024 / 1024,
+                            cpuUsage: 0, // Would get actual CPU usage
+                            activeConnections: this.sessions.size,
+                            queueDepth: entry.metadata?.queueDepth || 0
+                        }
+                    };
+
+                    // Perform intelligent analysis
+                    return await this.intelligentAnalyzer.analyzeWithContext(logEntry, debugContext);
+                },
+                this.determineLogPriority(entry)
+            );
+
+            // Send enhanced log entry with AI insights to client
+            this.sendStreamMessage(session.connection, {
+                type: 'log_stream_data',
+                stream_id: sessionId,
+                queue_depth: entry.metadata?.queueDepth,
+                payload: {
+                    ...entry,
+                    aiAnalysis: analysisResult.analysis,
+                    suggestions: analysisResult.suggestions,
+                    correlatedEvents: analysisResult.correlatedEvents,
+                    smartAlert: analysisResult.smartAlert
+                }
+            });
+
+            // Send separate alert if high-risk situation detected
+            if (analysisResult.smartAlert && analysisResult.smartAlert.severity === 'critical') {
+                this.sendStreamMessage(session.connection, {
+                    type: 'log_stream_control',
+                    stream_id: sessionId,
+                    payload: {
+                        type: 'critical_alert',
+                        alert: analysisResult.smartAlert
+                    }
+                });
+            }
+
+        } catch (error) {
+            this.logError(`AI analysis failed for session ${sessionId}`, error);
+
+            // Fall back to basic log streaming
+            this.sendStreamMessage(session.connection, {
+                type: 'log_stream_data',
+                stream_id: sessionId,
+                queue_depth: entry.metadata?.queueDepth,
+                payload: entry
+            });
+        }
     }
 
     private handleWatcherError(sessionId: string, source: string, error: Error): void {
@@ -397,5 +473,153 @@ export class LogStreamingManager extends EventEmitter {
 
     private logError(message: string, error: any): void {
         console.error(chalk.red(`[LogStreamingManager] ${message}:`), error);
+    }
+
+    /**
+     * Setup intelligent analyzer event handlers
+     */
+    private setupIntelligentAnalyzerEvents(): void {
+        this.intelligentAnalyzer.on('highRiskDetected', (data) => {
+            this.log(`🚨 High risk detected: ${data.result.riskScore.toFixed(2)}`);
+            this.emit('highRiskDetected', data);
+        });
+
+        this.intelligentAnalyzer.on('anomalyDetected', (data) => {
+            this.log(`⚠️ Anomaly detected: ${data.anomalies.length} anomalies`);
+            this.emit('anomalyDetected', data);
+        });
+
+        this.intelligentAnalyzer.on('patternLearned', (pattern) => {
+            this.log(`🧠 New pattern learned: ${pattern.name}`);
+            this.emit('patternLearned', pattern);
+        });
+
+        // Performance optimizer events
+        this.performanceOptimizer.on('highLatencyDetected', (data) => {
+            this.log(`⏱️ High latency detected: ${data.latency.toFixed(2)}ms`);
+            this.emit('performanceIssue', data);
+        });
+
+        this.performanceOptimizer.on('queueCongestion', (data) => {
+            this.log(`📊 Queue congestion: ${data.queueDepth} items`);
+            this.emit('queueCongestion', data);
+        });
+    }
+
+    /**
+     * Determine log entry priority for processing
+     */
+    private determineLogPriority(entry: LogEntry): 'critical' | 'high' | 'medium' | 'low' {
+        switch (entry.level) {
+            case 'error':
+                return 'critical';
+            case 'warning':
+                return 'high';
+            case 'success':
+                return 'low';
+            default:
+                return 'medium';
+        }
+    }
+
+    /**
+     * Get AI analysis statistics
+     */
+    getAIAnalysisStats(): any {
+        return {
+            intelligentAnalyzer: this.intelligentAnalyzer.getAnalysisStats(),
+            performanceOptimizer: this.performanceOptimizer.getOptimizationStats()
+        };
+    }
+
+    /**
+     * Create debug session for script monitoring
+     */
+    createScriptDebugSession(sessionId: string, scriptName: string, userId: string): void {
+        const debugContext: Partial<DebugContext> = {
+            sessionId,
+            scriptName,
+            userId,
+            systemState: {
+                memoryUsage: process.memoryUsage().heapUsed / 1024 / 1024,
+                cpuUsage: 0,
+                activeConnections: this.sessions.size,
+                queueDepth: 0
+            },
+            environmentInfo: {
+                platformVersion: '1.0.0' // Would get actual version
+            }
+        };
+
+        this.intelligentAnalyzer.createDebugSession(sessionId, debugContext);
+        this.log(`🔍 Debug session created for script: ${scriptName}`);
+    }
+
+    /**
+     * Register AI workflow for automated monitoring
+     */
+    registerAIWorkflow(workflowId: string, config: any): void {
+        const workflow = {
+            workflowId,
+            triggerConditions: {
+                patterns: config.patterns || [],
+                anomalyTypes: config.anomalyTypes || [],
+                riskThreshold: config.riskThreshold || 0.7
+            },
+            actions: config.actions || [],
+            isActive: true,
+            executionHistory: []
+        };
+
+        this.intelligentAnalyzer.registerWorkflow(workflow);
+        this.log(`🤖 AI workflow registered: ${workflowId}`);
+    }
+
+    /**
+     * Get enhanced stream status with AI insights
+     */
+    getEnhancedStreamStatus(sessionId?: string): any {
+        const baseStatus = this.getStreamStatus(sessionId);
+        const aiStats = this.getAIAnalysisStats();
+        const performanceMetrics = this.performanceOptimizer.getCurrentMetrics();
+
+        return {
+            ...baseStatus,
+            aiInsights: {
+                analysisStats: aiStats,
+                performanceMetrics,
+                recentAlerts: this.intelligentAnalyzer.getAnalysisStats().recentAlerts || [],
+                optimizationStatus: {
+                    targetLatency: 10,
+                    currentLatency: performanceMetrics.processingLatency,
+                    latencyAchieved: performanceMetrics.processingLatency <= 10,
+                    bufferUtilization: performanceMetrics.bufferUtilization
+                }
+            }
+        };
+    }
+
+    /**
+     * Shutdown with cleanup
+     */
+    shutdown(): void {
+        this.log('🛑 Shutting down LogStreamingManager...');
+
+        // Stop all sessions
+        for (const sessionId of this.sessions.keys()) {
+            this.stopLogStream(sessionId).catch(error => {
+                this.logError(`Error stopping session during shutdown: ${sessionId}`, error);
+            });
+        }
+
+        // Stop monitoring and optimization systems
+        this.operationalMonitor.stopMonitoring();
+        this.performanceOptimizer.stop();
+        this.securityLayer.shutdown();
+
+        // Cleanup AI analyzer
+        this.intelligentAnalyzer.cleanup();
+
+        this.log('✅ LogStreamingManager shutdown complete');
     }
 }
