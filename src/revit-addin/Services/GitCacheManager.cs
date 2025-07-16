@@ -457,8 +457,8 @@ namespace TycoonRevitAddin.Services
                 if (cacheDirs.Length == 0) return null;
                 
                 var latestCache = cacheDirs[0];
-                var scriptsPath = Path.Combine(latestCache, "scripts");
-                
+                var scriptsPath = Path.Combine(latestCache, "github-scripts");
+
                 return Directory.Exists(scriptsPath) ? scriptsPath : null;
             }
             catch (Exception ex)
