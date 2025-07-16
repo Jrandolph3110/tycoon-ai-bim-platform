@@ -15,6 +15,7 @@ import { createServer } from 'net';
 import chalk from 'chalk';
 import { BinaryStreamingHandler } from './BinaryStreamingHandler.js';
 import { RevitToBimAdapter } from '../adapters/RevitToBimAdapter.js';
+import { LogStreamingManager } from '../streaming/LogStreamingManager.js';
 import { BimVectorDatabase } from '../core/BimVectorDatabase.js';
 
 export interface RevitElement {
@@ -66,6 +67,7 @@ export class RevitBridge extends EventEmitter {
     private revitConnection: WebSocket | null = null;
     private streamingHandler: BinaryStreamingHandler;
     private bimAdapter: RevitToBimAdapter | null = null;
+    private logStreamingManager: LogStreamingManager;
     private port: number;
     private isConnected: boolean = false;
     private pendingCommands: Map<string, { resolve: Function; reject: Function; timeout: NodeJS.Timeout }> = new Map();
@@ -80,7 +82,10 @@ export class RevitBridge extends EventEmitter {
         this.streamingHandler = new BinaryStreamingHandler(this.debugMode);
         this.setupStreamingHandlers();
 
-        console.log("Bridge constructed"); // ChatGPT's test #2
+        // Initialize log streaming manager
+        this.logStreamingManager = new LogStreamingManager(this.debugMode);
+
+        console.log("Bridge constructed with log streaming support"); // ChatGPT's test #2
     }
 
     /**
@@ -266,6 +271,10 @@ export class RevitBridge extends EventEmitter {
                 ws.on('close', () => {
                     this.log('❌ Revit add-in disconnected');
                     this.isConnected = false;
+
+                    // Clean up log streaming sessions for this connection
+                    this.logStreamingManager.handleConnectionClose(ws);
+
                     this.revitConnection = null;
                     this.emit('disconnected');
                 });
@@ -474,6 +483,37 @@ export class RevitBridge extends EventEmitter {
      */
     getPort(): number {
         return this.port;
+    }
+
+    /**
+     * Check if Revit is connected
+     */
+    getConnectionStatus(): boolean {
+        return this.isConnected;
+    }
+
+    /**
+     * Start a log streaming session
+     */
+    async startLogStream(config: any): Promise<string> {
+        if (!this.revitConnection) {
+            throw new Error('No active Revit connection for log streaming');
+        }
+        return await this.logStreamingManager.startLogStream(this.revitConnection, config);
+    }
+
+    /**
+     * Stop a log streaming session
+     */
+    async stopLogStream(sessionId: string): Promise<void> {
+        return await this.logStreamingManager.stopLogStream(sessionId);
+    }
+
+    /**
+     * Get log stream status
+     */
+    getLogStreamStatus(sessionId?: string): any {
+        return this.logStreamingManager.getStreamStatus(sessionId);
     }
 
     /**
