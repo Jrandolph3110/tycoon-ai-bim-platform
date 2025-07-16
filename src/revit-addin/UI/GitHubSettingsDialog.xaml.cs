@@ -13,13 +13,12 @@ namespace TycoonRevitAddin.UI
     /// </summary>
     public partial class GitHubSettingsDialog : Window
     {
-        private readonly GitCacheManager _gitCacheManager;
+        // 🎯 CLEAN ARCHITECTURE: GitCacheManager removed - no longer needed
         private readonly Logger _logger;
 
-        public GitHubSettingsDialog(GitCacheManager gitCacheManager, Logger logger)
+        public GitHubSettingsDialog(Logger logger)
         {
             InitializeComponent();
-            _gitCacheManager = gitCacheManager ?? throw new ArgumentNullException(nameof(gitCacheManager));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
             LoadCurrentSettings();

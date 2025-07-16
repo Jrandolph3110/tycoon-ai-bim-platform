@@ -181,7 +181,7 @@ namespace TycoonRevitAddin.Commands
             try
             {
                 var bridge = Application.TycoonBridge;
-                
+
                 if (!bridge.IsConnected)
                 {
                     MessageBox.Show(
@@ -353,7 +353,7 @@ namespace TycoonRevitAddin.Commands
                 }
             };
 
-            // Serialize to JSON with proper formatting
+            // Serialize to JSON with proper formatting using Newtonsoft.Json
             return Newtonsoft.Json.JsonConvert.SerializeObject(config, Newtonsoft.Json.Formatting.Indented);
         }
     }

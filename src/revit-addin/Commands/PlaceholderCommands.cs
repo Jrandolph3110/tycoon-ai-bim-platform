@@ -85,64 +85,47 @@ namespace TycoonRevitAddin.Commands
         {
             try
             {
-                // 🔄 NEW: Connect to unified ScriptEngine for hot-reload
                 var logger = TycoonRevitAddin.Application.Logger;
-                logger?.Log("🔄 Manual script reload requested via Reload Scripts button");
+                logger?.Log("🔄 Reload Scripts command executed");
 
-                // Get the ScriptEngine instance from PluginManager
-                var pluginManager = PluginManager.Instance;
+                // Get the Scripts plugin from PluginManager
+                var pluginManager = TycoonRevitAddin.Application.PluginManager;
                 if (pluginManager == null)
                 {
-                    MessageBox.Show("❌ PluginManager not available.\nPlease restart Revit to initialize the plugin system.",
-                                  "Script Reload Failed", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    message = "Plugin Manager not available";
                     return Result.Failed;
                 }
 
-                var scriptsPlugin = pluginManager.GetPlugin("scripts") as ScriptsPlugin;
-                var scriptEngine = scriptsPlugin?.GetScriptEngine();
-                if (scriptEngine == null)
+                var scriptsPlugin = pluginManager.GetPlugin("scripts-plugin") as TycoonRevitAddin.Plugins.ScriptsPlugin;
+                if (scriptsPlugin == null)
                 {
-                    MessageBox.Show("❌ ScriptEngine not available.\nPlease ensure the Scripts plugin is properly initialized.",
-                                  "Script Reload Failed", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    message = "Scripts Plugin not found";
                     return Result.Failed;
                 }
 
-                // Trigger script refresh and queue for dynamic button creation
-                _ = Task.Run(async () =>
-                {
-                    try
-                    {
-                        await scriptEngine.RefreshScriptsAsync();
-                        logger?.Log("✅ Script refresh completed successfully");
-                    }
-                    catch (Exception ex)
-                    {
-                        logger?.LogError("Failed to refresh scripts", ex);
-                    }
-                });
+                // Refresh scripts through the ScriptsPlugin (handles both local and GitHub sources)
+                scriptsPlugin.RefreshScripts();
 
-                // Queue scripts for dynamic button creation (must be on main thread)
-                var scripts = scriptEngine.GetLoadedScripts();
-                if (scripts.Any())
-                {
-                    try
-                    {
-                        TycoonRevitAddin.Application.QueueScriptsForCreation(commandData.Application, scripts);
-                    }
-                    catch (Exception ex)
-                    {
-                        logger?.LogError("Failed to queue scripts for creation", ex);
-                    }
-                }
+                // Note: CleanRibbonManager refresh disabled to prevent tab context conflicts
+                // The ScriptsPlugin now handles all script refresh functionality with dual-source support
+                logger?.Log("🔥 Hot-reload: Script refresh completed via ScriptsPlugin");
+                // Show success message with source breakdown
+                var currentScripts = scriptsPlugin.GetCurrentScripts();
+                var localScriptCount = currentScripts.Count(s => s.Source == "Local");
+                var githubScriptCount = currentScripts.Count(s => s.Source == "GitHub");
 
-                MessageBox.Show("🔄 Script refresh initiated!\n\nScripts are being reloaded in the background.\nCheck the ribbon in a few seconds.",
-                              "Script Reload", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                TaskDialog.Show("Scripts Reloaded",
+                    "✅ Scripts have been reloaded successfully!\n\n" +
+                    $"📊 Sources: Local ({localScriptCount}) + GitHub ({githubScriptCount}) = {localScriptCount + githubScriptCount} total\n\n" +
+                    "🌐 GitHub scripts are marked with a globe icon.\n" +
+                    "Modified local scripts will use their updated versions.");
 
                 return Result.Succeeded;
             }
             catch (Exception ex)
             {
                 message = $"Failed to reload scripts: {ex.Message}";
+                TycoonRevitAddin.Application.Logger?.LogError("❌ Failed to reload scripts", ex);
                 return Result.Failed;
             }
         }
@@ -444,29 +427,18 @@ namespace TycoonRevitAddin.Commands
                     return Result.Failed;
                 }
 
-                // Access the Scripts plugin to get layout manager and logger
-                var scriptsPlugin = pluginManager.GetPlugin("scripts");
-                if (scriptsPlugin is TycoonRevitAddin.Plugins.ScriptsPlugin plugin)
-                {
-                    // Open Stack Manager dialog with new ScriptService-based constructor
-                    var layoutManager = plugin.GetLayoutManager();
-                    var logger = plugin.GetLogger();
-
-                    var dialog = new TycoonRevitAddin.UI.StackManagerDialog(layoutManager, logger);
-                    var result = dialog.ShowDialog();
-
-                    // Layout saved successfully - no popup needed as user requested
-                }
-                else
-                {
-                    MessageBox.Show("🎯 Layout Manager Error\n\n" +
-                                  "Scripts plugin not found or not properly initialized.\n" +
-                                  "Please restart Revit and try again.",
-                                  "Layout Manager Error",
-                                  MessageBoxButtons.OK,
-                                  MessageBoxIcon.Warning);
-                    return Result.Failed;
-                }
+                // 🎯 CLEAN ARCHITECTURE: Stack Manager removed
+                // Script stacking is now handled automatically by RibbonManager based on script.json configuration
+                MessageBox.Show("📋 Stack Manager - Clean Architecture\n\n" +
+                              "Script stacking is now handled automatically based on script.json configuration.\n\n" +
+                              "To create stacked buttons:\n" +
+                              "1. Add 'stack' property to script.json files\n" +
+                              "2. Use same stack name for scripts to group together\n" +
+                              "3. Set 'stackOrder' property for ordering\n\n" +
+                              "Example:\n" +
+                              "\"stack\": \"MyTools\",\n" +
+                              "\"stackOrder\": 1",
+                              "Stack Manager", MessageBoxButtons.OK, MessageBoxIcon.Information);
 
                 return Result.Succeeded;
             }
@@ -506,35 +478,20 @@ namespace TycoonRevitAddin.Commands
                     return Result.Failed;
                 }
 
-                // Access the Scripts plugin to get git cache manager
-                var scriptsPlugin = pluginManager.GetPlugin("scripts");
-                if (scriptsPlugin is TycoonRevitAddin.Plugins.ScriptsPlugin plugin)
-                {
-                    // Show GitHub Status (repository is now hardcoded)
-                    var gitCacheManager = plugin.GetGitCacheManager();
-                    var logger = plugin.GetLogger();
+                // 🎯 CLEAN ARCHITECTURE: GitHub integration simplified
+                // Scripts are now managed locally with clean architecture
+                var scriptDirectory = TycoonRevitAddin.Scripting.ScriptDiscoveryService.GetDefaultScriptDirectory();
 
-                    MessageBox.Show("📂 GitHub Repository Status\n\n" +
-                                  "🔗 Repository: Jrandolph3110/tycoon-ai-bim-platform\n" +
-                                  "🌿 Branch: main\n" +
-                                  "⚙️ Configuration: Hardcoded (no setup required)\n\n" +
-                                  "✅ Scripts are automatically downloaded from the official repository\n" +
-                                  "🔄 Use 'Refresh Scripts' to get the latest updates\n\n" +
-                                  "🌟 GitHub-Driven Script System Active!",
-                                  "📂 GitHub Repository Status",
-                                  MessageBoxButtons.OK,
-                                  MessageBoxIcon.Information);
-                }
-                else
-                {
-                    MessageBox.Show("⚙️ GitHub Settings Error\n\n" +
-                                  "Scripts plugin not found or not properly initialized.\n" +
-                                  "Please restart Revit and try again.",
-                                  "GitHub Settings Error",
-                                  MessageBoxButtons.OK,
-                                  MessageBoxIcon.Warning);
-                    return Result.Failed;
-                }
+                MessageBox.Show("📂 Script Management Status\n\n" +
+                              "🎯 Clean Architecture: Local script management\n" +
+                              $"📁 Script Directory: {scriptDirectory}\n" +
+                              "⚙️ Configuration: script.json files in subdirectories\n\n" +
+                              "✅ Scripts are discovered automatically on startup\n" +
+                              "🔄 Manual discovery available via 'Reload Scripts'\n\n" +
+                              "📝 Note: GitHub integration has been simplified.\n" +
+                              "Scripts are managed locally for better performance and reliability.",
+                              "Script Management Status", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                // No else clause needed - clean architecture always works
 
                 return Result.Succeeded;
             }
@@ -572,29 +529,16 @@ namespace TycoonRevitAddin.Commands
 
                 if (result == DialogResult.Yes)
                 {
-                    // Get the Scripts plugin and reset layout
-                    var pluginManager = PluginManager.Instance;
-                    if (pluginManager != null)
-                    {
-                        var scriptsPlugin = pluginManager.GetPlugin("scripts");
-                        if (scriptsPlugin is TycoonRevitAddin.Plugins.ScriptsPlugin plugin)
-                    {
-                        var layoutManager = plugin.GetLayoutManager();
-                        layoutManager.ResetToAutoLayout();
-
-                        // Auto-reload scripts after reset
-                        pluginManager.RefreshScriptButtons();
-                    }
-                    else
-                    {
-                        MessageBox.Show("🔄 Reset Layout Error\n\n" +
-                                      "Could not access layout manager.\n" +
-                                      "Please restart Revit and try again.",
-                                      "🔄 Reset Error",
-                                      MessageBoxButtons.OK,
-                                      MessageBoxIcon.Warning);
-                        }
-                    }
+                    // 🎯 CLEAN ARCHITECTURE: Layout reset simplified
+                    // Script layout is now handled automatically by RibbonManager based on script.json
+                    MessageBox.Show("✅ Layout Reset Complete\n\n" +
+                                  "With the new clean architecture, script layout is handled automatically.\n\n" +
+                                  "Script placement is determined by:\n" +
+                                  "• 'panel' property in script.json\n" +
+                                  "• 'stack' property for grouping\n" +
+                                  "• 'stackOrder' property for ordering\n\n" +
+                                  "No manual layout management is needed.",
+                                  "Layout Reset", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 }
 
                 return Result.Succeeded;

@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
-  <Import Project="obj\TycoonRevitAddin.csproj.nuget.g.props" Condition="Exists('obj\TycoonRevitAddin.csproj.nuget.g.props')" />
   
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
@@ -69,20 +68,23 @@
   
   <ItemGroup>
     <Compile Include="Application.cs" />
+    <!-- ✅ RE-ENABLED: Essential for Communication layer -->
     <Compile Include="Commands\TycoonCommand.cs" />
     <Compile Include="Commands\PluginInfoCommand.cs" />
     <Compile Include="Commands\PlaceholderCommands.cs" />
     <Compile Include="Commands\UnifiedScriptCommand.cs" />
-    <Compile Include="Scripting\ScriptEngine.cs" />
-    <Compile Include="Scripting\ScriptModels.cs" />
+    <Compile Include="Commands\RefreshGitHubScriptsCommand.cs" />
+    <!-- 🎯 CLEAN ARCHITECTURE: New simplified script system -->
     <Compile Include="Scripting\ScriptProxy.cs" />
     <Compile Include="Scripting\DirectRevitHost.cs" />
-    <Compile Include="Scripting\ScriptExternalEventHandler.cs" />
-    <Compile Include="Scripting\LocalScriptProvider.cs" />
-    <Compile Include="Scripting\GitHubScriptProvider.cs" />
+    <Compile Include="Scripting\ScriptDefinition.cs" />
+    <Compile Include="Scripting\ScriptDiscoveryService.cs" />
+    <Compile Include="Scripting\RibbonManager.cs" />
+    <!-- Legacy script system files removed: ScriptEngine, ScriptModels, ScriptExternalEventHandler, LocalScriptProvider, GitHubScriptProvider -->
 
     <Compile Include="Events\EventBus.cs" />
-    <Compile Include="Events\LayoutChangedEvent.cs" />
+    <!-- LayoutChangedEvent.cs removed - part of legacy layout system -->
+    <!-- ✅ RE-ENABLED: Communication layer is cornerstone for AI-Revit manipulation -->
     <Compile Include="Communication\TycoonBridge.cs" />
     <Compile Include="Communication\BinaryStreamingManager.cs" />
     <Compile Include="Communication\ConnectionStatus.cs" />
@@ -99,7 +101,9 @@
     <Compile Include="AIActions\Events\EventStore.cs" />
     <Compile Include="AIActions\Commands\IAICommand.cs" />
     <Compile Include="AIActions\Commands\CreateWallCommand.cs" />
+    <!-- ✅ RE-ENABLED: Essential for Communication layer -->
     <Compile Include="AIActions\Commands\ParameterManagementCommands.cs" />
+    <!-- ✅ RE-ENABLED: Essential for Communication layer -->
     <Compile Include="AIActions\Commands\FLCScriptBridge.cs" />
     <Compile Include="AIActions\Commands\ScriptHotLoader.cs" />
     <Compile Include="AIActions\Commands\CSharpScriptEngine.cs" />
@@ -107,46 +111,56 @@
     <Compile Include="AIActions\Workflow\IWorkflowEngine.cs" />
     <Compile Include="AIActions\Autonomy\IAutonomyManager.cs" />
     <Compile Include="AIActions\Threading\ITaskQueue.cs" />
+    <!-- ✅ RE-ENABLED: Essential for Communication layer -->
     <Compile Include="Resources\StatusIconManager.cs" />
+    <!-- ✅ RE-ENABLED: Essential for Communication layer -->
     <Compile Include="Services\StatusPollingService.cs" />
+    <!-- ✅ RE-ENABLED: Essential for Communication layer -->
     <Compile Include="UI\ConnectionProgressDialog.xaml.cs">
       <DependentUpon>ConnectionProgressDialog.xaml</DependentUpon>
     </Compile>
-    <Compile Include="UI\StackManagerDialog.xaml.cs">
-      <DependentUpon>StackManagerDialog.xaml</DependentUpon>
-    </Compile>
+    <!-- StackManagerDialog removed - replaced by clean architecture -->
+    <!-- 🚧 TEMPORARILY DISABLED: Depends on Services layer -->
+    <!--
     <Compile Include="UI\FirstRunWizard.xaml.cs">
       <DependentUpon>FirstRunWizard.xaml</DependentUpon>
     </Compile>
+    -->
+    <!-- 🚧 TEMPORARILY DISABLED: Depends on Services layer -->
+    <!--
     <Compile Include="UI\GitHubSettingsDialog.xaml.cs">
       <DependentUpon>GitHubSettingsDialog.xaml</DependentUpon>
     </Compile>
-    <Compile Include="UI\TestLayoutDialog.xaml.cs">
-      <DependentUpon>TestLayoutDialog.xaml</DependentUpon>
-    </Compile>
+    -->
+    <!-- TestLayoutDialog removed - replaced by clean architecture -->
+    <!-- 🚧 TEMPORARILY DISABLED: XAML dependency issues -->
+    <!--
     <Compile Include="UI\TycoonConsoleWindow.xaml.cs">
       <DependentUpon>TycoonConsoleWindow.xaml</DependentUpon>
     </Compile>
+    -->
+    <!-- ✅ RE-ENABLED: Essential for Communication layer -->
     <Compile Include="UI\DynamicRibbonManager.cs" />
     <Compile Include="UI\PluginSelectorControl.cs" />
-    <Compile Include="Converters\LayoutConverters.cs" />
+    <!-- LayoutConverters.cs removed - part of legacy layout system -->
     <Compile Include="Utils\Logger.cs" />
-    <Compile Include="Utils\TycoonConsoleManager.cs" />
+    <!-- 🚧 TEMPORARILY DISABLED: Depends on TycoonConsoleWindow which was excluded -->
+    <!-- <Compile Include="Utils\TycoonConsoleManager.cs" /> -->
+    <!-- ✅ RE-ENABLED: Essential for Communication layer -->
     <Compile Include="Storage\StreamingDataVault.cs" />
+    <!-- ✅ RE-ENABLED: Essential for Communication layer -->
     <Compile Include="Utils\SelectionManager.cs" />
     <Compile Include="Utils\DynamicMemoryOptimizer.cs" />
     <Compile Include="Utils\AdaptiveChunkManager.cs" />
     <Compile Include="Utils\CircuitBreakerManager.cs" />
     <Compile Include="Utils\ILogger.cs" />
-    <Compile Include="Utils\IntelligentCache.cs" />
-    <Compile Include="Utils\StreamingCompressor.cs" />
-    <Compile Include="Layout\RibbonLayoutSchema.cs" />
-    <Compile Include="Layout\RibbonLayoutManager.cs" />
-    <Compile Include="Models\LayoutModels.cs" />
+    <!-- 🚧 TEMPORARILY DISABLED: Depends on Newtonsoft.Json and Communication layer -->
+    <!-- <Compile Include="Utils\IntelligentCache.cs" /> -->
+    <!-- 🚧 TEMPORARILY DISABLED: Depends on Newtonsoft.Json -->
+    <!-- <Compile Include="Utils\StreamingCompressor.cs" /> -->
+    <!-- ✅ RE-ENABLED: GitHub script distribution system -->
     <Compile Include="Services\GitCacheManager.cs" />
     <Compile Include="Services\VersionTracker.cs" />
-    <Compile Include="Services\ScriptService.cs" />
-    <Compile Include="Services\ScriptParser.cs" />
 
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
@@ -166,40 +180,45 @@
 
 
   <ItemGroup>
+    <!-- ✅ RE-ENABLED: Essential for Communication layer -->
     <Page Include="UI\ConnectionProgressDialog.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
-    <Page Include="UI\StackManagerDialog.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
+    <!-- StackManagerDialog.xaml removed - replaced by clean architecture -->
+    <!-- 🚧 TEMPORARILY DISABLED: Depends on Services layer -->
+    <!--
     <Page Include="UI\FirstRunWizard.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
+    -->
+    <!-- 🚧 TEMPORARILY DISABLED: Depends on Services layer -->
+    <!--
     <Page Include="UI\GitHubSettingsDialog.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
-    <Page Include="UI\TestLayoutDialog.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
+    -->
+    <!-- TestLayoutDialog.xaml removed - replaced by clean architecture -->
+    <!-- 🚧 TEMPORARILY DISABLED: XAML dependency issues -->
+    <!--
     <Page Include="UI\TycoonConsoleWindow.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
+    -->
   </ItemGroup>
 
+  <!-- ✅ RE-ENABLED: Communication layer is cornerstone for AI-Revit manipulation -->
   <ItemGroup>
-    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+    <PackageReference Include="Newtonsoft.Json" Version="12.0.3" />
     <PackageReference Include="WebSocketSharp-netstandard" Version="1.0.1" />
-    <PackageReference Include="MessagePack" Version="2.5.140">
+    <PackageReference Include="MessagePack" Version="2.1.194">
       <Private>True</Private>
       <CopyLocal>True</CopyLocal>
     </PackageReference>
-    <PackageReference Include="MessagePack.Annotations" Version="2.5.140">
+    <PackageReference Include="MessagePack.Annotations" Version="2.1.194">
       <Private>True</Private>
       <CopyLocal>True</CopyLocal>
     </PackageReference>
@@ -212,7 +231,7 @@
       <Private>True</Private>
       <CopyLocal>True</CopyLocal>
     </PackageReference>
-    <PackageReference Include="System.Memory" Version="4.5.5">
+    <PackageReference Include="System.Memory" Version="4.5.4">
       <Private>True</Private>
       <CopyLocal>True</CopyLocal>
     </PackageReference>
@@ -220,7 +239,6 @@
       <Private>True</Private>
       <CopyLocal>True</CopyLocal>
     </PackageReference>
-
   </ItemGroup>
 
   <ItemGroup>
@@ -236,7 +254,6 @@
   </ItemGroup>
   
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
-  <Import Project="obj\TycoonRevitAddin.csproj.nuget.g.targets" Condition="Exists('obj\TycoonRevitAddin.csproj.nuget.g.targets')" />
 
   <!-- Post-build event removed - deployment handled by MSI installer -->
 

@@ -30,17 +30,17 @@ namespace TycoonRevitAddin.Commands
                     return Result.Failed;
                 }
 
-                // Get ScriptEngine from PluginManager
-                var scriptEngine = GetScriptEngine();
-                if (scriptEngine == null)
+                // 🎯 CLEAN ARCHITECTURE: Get script definition and execute directly
+                var scriptDefinition = GetScriptDefinition(scriptName);
+                if (scriptDefinition == null)
                 {
                     TaskDialog.Show("Script Error",
-                        "ScriptEngine not available. Please ensure the Scripts plugin is properly initialized.");
+                        $"Script '{scriptName}' not found. Please ensure the script exists in the scripts directory.");
                     return Result.Failed;
                 }
 
-                // Execute script asynchronously
-                ExecuteScriptAsync(scriptEngine, scriptName, commandData);
+                // Execute script directly
+                ExecuteScript(scriptDefinition, commandData);
 
                 return Result.Succeeded;
             }
@@ -53,57 +53,54 @@ namespace TycoonRevitAddin.Commands
         }
 
         /// <summary>
-        /// Get ScriptEngine from PluginManager
+        /// 🎯 CLEAN ARCHITECTURE: Get script definition from discovery service
         /// </summary>
-        private ScriptEngine GetScriptEngine()
+        private ScriptDefinition GetScriptDefinition(string scriptName)
         {
             try
             {
-                var pluginManager = PluginManager.Instance;
-                if (pluginManager == null)
-                {
-                    return null;
-                }
+                var scriptDiscovery = new TycoonRevitAddin.Scripting.ScriptDiscoveryService();
+                var scriptDirectory = TycoonRevitAddin.Scripting.ScriptDiscoveryService.GetDefaultScriptDirectory();
+                var scripts = scriptDiscovery.DiscoverScripts(scriptDirectory);
 
-                // Get the ScriptsPlugin and extract its ScriptEngine
-                var scriptsPlugin = pluginManager.GetPlugin("scripts") as ScriptsPlugin;
-                return scriptsPlugin?.GetScriptEngine();
+                return scripts.FirstOrDefault(s => s.Name == scriptName);
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Failed to get ScriptEngine: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"Failed to get script definition: {ex.Message}");
                 return null;
             }
         }
 
         /// <summary>
-        /// Execute script asynchronously through ScriptEngine
+        /// 🎯 CLEAN ARCHITECTURE: Execute script directly using ScriptProxy
         /// </summary>
-        private async void ExecuteScriptAsync(ScriptEngine scriptEngine, string scriptName, ExternalCommandData commandData)
+        private void ExecuteScript(ScriptDefinition scriptDefinition, ExternalCommandData commandData)
         {
             try
             {
-                // Execute script with Revit context
-                var result = await scriptEngine.ExecuteScriptAsync(
-                    scriptName,
-                    commandData.Application,
-                    commandData.Application.ActiveUIDocument.Document);
+                // Create script proxy for execution
+                var scriptProxy = new ScriptProxy();
+                scriptProxy.Initialize();
 
-                if (!result.Success)
+                // Execute script
+                var success = scriptProxy.ExecuteScript(scriptDefinition);
+
+                if (!success)
                 {
                     TaskDialog.Show("Script Execution Failed",
-                        $"Script '{scriptName}' failed to execute:\n\n{result.ErrorMessage}");
+                        $"Script '{scriptDefinition.Name}' failed to execute. Check logs for details.");
                 }
                 else
                 {
                     // Script executed successfully
-                    System.Diagnostics.Debug.WriteLine($"Script '{scriptName}' executed successfully in {result.ExecutionTime.TotalMilliseconds}ms");
+                    System.Diagnostics.Debug.WriteLine($"Script '{scriptDefinition.Name}' executed successfully");
                 }
             }
             catch (Exception ex)
             {
                 TaskDialog.Show("Script Execution Error",
-                    $"An error occurred while executing script '{scriptName}':\n\n{ex.Message}");
+                    $"An error occurred while executing script '{scriptDefinition.Name}':\n\n{ex.Message}");
             }
         }
     }

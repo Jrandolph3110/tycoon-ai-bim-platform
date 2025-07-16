@@ -3,9 +3,11 @@
   "description": "A simple Hello World script to test hot-reload functionality",
   "author": "Tycoon AI-BIM Platform",
   "version": "1.0.0",
-  "entryAssembly": "bin/Release/net48/HelloWorld.dll",
-  "entryType": "HelloWorldScript.HelloWorldScript",
+  "assemblyPath": "bin/Release/net48/HelloWorld.dll",
+  "className": "HelloWorldScript.HelloWorldScript",
   "panel": "Production",
+  "stack": "TestScripts",
+  "stackOrder": 2,
   "tags": ["test", "hello", "demo"],
   "requiresSelection": false
 }

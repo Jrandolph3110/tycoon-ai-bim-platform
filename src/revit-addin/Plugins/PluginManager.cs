@@ -173,13 +173,13 @@ namespace TycoonRevitAddin.Plugins
         /// </summary>
         private void RegisterBuiltInPlugins()
         {
-            // Scripts Plugin (PyRevit-style)
+            // Scripts Plugin - Integrates clean script architecture with ribbon system
             RegisterPlugin(
                 new PluginMetadata
                 {
-                    Id = "scripts",
-                    Name = "Scripts",
-                    Description = "PyRevit-style script execution and management",
+                    Id = "scripts-plugin",
+                    Name = "Scripts System",
+                    Description = "Clean script architecture with hot-reload support",
                     Version = "1.0.0",
                     IconPath = "Resources/ScriptsIcon.png",
                     SortOrder = 10
@@ -263,37 +263,23 @@ namespace TycoonRevitAddin.Plugins
         }
 
         /// <summary>
-        /// 🔄 Chat's Hot-Reload Implementation
-        /// Refreshes script buttons by reloading the Scripts Plugin
+        /// 🎯 CLEAN ARCHITECTURE: Script refresh simplified
+        /// Scripts are now managed directly by Application.cs - no plugin needed
         /// </summary>
         public void RefreshScriptButtons()
         {
             try
             {
-                _logger.Log("🔄 Starting script button refresh (Chat's hot-reload)");
+                _logger.Log("🔄 Script button refresh requested");
 
-                // Find the Scripts Plugin
-                if (_plugins.TryGetValue("scripts", out var scriptsPlugin))
-                {
-                    if (scriptsPlugin is ScriptsPlugin scriptPlugin)
-                    {
-                        // Force reload of script metadata and buttons
-                        scriptPlugin.RefreshScripts();
-                        _logger.Log("✅ Scripts Plugin refreshed successfully");
-                    }
-                    else
-                    {
-                        _logger.LogWarning("Scripts plugin found but not of correct type");
-                    }
-                }
-                else
-                {
-                    _logger.LogWarning("Scripts plugin not found in registered plugins");
-                }
+                // 🎯 CLEAN ARCHITECTURE: Scripts are now created during startup
+                // Manual refresh would require a Revit restart to see new scripts
+                _logger.Log("📝 Note: With clean architecture, scripts are created during startup.");
+                _logger.Log("📝 To see new scripts, please restart Revit.");
             }
             catch (Exception ex)
             {
-                _logger.LogError("Failed to refresh script buttons", ex);
+                _logger.LogError("Failed to process script refresh request", ex);
                 throw;
             }
         }

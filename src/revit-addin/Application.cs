@@ -29,15 +29,20 @@ namespace TycoonRevitAddin
     [Regeneration(RegenerationOption.Manual)]
     public class Application : IExternalApplication
     {
+        // ✅ RE-ENABLED: Communication layer is cornerstone for AI-Revit manipulation
         private static TycoonBridge _tycoonBridge;
 
-        // 🎯 Dynamic Button Creation Infrastructure
-        private static Queue<TycoonRevitAddin.Scripting.ScriptInfo> _scriptsToCreate = new Queue<TycoonRevitAddin.Scripting.ScriptInfo>();
+        // 🎯 CLEAN ARCHITECTURE: Legacy dynamic button creation infrastructure removed
+        // Script buttons are now created automatically during startup by RibbonManager
         private static UIControlledApplication _uiControlledApp;
         private static Logger _logger;
+        // ✅ RE-ENABLED: Communication layer is cornerstone for AI-Revit manipulation
         private static StatusPollingService _statusService;
         private static DynamicRibbonManager _ribbonManager;
         private static PushButton _connectButton;
+
+        // 🔥 HOT-RELOAD: Clean RibbonManager for script hot-reload functionality
+        private static TycoonRevitAddin.Scripting.RibbonManager _cleanRibbonManager;
         private static PluginManager _pluginManager;
 
         /// <summary>
@@ -46,7 +51,7 @@ namespace TycoonRevitAddin
         public static Logger Logger => _logger;
 
         /// <summary>
-        /// Public access to Tycoon bridge
+        /// Public access to Tycoon bridge - cornerstone for AI-Revit manipulation
         /// </summary>
         public static TycoonBridge TycoonBridge => _tycoonBridge;
 
@@ -64,6 +69,11 @@ namespace TycoonRevitAddin
         /// Public access to ribbon manager
         /// </summary>
         public static DynamicRibbonManager RibbonManager => _ribbonManager;
+
+        /// <summary>
+        /// Public access to clean ribbon manager for hot-reload
+        /// </summary>
+        public static TycoonRevitAddin.Scripting.RibbonManager CleanRibbonManager => _cleanRibbonManager;
 
         /// <summary>
         /// Application startup
@@ -86,7 +96,10 @@ namespace TycoonRevitAddin
                 // Create ribbon tab and panels with plugin system
                 CreateRibbonInterface(application);
 
-                // Initialize Tycoon bridge (minimal version)
+                // 🎯 CLEAN ARCHITECTURE: Script system now handled by ScriptsPlugin
+                // InitializeCleanScriptSystem(application); // Disabled to prevent tab conflicts
+
+                // Initialize Tycoon bridge - cornerstone for AI-Revit manipulation
                 _tycoonBridge = new TycoonBridge();
                 _logger.Log("🔗 TycoonBridge initialized");
 
@@ -114,6 +127,40 @@ namespace TycoonRevitAddin
         }
 
         /// <summary>
+        /// 🎯 NEW: Clean, simple script system initialization
+        /// Single-flow architecture: Discover → Organize → Build
+        /// Replaces the complex ScriptsPlugin/Application dual system
+        /// </summary>
+        private void InitializeCleanScriptSystem(UIControlledApplication application)
+        {
+            try
+            {
+                _logger.Log("🎯 Initializing clean script system...");
+
+                // 1. DISCOVER: Find all script definitions
+                var scriptDiscovery = new TycoonRevitAddin.Scripting.ScriptDiscoveryService(_logger);
+                var scriptDirectory = TycoonRevitAddin.Scripting.ScriptDiscoveryService.GetDefaultScriptDirectory();
+                var scripts = scriptDiscovery.DiscoverScripts(scriptDirectory);
+
+                if (scripts.Count == 0)
+                {
+                    _logger.Log("⚠️ No scripts found - ribbon will be empty");
+                    return;
+                }
+
+                // 2. BUILD: Create ribbon UI from script definitions
+                _cleanRibbonManager = new TycoonRevitAddin.Scripting.RibbonManager(application, _logger);
+                _cleanRibbonManager.BuildRibbon(scripts, "TycoonAI");
+
+                _logger.Log($"✅ Clean script system initialized with {scripts.Count} scripts (hot-reload enabled)");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError("❌ Failed to initialize clean script system", ex);
+            }
+        }
+
+        /// <summary>
         /// Application shutdown
         /// </summary>
         public Result OnShutdown(UIControlledApplication application)
@@ -125,8 +172,9 @@ namespace TycoonRevitAddin
                 // Dispose plugin manager
                 _pluginManager?.Dispose();
 
+                // 🚧 TEMPORARILY DISABLED: Communication layer causing build issues
                 // Disconnect from MCP server
-                _tycoonBridge?.Disconnect();
+                // _tycoonBridge?.Disconnect();
 
                 _logger?.Log("✅ Tycoon shutdown complete");
                 return Result.Succeeded;
@@ -297,10 +345,14 @@ namespace TycoonRevitAddin
             try
             {
                 _logger.Log($"📄 Document opened: {e.Document.Title}");
-                
+
+                // 🚧 TEMPORARILY DISABLED: Communication layer causing build issues
                 // Setup selection monitoring for this document
                 // This will be implemented in the TycoonBridge
-                _tycoonBridge?.OnDocumentOpened(e.Document);
+                // _tycoonBridge?.OnDocumentOpened(e.Document);
+
+                // 🎯 Script button creation is handled by clean architecture during startup
+                // No additional processing needed - scripts are already created
             }
             catch (Exception ex)
             {
@@ -318,9 +370,10 @@ namespace TycoonRevitAddin
                 // In Revit 2024+, DocumentClosedEventArgs has limited properties
                 // We'll just log that a document was closed without the title
                 _logger.Log("📄 Document closed");
+                // 🚧 TEMPORARILY DISABLED: Communication layer causing build issues
                 // Note: In Revit 2024+, DocumentClosedEventArgs no longer provides the Document object
                 // We'll need to handle this differently in the bridge
-                _tycoonBridge?.OnDocumentClosed(null);
+                // _tycoonBridge?.OnDocumentClosed(null);
             }
             catch (Exception ex)
             {
@@ -441,87 +494,64 @@ namespace TycoonRevitAddin
         /// 🎯 Dynamic Button Creation: Idling Event Handler
         /// Creates ribbon buttons from a valid UI context (when Revit is idle)
         /// </summary>
+        [Obsolete("Legacy dynamic button creation removed - scripts are created during startup")]
         private void CreateDynamicButtonsOnIdle(object sender, Autodesk.Revit.UI.Events.IdlingEventArgs e)
         {
-            try
-            {
-                // Unsubscribe immediately to avoid running multiple times
-                (sender as UIApplication).Idling -= CreateDynamicButtonsOnIdle;
+            // 🎯 CLEAN ARCHITECTURE: This method is obsolete
+            // Script buttons are now created automatically during startup by RibbonManager
+            _logger?.Log("⚠️ Legacy CreateDynamicButtonsOnIdle called - this is obsolete with clean architecture");
 
-                if (_scriptsToCreate.Count == 0)
-                    return;
-
-                // Find the Production panel
-                var productionPanel = _uiControlledApp.GetRibbonPanels("Tycoon AI-BIM")
-                    .FirstOrDefault(p => p.Name.Contains("Production"));
-
-                if (productionPanel == null)
-                {
-                    _logger?.LogWarning("Production panel not found for dynamic button creation");
-                    return;
-                }
-
-                // Get ScriptsPlugin to access button creation methods
-                var scriptsPlugin = _pluginManager?.GetPlugin("scripts") as ScriptsPlugin;
-                if (scriptsPlugin == null)
-                {
-                    _logger?.LogWarning("ScriptsPlugin not found for dynamic button creation");
-                    return;
-                }
-
-                // Create buttons for all queued scripts
-                int buttonsCreated = 0;
-                while (_scriptsToCreate.Count > 0)
-                {
-                    var scriptInfo = _scriptsToCreate.Dequeue();
-                    try
-                    {
-                        scriptsPlugin.CreateDynamicScriptButton(productionPanel, scriptInfo);
-                        buttonsCreated++;
-                        _logger?.Log($"✅ Created dynamic button: {scriptInfo.Manifest.Name}");
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger?.LogError($"Failed to create dynamic button for {scriptInfo.Manifest.Name}", ex);
-                    }
-                }
-
-                _logger?.Log($"🎯 Dynamic button creation completed: {buttonsCreated} buttons created");
-            }
-            catch (Exception ex)
-            {
-                _logger?.LogError("Failed to create dynamic buttons during idle", ex);
-            }
+            // Unsubscribe to prevent further calls
+            (sender as UIApplication).Idling -= CreateDynamicButtonsOnIdle;
         }
 
         /// <summary>
-        /// 🎯 Queue Scripts for Dynamic Button Creation
-        /// Called from ReloadScriptsCommand to queue scripts for button creation during idle
+        /// 🎯 LEGACY: Create buttons for a specific panel - REMOVED
+        /// Button creation is now handled by clean architecture during startup
         /// </summary>
-        public static void QueueScriptsForCreation(UIApplication app, List<TycoonRevitAddin.Scripting.ScriptInfo> scripts)
+        [Obsolete("Legacy button creation removed - scripts are created during startup")]
+        private static int CreateButtonsForPanel(RibbonPanel targetPanel, List<TycoonRevitAddin.Scripting.ScriptDefinition> scripts,
+            Dictionary<string, PushButton> existingButtons, object scriptsPlugin, string panelName)
         {
-            try
-            {
-                // Clear existing queue
-                _scriptsToCreate.Clear();
+            // 🎯 CLEAN ARCHITECTURE: This method is obsolete
+            // Script buttons are now created automatically during startup by RibbonManager
+            return 0;
+        }
 
-                // Queue new scripts
-                foreach (var script in scripts)
-                {
-                    _scriptsToCreate.Enqueue(script);
-                }
+        /// <summary>
+        /// 🎯 LEGACY: Create an individual button for a script - REMOVED
+        /// Button creation is now handled by clean architecture during startup
+        /// </summary>
+        [Obsolete("Legacy button creation removed - scripts are created during startup")]
+        private static int CreateIndividualButton(RibbonPanel targetPanel, TycoonRevitAddin.Scripting.ScriptDefinition scriptInfo,
+            Dictionary<string, PushButton> existingButtons, object scriptsPlugin, string panelName)
+        {
+            // 🎯 CLEAN ARCHITECTURE: This method is obsolete
+            // Script buttons are now created automatically during startup by RibbonManager
+            return 0;
+        }
 
-                if (_scriptsToCreate.Count > 0)
-                {
-                    // Subscribe to Idling event to process queue
-                    app.Idling += new Application().CreateDynamicButtonsOnIdle;
-                    _logger?.Log($"🎯 Queued {scripts.Count} scripts for dynamic button creation");
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger?.LogError("Failed to queue scripts for creation", ex);
-            }
+        // 🎯 CLEAN ARCHITECTURE: All legacy script button creation methods removed
+        // Script buttons are now created automatically during startup by RibbonManager
+        // The following methods are obsolete and have been removed:
+        // - CreateIndividualButtonDirect
+        // - CreateStackedButtons
+        // - GetCommandClassForScript
+        // - LoadIcon
+        // - QueueScriptsForCreation
+        // 🎯 CLEAN ARCHITECTURE: All legacy script button creation methods removed
+        // Script buttons are now created automatically during startup by RibbonManager
+        // The following legacy methods have been removed:
+        // - CreateIndividualButtonDirect, CreateStackedButtons, GetCommandClassForScript
+        // - LoadIcon, QueueScriptsForCreation, CreateDynamicButtonsOnIdle
+        // - CreateButtonsForPanel, CreateIndividualButton
+
+        /// <summary>
+        /// 🔥 HOT-RELOAD: Get the clean RibbonManager for script hot-reload functionality
+        /// </summary>
+        public static TycoonRevitAddin.Scripting.RibbonManager GetRibbonManager()
+        {
+            return _cleanRibbonManager;
         }
     }
 }

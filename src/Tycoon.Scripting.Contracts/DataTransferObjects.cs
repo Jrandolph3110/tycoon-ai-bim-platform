@@ -85,6 +85,8 @@ namespace Tycoon.Scripting.Contracts
         public string EntryAssembly { get; set; }
         public string EntryType { get; set; }
         public string Panel { get; set; } = "Production";
+        public string Stack { get; set; }
+        public int StackOrder { get; set; } = 0;
         public string[] Tags { get; set; } = new string[0];
         public bool RequiresSelection { get; set; } = false;
     }

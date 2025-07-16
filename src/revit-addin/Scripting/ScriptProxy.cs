@@ -121,53 +121,44 @@ namespace TycoonRevitAddin.Scripting
         /// <summary>
         /// Execute a script with automatic transaction management
         /// </summary>
-        public ScriptExecutionResult ExecuteScript(ScriptInfo scriptInfo)
+        public bool ExecuteScript(ScriptDefinition scriptDefinition)
         {
             var stopwatch = Stopwatch.StartNew();
-            
+
             try
             {
-                _logger.Log($"🚀 Executing script: {scriptInfo.Manifest.Name}");
-                
+                _logger.Log($"🚀 Executing script: {scriptDefinition.Name}");
+
                 // Load script assembly
-                var assembly = Assembly.LoadFrom(scriptInfo.AssemblyPath);
-                var scriptType = assembly.GetType(scriptInfo.Manifest.EntryType);
-                
+                var assembly = Assembly.LoadFrom(scriptDefinition.AssemblyPath);
+                var scriptType = assembly.GetType(scriptDefinition.ClassName);
+
                 if (scriptType == null)
                 {
-                    throw new InvalidOperationException($"Script type '{scriptInfo.Manifest.EntryType}' not found in assembly");
+                    throw new InvalidOperationException($"Script type '{scriptDefinition.ClassName}' not found in assembly");
                 }
-                
+
                 // Create script instance
                 var scriptInstance = Activator.CreateInstance(scriptType) as IScript;
                 if (scriptInstance == null)
                 {
-                    throw new InvalidOperationException($"Script type '{scriptInfo.Manifest.EntryType}' does not implement IScript");
+                    throw new InvalidOperationException($"Script type '{scriptDefinition.ClassName}' does not implement IScript");
                 }
-                
+
                 // Execute with transaction management
-                ExecuteWithTransaction(scriptInstance, scriptInfo.Manifest.Name);
+                ExecuteWithTransaction(scriptInstance, scriptDefinition.Name);
                 
                 stopwatch.Stop();
-                _logger.Log($"✅ Script '{scriptInfo.Manifest.Name}' executed successfully in {stopwatch.ElapsedMilliseconds}ms");
-                
-                return new ScriptExecutionResult
-                {
-                    Success = true,
-                    ExecutionTime = stopwatch.Elapsed
-                };
+                _logger.Log($"✅ Script '{scriptDefinition.Name}' executed successfully in {stopwatch.ElapsedMilliseconds}ms");
+
+                return true;
             }
             catch (Exception ex)
             {
                 stopwatch.Stop();
-                _logger.LogError($"❌ Script '{scriptInfo.Manifest.Name}' failed", ex);
-                
-                return new ScriptExecutionResult
-                {
-                    Success = false,
-                    ErrorMessage = ex.Message,
-                    ExecutionTime = stopwatch.Elapsed
-                };
+                _logger.LogError($"❌ Script '{scriptDefinition.Name}' failed", ex);
+
+                return false;
             }
         }
 

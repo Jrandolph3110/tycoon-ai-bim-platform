@@ -1,0 +1,11 @@
+{
+  "name": "Hello2",
+  "description": "A second Hello script to test Smart Tools panel placement",
+  "author": "Tycoon AI-BIM Platform",
+  "version": "1.0.0",
+  "assemblyPath": "bin/Release/net48/Hello2.dll",
+  "className": "Hello2Script.Hello2Script",
+  "panel": "SmartTools",
+  "tags": ["test", "hello", "smart-tools", "demo"],
+  "requiresSelection": false
+}

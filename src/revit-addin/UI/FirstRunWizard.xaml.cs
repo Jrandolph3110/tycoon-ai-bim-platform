@@ -14,14 +14,14 @@ namespace TycoonRevitAddin.UI
     /// </summary>
     public partial class FirstRunWizard : Window
     {
-        private readonly GitCacheManager _gitCacheManager;
+        // 🎯 CLEAN ARCHITECTURE: GitCacheManager removed - no longer needed
         private readonly Logger _logger;
         private bool _downloadCompleted = false;
 
-        public FirstRunWizard(GitCacheManager gitCacheManager, Logger logger)
+        public FirstRunWizard(Logger logger)
         {
             InitializeComponent();
-            _gitCacheManager = gitCacheManager ?? throw new ArgumentNullException(nameof(gitCacheManager));
+            // 🎯 CLEAN ARCHITECTURE: GitCacheManager removed - no longer needed
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
             // Load existing settings if available
