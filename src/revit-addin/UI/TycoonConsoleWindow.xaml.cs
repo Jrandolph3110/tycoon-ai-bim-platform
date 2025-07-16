@@ -61,28 +61,28 @@ namespace TycoonRevitAddin.UI
 
         private void AddInitialWelcomeContent()
         {
-            // CRITICAL DIAGNOSTIC: Completely bypass normal text processing
-            // Test if the issue is in the RichTextBox itself or in our text processing
+            // CRITICAL DIAGNOSTIC: Test TextBox vs RichTextBox to isolate vertical display issue
 
             try
             {
-                // Clear any existing content
-                ConsoleParagraph.Inlines.Clear();
+                // DIAGNOSTIC TEST 1: Use TextBox instead of RichTextBox
+                ConsoleTextBox.Text = "TEXTBOX TEST 1: This should display horizontally\n" +
+                                     "TEXTBOX TEST 2: Second line in TextBox\n" +
+                                     "TEXTBOX TEST 3: Third line to verify normal text display\n";
 
-                // DIAGNOSTIC TEST 1: Add text directly to RichTextBox without Run elements
+                // DIAGNOSTIC TEST 2: Also test RichTextBox with improved configuration
                 ConsoleRichTextBox.Document.Blocks.Clear();
+
                 var testParagraph = new Paragraph();
-                testParagraph.Inlines.Add("DIRECT TEST: This text is added directly without AppendLogEntry");
+                testParagraph.Inlines.Add("RICHTEXTBOX TEST 1: This text is added directly without AppendLogEntry");
                 ConsoleRichTextBox.Document.Blocks.Add(testParagraph);
 
-                // DIAGNOSTIC TEST 2: Add a second line to see if multiple lines work
                 var testParagraph2 = new Paragraph();
-                testParagraph2.Inlines.Add("SECOND LINE: If you see this normally, the RichTextBox works fine");
+                testParagraph2.Inlines.Add("RICHTEXTBOX TEST 2: If you see this normally, the RichTextBox works fine");
                 ConsoleRichTextBox.Document.Blocks.Add(testParagraph2);
 
-                // DIAGNOSTIC TEST 3: Test our normal method with a simple string
                 var testParagraph3 = new Paragraph();
-                var simpleRun = new Run("SIMPLE RUN TEST: This uses our normal Run creation");
+                var simpleRun = new Run("RICHTEXTBOX TEST 3: This uses our normal Run creation");
                 testParagraph3.Inlines.Add(simpleRun);
                 ConsoleRichTextBox.Document.Blocks.Add(testParagraph3);
 
@@ -90,14 +90,14 @@ namespace TycoonRevitAddin.UI
                 LineCountText.Text = _lineCount.ToString();
 
                 // Log diagnostic info
-                System.Diagnostics.Debug.WriteLine("DIAGNOSTIC: AddInitialWelcomeContent completed successfully");
+                System.Diagnostics.Debug.WriteLine("DIAGNOSTIC: TextBox and RichTextBox tests completed");
+                System.Diagnostics.Debug.WriteLine($"TextBox Text Length: {ConsoleTextBox.Text.Length}");
             }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"DIAGNOSTIC ERROR: {ex.Message}");
-                // Fallback to original paragraph if direct approach fails
-                ConsoleParagraph.Inlines.Clear();
-                ConsoleParagraph.Inlines.Add(new Run("FALLBACK: Error in diagnostic test"));
+                // Fallback
+                ConsoleTextBox.Text = "FALLBACK: Error in diagnostic test";
             }
         }
 
@@ -177,34 +177,47 @@ namespace TycoonRevitAddin.UI
             {
                 try
                 {
-                    // CRITICAL DIAGNOSTIC: Completely bypass the existing paragraph approach
-                    // Create a new paragraph for each message to avoid any accumulation issues
+                    // CRITICAL DIAGNOSTIC: Test both TextBox and RichTextBox approaches
 
+                    // APPROACH 1: Use TextBox (simple text append)
+                    var timestamp = DateTime.Now.ToString("HH:mm:ss.fff");
+                    var logEntry = $"[{timestamp}] {message}\n";
+                    ConsoleTextBox.AppendText(logEntry);
+
+                    // APPROACH 2: Also test RichTextBox with new paragraph
                     var newParagraph = new Paragraph();
-                    var messageRun = new Run(message);
+                    var messageRun = new Run($"[{timestamp}] {message}");
                     ApplyLogLevelStyling(messageRun, level);
                     newParagraph.Inlines.Add(messageRun);
 
-                    // Add directly to the RichTextBox document
+                    // Add to hidden RichTextBox for comparison
                     ConsoleRichTextBox.Document.Blocks.Add(newParagraph);
 
-                    // Keep only last 100 paragraphs to prevent memory issues
+                    // Keep only last 100 entries
                     while (ConsoleRichTextBox.Document.Blocks.Count > 100)
                     {
                         ConsoleRichTextBox.Document.Blocks.Remove(ConsoleRichTextBox.Document.Blocks.FirstBlock);
+                    }
+
+                    // Keep TextBox manageable too
+                    var lines = ConsoleTextBox.Text.Split('\n');
+                    if (lines.Length > 100)
+                    {
+                        ConsoleTextBox.Text = string.Join("\n", lines.Skip(lines.Length - 100));
                     }
 
                     _lineCount++;
                     LineCountText.Text = _lineCount.ToString();
                     LastUpdateText.Text = DateTime.Now.ToString("HH:mm:ss");
 
-                    // Auto-scroll if enabled
+                    // Auto-scroll TextBox to end
                     if (AutoScrollButton.IsChecked == true)
                     {
+                        ConsoleTextBox.ScrollToEnd();
                         ConsoleScrollViewer.ScrollToEnd();
                     }
 
-                    System.Diagnostics.Debug.WriteLine($"DIAGNOSTIC: Successfully added paragraph with message: '{message}'");
+                    System.Diagnostics.Debug.WriteLine($"DIAGNOSTIC: Added to both TextBox and RichTextBox: '{message}'");
                 }
                 catch (Exception ex)
                 {

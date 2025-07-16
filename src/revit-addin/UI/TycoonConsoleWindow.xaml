@@ -77,28 +77,52 @@
         </ToolBar>
 
         <!-- Console Output -->
-        <ScrollViewer Grid.Row="1" Name="ConsoleScrollViewer" 
-                      VerticalScrollBarVisibility="Auto" 
+        <ScrollViewer Grid.Row="1" Name="ConsoleScrollViewer"
+                      VerticalScrollBarVisibility="Auto"
                       HorizontalScrollBarVisibility="Auto"
                       Background="#1E1E1E"
                       Padding="10">
-            <RichTextBox Name="ConsoleRichTextBox"
+            <StackPanel>
+                <!-- DIAGNOSTIC: Try TextBox instead of RichTextBox to isolate vertical display issue -->
+                <TextBox Name="ConsoleTextBox"
                          Background="Transparent"
                          Foreground="White"
                          BorderThickness="0"
                          IsReadOnly="True"
                          FontFamily="Consolas, Courier New, monospace"
                          FontSize="12"
+                         TextWrapping="Wrap"
+                         AcceptsReturn="True"
                          VerticalScrollBarVisibility="Disabled"
-                         HorizontalScrollBarVisibility="Disabled">
-                <RichTextBox.Document>
-                    <FlowDocument Name="ConsoleDocument">
-                        <Paragraph Name="ConsoleParagraph">
-                            <!-- Initial content will be added programmatically -->
-                        </Paragraph>
-                    </FlowDocument>
-                </RichTextBox.Document>
-            </RichTextBox>
+                         HorizontalScrollBarVisibility="Disabled"
+                         Text="TEXTBOX TEST: This should display horizontally if TextBox works correctly"/>
+
+                <!-- Keep RichTextBox for comparison but make it hidden -->
+                <RichTextBox Name="ConsoleRichTextBox"
+                             Visibility="Collapsed"
+                             Background="Transparent"
+                             Foreground="White"
+                             BorderThickness="0"
+                             IsReadOnly="True"
+                             FontFamily="Consolas, Courier New, monospace"
+                             FontSize="12"
+                             VerticalScrollBarVisibility="Disabled"
+                             HorizontalScrollBarVisibility="Disabled">
+                    <RichTextBox.Document>
+                        <FlowDocument Name="ConsoleDocument"
+                                      FlowDirection="LeftToRight"
+                                      PageWidth="NaN"
+                                      PageHeight="NaN"
+                                      ColumnWidth="NaN"
+                                      IsColumnWidthFlexible="False"
+                                      IsOptimalParagraphEnabled="False">
+                            <Paragraph Name="ConsoleParagraph">
+                                <!-- Initial content will be added programmatically -->
+                            </Paragraph>
+                        </FlowDocument>
+                    </RichTextBox.Document>
+                </RichTextBox>
+            </StackPanel>
         </ScrollViewer>
 
         <!-- Status Bar -->
