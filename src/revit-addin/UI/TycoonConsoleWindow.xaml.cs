@@ -64,8 +64,17 @@ namespace TycoonRevitAddin.UI
             // Clear any existing content
             ConsoleParagraph.Inlines.Clear();
 
+            // DIAGNOSTIC: Test with simple text first to isolate character-by-character issue
+            var testRun = new Run("TEST: This should display as a single line")
+            {
+                Foreground = new SolidColorBrush(Color.FromRgb(68, 170, 68)),
+                FontWeight = FontWeights.Bold
+            };
+            ConsoleParagraph.Inlines.Add(testRun);
+            ConsoleParagraph.Inlines.Add(new LineBreak());
+
             // Add welcome message
-            var welcomeRun = new Run("🔥 Tycoon Script Console Ready")
+            var welcomeRun = new Run("Console Ready")
             {
                 Foreground = new SolidColorBrush(Color.FromRgb(68, 170, 68)),
                 FontWeight = FontWeights.Bold
@@ -73,20 +82,12 @@ namespace TycoonRevitAddin.UI
             ConsoleParagraph.Inlines.Add(welcomeRun);
             ConsoleParagraph.Inlines.Add(new LineBreak());
 
-            // Add tip message
-            var tipRun = new Run("💡 Tip: Use Shift+Click on script buttons to show console output")
+            // Add simple tip message without emojis
+            var tipRun = new Run("Tip: Use Shift+Click on script buttons to show console output")
             {
                 Foreground = new SolidColorBrush(Color.FromRgb(68, 136, 204))
             };
             ConsoleParagraph.Inlines.Add(tipRun);
-            ConsoleParagraph.Inlines.Add(new LineBreak());
-
-            // Add shortcuts message
-            var shortcutsRun = new Run("⌨️ Shortcuts: Ctrl+L (Clear), Ctrl+C (Copy), Ctrl+S (Save)")
-            {
-                Foreground = new SolidColorBrush(Color.FromRgb(136, 136, 136))
-            };
-            ConsoleParagraph.Inlines.Add(shortcutsRun);
             ConsoleParagraph.Inlines.Add(new LineBreak());
             ConsoleParagraph.Inlines.Add(new LineBreak());
 
@@ -143,38 +144,42 @@ namespace TycoonRevitAddin.UI
         {
             if (_isPaused) return;
 
-            Dispatcher.BeginInvoke(new Action(() =>
+            // DIAGNOSTIC: Try direct execution instead of Dispatcher.BeginInvoke to isolate character-by-character issue
+            if (Dispatcher.CheckAccess())
             {
-                lock (_lockObject)
+                // We're on the UI thread, execute directly
+                AppendLogEntryDirect(message, level);
+            }
+            else
+            {
+                // We're on a background thread, use Dispatcher.Invoke (synchronous)
+                Dispatcher.Invoke(() => AppendLogEntryDirect(message, level));
+            }
+        }
+
+        private void AppendLogEntryDirect(string message, LogLevel level)
+        {
+            lock (_lockObject)
+            {
+                var timestamp = DateTime.Now.ToString("HH:mm:ss.fff");
+                var paragraph = ConsoleParagraph;
+
+                // DIAGNOSTIC: Add message without timestamp first to isolate issue
+                var messageRun = new Run(message);
+                ApplyLogLevelStyling(messageRun, level);
+                paragraph.Inlines.Add(messageRun);
+                paragraph.Inlines.Add(new LineBreak());
+
+                _lineCount++;
+                LineCountText.Text = _lineCount.ToString();
+                LastUpdateText.Text = DateTime.Now.ToString("HH:mm:ss");
+
+                // Auto-scroll if enabled
+                if (AutoScrollButton.IsChecked == true)
                 {
-                    var timestamp = DateTime.Now.ToString("HH:mm:ss.fff");
-                    var paragraph = ConsoleParagraph;
-
-                    // Add timestamp
-                    var timestampRun = new Run($"[{timestamp}] ")
-                    {
-                        Foreground = new SolidColorBrush(Color.FromRgb(136, 136, 136)),
-                        FontSize = 10
-                    };
-                    paragraph.Inlines.Add(timestampRun);
-
-                    // Add message with appropriate styling
-                    var messageRun = new Run(message);
-                    ApplyLogLevelStyling(messageRun, level);
-                    paragraph.Inlines.Add(messageRun);
-                    paragraph.Inlines.Add(new LineBreak());
-
-                    _lineCount++;
-                    LineCountText.Text = _lineCount.ToString();
-                    LastUpdateText.Text = DateTime.Now.ToString("HH:mm:ss");
-
-                    // Auto-scroll if enabled
-                    if (AutoScrollButton.IsChecked == true)
-                    {
-                        ConsoleScrollViewer.ScrollToEnd();
-                    }
+                    ConsoleScrollViewer.ScrollToEnd();
                 }
-            }));
+            }
         }
 
         private void ApplyLogLevelStyling(Run run, LogLevel level)
