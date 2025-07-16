@@ -1,0 +1,68 @@
+# ============================================================================
+# TYCOON AI-BIM PLATFORM - GITHUB SCRIPTS CONFIGURATION
+# ============================================================================
+# This configuration file controls which scripts are included in different
+# build configurations and deployment scenarios.
+# ============================================================================
+
+# DEVELOPMENT SCRIPTS (excluded from production builds)
+# These scripts are for development, testing, and reference purposes only
+[development]
+ScriptTemplate/
+
+# PRODUCTION SCRIPTS (included in all builds)
+# These scripts are ready for production use
+[production]
+# Add production-ready scripts here
+# Example: WallFraming/
+# Example: ElementProcessor/
+
+# EXPERIMENTAL SCRIPTS (included only in debug builds)
+# These scripts are experimental or beta features
+[experimental]
+# Add experimental scripts here
+
+# BUILD EXCLUSIONS
+# Scripts or patterns to always exclude from builds
+[exclude]
+*.tmp
+*.bak
+**/bin/
+**/obj/
+**/.vs/
+**/node_modules/
+
+# SCRIPT CATEGORIES
+# Organize scripts by functional categories
+[categories]
+templates = ScriptTemplate/
+framing = 
+processing = 
+utilities = 
+ai-integration = 
+
+# DEPLOYMENT SETTINGS
+# Control script deployment behavior
+[deployment]
+# Whether to validate scripts before deployment
+validate_before_deploy = true
+
+# Whether to compile scripts during deployment
+compile_on_deploy = true
+
+# Whether to include debug symbols in production
+include_debug_symbols = false
+
+# GITHUB INTEGRATION SETTINGS
+[github]
+# Branch to pull scripts from
+default_branch = main
+
+# Directory containing scripts in repository
+scripts_directory = github-scripts
+
+# Whether to cache scripts locally
+enable_caching = true
+
+# Cache expiration time in minutes
+cache_expiration = 60
