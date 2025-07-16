@@ -1,0 +1,184 @@
+<!--
+============================================================================
+TYCOON AI-BIM PLATFORM - SCRIPT TEMPLATE PROJECT FILE
+============================================================================
+This .csproj file demonstrates the proper project configuration for scripts
+in the Tycoon AI-BIM Platform. It includes all necessary dependencies,
+build configurations, and platform integration settings.
+============================================================================
+-->
+
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- ====================================================================
+       PROJECT CONFIGURATION
+       ==================================================================== -->
+  
+  <PropertyGroup>
+    <!-- Target Framework - Use .NET Framework 4.8 for Revit compatibility -->
+    <TargetFramework>net48</TargetFramework>
+    
+    <!-- Assembly Information -->
+    <AssemblyTitle>Tycoon AI-BIM Platform Script Template</AssemblyTitle>
+    <AssemblyDescription>Comprehensive template demonstrating script development patterns for the Tycoon AI-BIM Platform</AssemblyDescription>
+    <AssemblyCompany>F.L. Crane &amp; Sons</AssemblyCompany>
+    <AssemblyProduct>Tycoon AI-BIM Platform</AssemblyProduct>
+    <AssemblyCopyright>Copyright © F.L. Crane &amp; Sons 2025</AssemblyCopyright>
+    <AssemblyVersion>1.0.0.0</AssemblyVersion>
+    <FileVersion>1.0.0.0</FileVersion>
+    
+    <!-- Build Configuration -->
+    <OutputType>Library</OutputType>
+    <PlatformTarget>x64</PlatformTarget>
+    <Prefer32Bit>false</Prefer32Bit>
+    
+    <!-- Language and Compiler Settings -->
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <WarningLevel>4</WarningLevel>
+    
+    <!-- Output Configuration -->
+    <OutputPath>bin\$(Configuration)\</OutputPath>
+    <IntermediateOutputPath>obj\$(Configuration)\</IntermediateOutputPath>
+    
+    <!-- Documentation -->
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <DocumentationFile>bin\$(Configuration)\$(AssemblyName).xml</DocumentationFile>
+  </PropertyGroup>
+
+  <!-- ====================================================================
+       BUILD CONFIGURATIONS
+       ==================================================================== -->
+  
+  <!-- Debug Configuration -->
+  <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>full</DebugType>
+    <Optimize>false</Optimize>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+  </PropertyGroup>
+  
+  <!-- Release Configuration -->
+  <PropertyGroup Condition="'$(Configuration)' == 'Release'">
+    <DebugSymbols>false</DebugSymbols>
+    <DebugType>none</DebugType>
+    <Optimize>true</Optimize>
+    <DefineConstants>TRACE</DefineConstants>
+  </PropertyGroup>
+
+  <!-- ====================================================================
+       REVIT API REFERENCES
+       ==================================================================== -->
+  
+  <ItemGroup>
+    <!-- Core Revit API References -->
+    <Reference Include="RevitAPI">
+      <HintPath>$(ProgramFiles)\Autodesk\Revit 2024\RevitAPI.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    
+    <Reference Include="RevitAPIUI">
+      <HintPath>$(ProgramFiles)\Autodesk\Revit 2024\RevitAPIUI.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    
+    <!-- Additional Revit References (if needed) -->
+    <Reference Include="AdWindows">
+      <HintPath>$(ProgramFiles)\Autodesk\Revit 2024\AdWindows.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+  </ItemGroup>
+
+  <!-- ====================================================================
+       TYCOON PLATFORM REFERENCES
+       ==================================================================== -->
+  
+  <ItemGroup>
+    <!-- Tycoon Scripting Contracts (if available) -->
+    <Reference Include="Tycoon.Scripting.Contracts" Condition="Exists('..\..\src\Tycoon.Scripting.Contracts\bin\Release\Tycoon.Scripting.Contracts.dll')">
+      <HintPath>..\..\src\Tycoon.Scripting.Contracts\bin\Release\Tycoon.Scripting.Contracts.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+  </ItemGroup>
+
+  <!-- ====================================================================
+       SYSTEM REFERENCES
+       ==================================================================== -->
+  
+  <ItemGroup>
+    <!-- Core System References -->
+    <Reference Include="System" />
+    <Reference Include="System.Core" />
+    <Reference Include="System.Data" />
+    <Reference Include="System.Drawing" />
+    <Reference Include="System.Windows.Forms" />
+    <Reference Include="System.Xml" />
+    <Reference Include="System.Xml.Linq" />
+    
+    <!-- WPF References (if using WPF UI) -->
+    <Reference Include="PresentationCore" />
+    <Reference Include="PresentationFramework" />
+    <Reference Include="WindowsBase" />
+  </ItemGroup>
+
+  <!-- ====================================================================
+       NUGET PACKAGE REFERENCES
+       ==================================================================== -->
+  
+  <ItemGroup>
+    <!-- JSON.NET for configuration parsing -->
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+    
+    <!-- Logging framework (optional) -->
+    <PackageReference Include="NLog" Version="5.2.8" />
+  </ItemGroup>
+
+  <!-- ====================================================================
+       CONTENT FILES
+       ==================================================================== -->
+  
+  <ItemGroup>
+    <!-- Include script.json as content -->
+    <Content Include="script.json">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    
+    <!-- Include icon if present -->
+    <Content Include="icon.png" Condition="Exists('icon.png')">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    
+    <!-- Include README -->
+    <Content Include="README.md" Condition="Exists('README.md')">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
+  <!-- ====================================================================
+       BUILD EVENTS
+       ==================================================================== -->
+  
+  <!-- Post-build events for development -->
+  <Target Name="PostBuild" AfterTargets="PostBuildEvent" Condition="'$(Configuration)' == 'Debug'">
+    <Exec Command="echo Script Template built successfully for $(Configuration) configuration" />
+  </Target>
+  
+  <!-- Pre-build validation -->
+  <Target Name="PreBuild" BeforeTargets="PreBuildEvent">
+    <Message Text="Building Tycoon AI-BIM Platform Script Template..." Importance="high" />
+  </Target>
+
+  <!-- ====================================================================
+       DEVELOPMENT TOOLS
+       ==================================================================== -->
+  
+  <!-- Code analysis (optional) -->
+  <ItemGroup Condition="'$(Configuration)' == 'Debug'">
+    <PackageReference Include="Microsoft.CodeAnalysis.Analyzers" Version="3.3.4">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+
+</Project>
