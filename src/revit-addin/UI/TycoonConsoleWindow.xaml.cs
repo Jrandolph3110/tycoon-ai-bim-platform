@@ -61,38 +61,44 @@ namespace TycoonRevitAddin.UI
 
         private void AddInitialWelcomeContent()
         {
-            // Clear any existing content
-            ConsoleParagraph.Inlines.Clear();
+            // CRITICAL DIAGNOSTIC: Completely bypass normal text processing
+            // Test if the issue is in the RichTextBox itself or in our text processing
 
-            // DIAGNOSTIC: Test with simple text first to isolate character-by-character issue
-            var testRun = new Run("TEST: This should display as a single line")
+            try
             {
-                Foreground = new SolidColorBrush(Color.FromRgb(68, 170, 68)),
-                FontWeight = FontWeights.Bold
-            };
-            ConsoleParagraph.Inlines.Add(testRun);
-            ConsoleParagraph.Inlines.Add(new LineBreak());
+                // Clear any existing content
+                ConsoleParagraph.Inlines.Clear();
 
-            // Add welcome message
-            var welcomeRun = new Run("Console Ready")
+                // DIAGNOSTIC TEST 1: Add text directly to RichTextBox without Run elements
+                ConsoleRichTextBox.Document.Blocks.Clear();
+                var testParagraph = new Paragraph();
+                testParagraph.Inlines.Add("DIRECT TEST: This text is added directly without AppendLogEntry");
+                ConsoleRichTextBox.Document.Blocks.Add(testParagraph);
+
+                // DIAGNOSTIC TEST 2: Add a second line to see if multiple lines work
+                var testParagraph2 = new Paragraph();
+                testParagraph2.Inlines.Add("SECOND LINE: If you see this normally, the RichTextBox works fine");
+                ConsoleRichTextBox.Document.Blocks.Add(testParagraph2);
+
+                // DIAGNOSTIC TEST 3: Test our normal method with a simple string
+                var testParagraph3 = new Paragraph();
+                var simpleRun = new Run("SIMPLE RUN TEST: This uses our normal Run creation");
+                testParagraph3.Inlines.Add(simpleRun);
+                ConsoleRichTextBox.Document.Blocks.Add(testParagraph3);
+
+                _lineCount = 3;
+                LineCountText.Text = _lineCount.ToString();
+
+                // Log diagnostic info
+                System.Diagnostics.Debug.WriteLine("DIAGNOSTIC: AddInitialWelcomeContent completed successfully");
+            }
+            catch (Exception ex)
             {
-                Foreground = new SolidColorBrush(Color.FromRgb(68, 170, 68)),
-                FontWeight = FontWeights.Bold
-            };
-            ConsoleParagraph.Inlines.Add(welcomeRun);
-            ConsoleParagraph.Inlines.Add(new LineBreak());
-
-            // Add simple tip message without emojis
-            var tipRun = new Run("Tip: Use Shift+Click on script buttons to show console output")
-            {
-                Foreground = new SolidColorBrush(Color.FromRgb(68, 136, 204))
-            };
-            ConsoleParagraph.Inlines.Add(tipRun);
-            ConsoleParagraph.Inlines.Add(new LineBreak());
-            ConsoleParagraph.Inlines.Add(new LineBreak());
-
-            _lineCount = 3;
-            LineCountText.Text = _lineCount.ToString();
+                System.Diagnostics.Debug.WriteLine($"DIAGNOSTIC ERROR: {ex.Message}");
+                // Fallback to original paragraph if direct approach fails
+                ConsoleParagraph.Inlines.Clear();
+                ConsoleParagraph.Inlines.Add(new Run("FALLBACK: Error in diagnostic test"));
+            }
         }
 
         private void SetupKeyboardShortcuts()
@@ -144,15 +150,23 @@ namespace TycoonRevitAddin.UI
         {
             if (_isPaused) return;
 
-            // DIAGNOSTIC: Try direct execution instead of Dispatcher.BeginInvoke to isolate character-by-character issue
+            // CRITICAL DIAGNOSTIC: Log every call to see if something is calling this character-by-character
+            System.Diagnostics.Debug.WriteLine($"DIAGNOSTIC AppendLogEntry called with: '{message}' (Length: {message?.Length})");
+
+            // DIAGNOSTIC: Check if message is single character
+            if (message?.Length == 1)
+            {
+                System.Diagnostics.Debug.WriteLine($"WARNING: Single character detected: '{message}' - This might be the source of character-by-character display!");
+                System.Diagnostics.Debug.WriteLine($"STACK TRACE: {Environment.StackTrace}");
+            }
+
+            // DIAGNOSTIC: Try completely different approach - add directly to RichTextBox
             if (Dispatcher.CheckAccess())
             {
-                // We're on the UI thread, execute directly
                 AppendLogEntryDirect(message, level);
             }
             else
             {
-                // We're on a background thread, use Dispatcher.Invoke (synchronous)
                 Dispatcher.Invoke(() => AppendLogEntryDirect(message, level));
             }
         }
@@ -161,23 +175,40 @@ namespace TycoonRevitAddin.UI
         {
             lock (_lockObject)
             {
-                var timestamp = DateTime.Now.ToString("HH:mm:ss.fff");
-                var paragraph = ConsoleParagraph;
-
-                // DIAGNOSTIC: Add message without timestamp first to isolate issue
-                var messageRun = new Run(message);
-                ApplyLogLevelStyling(messageRun, level);
-                paragraph.Inlines.Add(messageRun);
-                paragraph.Inlines.Add(new LineBreak());
-
-                _lineCount++;
-                LineCountText.Text = _lineCount.ToString();
-                LastUpdateText.Text = DateTime.Now.ToString("HH:mm:ss");
-
-                // Auto-scroll if enabled
-                if (AutoScrollButton.IsChecked == true)
+                try
                 {
-                    ConsoleScrollViewer.ScrollToEnd();
+                    // CRITICAL DIAGNOSTIC: Completely bypass the existing paragraph approach
+                    // Create a new paragraph for each message to avoid any accumulation issues
+
+                    var newParagraph = new Paragraph();
+                    var messageRun = new Run(message);
+                    ApplyLogLevelStyling(messageRun, level);
+                    newParagraph.Inlines.Add(messageRun);
+
+                    // Add directly to the RichTextBox document
+                    ConsoleRichTextBox.Document.Blocks.Add(newParagraph);
+
+                    // Keep only last 100 paragraphs to prevent memory issues
+                    while (ConsoleRichTextBox.Document.Blocks.Count > 100)
+                    {
+                        ConsoleRichTextBox.Document.Blocks.Remove(ConsoleRichTextBox.Document.Blocks.FirstBlock);
+                    }
+
+                    _lineCount++;
+                    LineCountText.Text = _lineCount.ToString();
+                    LastUpdateText.Text = DateTime.Now.ToString("HH:mm:ss");
+
+                    // Auto-scroll if enabled
+                    if (AutoScrollButton.IsChecked == true)
+                    {
+                        ConsoleScrollViewer.ScrollToEnd();
+                    }
+
+                    System.Diagnostics.Debug.WriteLine($"DIAGNOSTIC: Successfully added paragraph with message: '{message}'");
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"DIAGNOSTIC ERROR in AppendLogEntryDirect: {ex.Message}");
                 }
             }
         }
