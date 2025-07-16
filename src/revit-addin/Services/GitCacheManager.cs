@@ -655,12 +655,14 @@ namespace TycoonRevitAddin.Services
         }
 
         /// <summary>
-        /// Download individual script file from GitHub
+        /// Download individual script (file or directory) from GitHub
         /// </summary>
         private async Task<bool> DownloadScriptFileAsync(string scriptPath, string localPath)
         {
             // Script path already includes the full path (e.g., "github-scripts/GitScript")
-            return await DownloadFileFromGitHubAsync(scriptPath, localPath);
+            // Try to download as directory first, then as file
+            return await DownloadDirectoryFromGitHubAsync(scriptPath, localPath) ||
+                   await DownloadFileFromGitHubAsync(scriptPath, localPath);
         }
 
         /// <summary>
@@ -669,6 +671,91 @@ namespace TycoonRevitAddin.Services
         private async Task<bool> DownloadTemplateFileAsync(string templatePath, string localPath)
         {
             return await DownloadFileFromGitHubAsync(templatePath, localPath);
+        }
+
+        /// <summary>
+        /// Download directory and all its contents from GitHub
+        /// </summary>
+        private async Task<bool> DownloadDirectoryFromGitHubAsync(string githubPath, string localBasePath)
+        {
+            try
+            {
+                var url = $"https://api.github.com/repos/{_repositoryOwner}/{_repositoryName}/contents/{githubPath}?ref={_branch}";
+                var response = await _httpClient.GetAsync(url);
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    return false; // Not a directory or doesn't exist
+                }
+
+                var json = await response.Content.ReadAsStringAsync();
+
+                // Try to deserialize as directory listing (array)
+                try
+                {
+                    var directoryContents = JsonConvert.DeserializeObject<GitHubFileResponse[]>(json);
+                    if (directoryContents == null || directoryContents.Length == 0)
+                    {
+                        return false;
+                    }
+
+                    // Create local directory
+                    Directory.CreateDirectory(localBasePath);
+
+                    // Download all files in the directory
+                    var downloadTasks = new List<Task<bool>>();
+                    foreach (var item in directoryContents)
+                    {
+                        var itemLocalPath = Path.Combine(localBasePath, item.Name);
+
+                        if (item.Type == "file" || item.Content != null) // It's a file
+                        {
+                            downloadTasks.Add(DownloadFileContentAsync(item, itemLocalPath));
+                        }
+                        else if (item.Type == "dir") // It's a subdirectory
+                        {
+                            downloadTasks.Add(DownloadDirectoryFromGitHubAsync(item.Path, itemLocalPath));
+                        }
+                    }
+
+                    var results = await Task.WhenAll(downloadTasks);
+                    return results.All(r => r); // Return true if all downloads succeeded
+                }
+                catch (JsonException)
+                {
+                    // Not a directory (probably a file), return false to try file download
+                    return false;
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Failed to download directory {githubPath}", ex);
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Download file content from GitHub file response
+        /// </summary>
+        private Task<bool> DownloadFileContentAsync(GitHubFileResponse githubFile, string localPath)
+        {
+            try
+            {
+                if (githubFile?.Content == null)
+                {
+                    return Task.FromResult(false);
+                }
+
+                // Decode and save file
+                var fileContent = Convert.FromBase64String(githubFile.Content.Replace("\n", ""));
+                File.WriteAllBytes(localPath, fileContent);
+                return Task.FromResult(true);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Failed to save file content to {localPath}", ex);
+                return Task.FromResult(false);
+            }
         }
 
         /// <summary>
@@ -860,6 +947,7 @@ namespace TycoonRevitAddin.Services
         public long Size { get; set; }
         public string Content { get; set; }
         public string Encoding { get; set; }
+        public string Type { get; set; } // "file" or "dir"
     }
 
     /// <summary>
