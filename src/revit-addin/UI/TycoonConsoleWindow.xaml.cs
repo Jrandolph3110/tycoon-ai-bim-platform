@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Windows;
@@ -22,6 +23,9 @@ namespace TycoonRevitAddin.UI
         private int _lineCount = 0;
         private readonly object _lockObject = new object();
         private LogSource _currentLogSource = LogSource.ScriptOutputs;
+
+        // Store all log entries for filtering
+        private readonly List<LogEntry> _allLogEntries = new List<LogEntry>();
 
         public TycoonConsoleWindow()
         {
@@ -177,6 +181,16 @@ namespace TycoonRevitAddin.UI
             {
                 try
                 {
+                    // Store log entry for filtering
+                    var logEntry = new LogEntry(message, level, _currentLogSource);
+                    _allLogEntries.Add(logEntry);
+
+                    // Keep only last 200 entries in memory
+                    if (_allLogEntries.Count > 200)
+                    {
+                        _allLogEntries.RemoveAt(0);
+                    }
+
                     // OPTIMIZED: Conditional timestamp logic based on current log source
                     string displayMessage;
 
@@ -287,9 +301,102 @@ namespace TycoonRevitAddin.UI
 
         private void FilterComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            // Filter implementation will be added in Phase 3
+            if (FilterComboBox.SelectedIndex < 0) return;
+
             var selectedFilter = ((ComboBoxItem)FilterComboBox.SelectedItem)?.Content?.ToString();
             StatusText.Text = $"Filter: {selectedFilter}";
+
+            // Apply filtering to current log entries
+            ApplyLogFilter(selectedFilter);
+        }
+
+        private void ApplyLogFilter(string filterType)
+        {
+            lock (_lockObject)
+            {
+                try
+                {
+                    // Clear current display
+                    ConsoleTextBox.Clear();
+                    ConsoleRichTextBox.Document.Blocks.Clear();
+
+                    // Filter log entries based on selected filter
+                    var filteredEntries = _allLogEntries.AsEnumerable();
+
+                    switch (filterType?.ToLower())
+                    {
+                        case "errors":
+                            filteredEntries = _allLogEntries.Where(e => e.Level == LogLevel.Error);
+                            break;
+                        case "warnings":
+                            filteredEntries = _allLogEntries.Where(e => e.Level == LogLevel.Warning);
+                            break;
+                        case "success":
+                            filteredEntries = _allLogEntries.Where(e => e.Level == LogLevel.Success);
+                            break;
+                        case "info":
+                            filteredEntries = _allLogEntries.Where(e => e.Level == LogLevel.Info);
+                            break;
+                        case "all":
+                        default:
+                            // Show all entries
+                            break;
+                    }
+
+                    // Redisplay filtered entries
+                    foreach (var entry in filteredEntries)
+                    {
+                        DisplayLogEntry(entry);
+                    }
+
+                    // Update line count
+                    _lineCount = filteredEntries.Count();
+                    LineCountText.Text = _lineCount.ToString();
+
+                    // Auto-scroll to end
+                    if (AutoScrollButton.IsChecked == true)
+                    {
+                        ConsoleTextBox.ScrollToEnd();
+                        ConsoleScrollViewer.ScrollToEnd();
+                    }
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"ERROR in ApplyLogFilter: {ex.Message}");
+                }
+            }
+        }
+
+        private void DisplayLogEntry(LogEntry entry)
+        {
+            // OPTIMIZED: Conditional timestamp logic based on log source
+            string displayMessage;
+
+            switch (entry.Source)
+            {
+                case LogSource.TycoonLog:
+                    // Tycoon logs already have timestamps - don't add console timestamp
+                    displayMessage = entry.Message;
+                    break;
+
+                case LogSource.RevitJournal:
+                case LogSource.ScriptOutputs:
+                default:
+                    // Add console timestamp for sources without their own timestamps
+                    var timestamp = entry.Timestamp.ToString("HH:mm:ss.fff");
+                    displayMessage = $"[{timestamp}] {entry.Message}";
+                    break;
+            }
+
+            // Add to TextBox
+            ConsoleTextBox.AppendText(displayMessage + "\n");
+
+            // Add to RichTextBox
+            var newParagraph = new Paragraph();
+            var messageRun = new Run(displayMessage);
+            ApplyLogLevelStyling(messageRun, entry.Level);
+            newParagraph.Inlines.Add(messageRun);
+            ConsoleRichTextBox.Document.Blocks.Add(newParagraph);
         }
 
         private void LogSourceComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -319,6 +426,9 @@ namespace TycoonRevitAddin.UI
                 ConsoleTextBox.Clear();
                 ConsoleParagraph.Inlines.Clear();
                 ConsoleRichTextBox.Document.Blocks.Clear();
+
+                // Clear log entries collection for filtering
+                _allLogEntries.Clear();
 
                 _lineCount = 0;
                 LineCountText.Text = "0";
@@ -601,5 +711,24 @@ namespace TycoonRevitAddin.UI
         TycoonLog = 0,
         RevitJournal = 1,
         ScriptOutputs = 2
+    }
+
+    /// <summary>
+    /// Represents a log entry with its content and level for filtering
+    /// </summary>
+    public class LogEntry
+    {
+        public string Message { get; set; }
+        public LogLevel Level { get; set; }
+        public DateTime Timestamp { get; set; }
+        public LogSource Source { get; set; }
+
+        public LogEntry(string message, LogLevel level, LogSource source)
+        {
+            Message = message;
+            Level = level;
+            Source = source;
+            Timestamp = DateTime.Now;
+        }
     }
 }
