@@ -46,41 +46,30 @@ namespace TycoonRevitAddin.Commands
                     AllowCancellation = false
                 };
 
-                // Start async refresh
-                Task.Run(async () =>
+                // Refresh GitHub scripts synchronously to avoid API context issues
+                try
                 {
-                    try
-                    {
-                        await scriptsPlugin.RefreshGitHubScriptsAsync();
-                        
-                        // Show completion dialog on UI thread
-                        commandData.Application.ActiveUIDocument.Application.Idling += (sender, args) =>
-                        {
-                            TaskDialog.Show("GitHub Scripts Refreshed",
-                                "✅ GitHub scripts have been refreshed successfully!\n\n" +
-                                "Latest verified production scripts are now available in the ribbon panels.\n" +
-                                "🌐 GitHub scripts are marked with a globe icon.");
-                        };
-                    }
-                    catch (Exception ex)
-                    {
-                        logger?.LogError("Failed to refresh GitHub scripts", ex);
-                        
-                        // Show error dialog on UI thread
-                        commandData.Application.ActiveUIDocument.Application.Idling += (sender, args) =>
-                        {
-                            TaskDialog.Show("GitHub Scripts Refresh Failed",
-                                $"❌ Failed to refresh GitHub scripts:\n\n{ex.Message}\n\n" +
-                                "Please check your internet connection and try again.");
-                        };
-                    }
-                });
+                    logger?.Log("📥 Refreshing GitHub scripts cache...");
+                    scriptsPlugin.RefreshGitHubScripts();
 
-                // Show immediate feedback
-                TaskDialog.Show("GitHub Scripts Refresh Started",
-                    "📥 GitHub scripts refresh started in background.\n\n" +
-                    "You will be notified when the refresh is complete.\n" +
-                    "The ribbon will be updated automatically.");
+                    // Show success message
+                    TaskDialog.Show("GitHub Scripts Refreshed",
+                        "✅ GitHub scripts have been refreshed successfully!\n\n" +
+                        "Latest verified production scripts are now available in the ribbon panels.\n" +
+                        "🌐 GitHub scripts are marked with a globe icon.");
+                }
+                catch (Exception ex)
+                {
+                    logger?.LogError("Failed to refresh GitHub scripts", ex);
+
+                    // Show error message
+                    TaskDialog.Show("GitHub Scripts Refresh Failed",
+                        $"❌ Failed to refresh GitHub scripts:\n\n{ex.Message}\n\n" +
+                        "Please check your internet connection and try again.");
+
+                    message = ex.Message;
+                    return Result.Failed;
+                }
 
                 return Result.Succeeded;
             }

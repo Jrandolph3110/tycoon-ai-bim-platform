@@ -567,24 +567,43 @@ namespace TycoonRevitAddin.Services
                 {
                     var scriptName = scriptEntry.Key;
                     var scriptInfo = scriptEntry.Value;
-                    var localPath = Path.Combine(scriptsDir, scriptInfo.Path);
+                    var jsonLocalPath = Path.Combine(scriptsDir, scriptInfo.Path);
+                    var dllLocalPath = Path.Combine(scriptsDir, scriptInfo.DllPath ?? scriptInfo.Path.Replace(".json", ".dll"));
 
                     // Create subdirectory if needed
-                    Directory.CreateDirectory(Path.GetDirectoryName(localPath));
+                    Directory.CreateDirectory(Path.GetDirectoryName(jsonLocalPath));
+                    Directory.CreateDirectory(Path.GetDirectoryName(dllLocalPath));
 
-                    // Check if we need to download (hash comparison)
-                    if (ShouldDownloadScript(localPath, scriptInfo.Hash))
+                    // Check if we need to download JSON file (hash comparison)
+                    var needsJsonDownload = ShouldDownloadScript(jsonLocalPath, scriptInfo.Hash);
+                    var needsDllDownload = ShouldDownloadScript(dllLocalPath, scriptInfo.DllHash ?? "");
+
+                    if (needsJsonDownload || needsDllDownload)
                     {
-                        var success = await DownloadScriptFileAsync(scriptInfo.Path, localPath);
-                        if (success)
+                        var jsonSuccess = true;
+                        var dllSuccess = true;
+
+                        // Download JSON file if needed
+                        if (needsJsonDownload)
+                        {
+                            jsonSuccess = await DownloadScriptFileAsync(scriptInfo.Path, jsonLocalPath);
+                        }
+
+                        // Download DLL file if needed
+                        if (needsDllDownload && !string.IsNullOrEmpty(scriptInfo.DllPath))
+                        {
+                            dllSuccess = await DownloadFileFromGitHubAsync(scriptInfo.DllPath, dllLocalPath);
+                        }
+
+                        if (jsonSuccess && dllSuccess)
                         {
                             result.Downloaded++;
-                            _logger.Log($"📥 Downloaded: {scriptName}");
+                            _logger.Log($"📥 Downloaded: {scriptName} (JSON: {needsJsonDownload}, DLL: {needsDllDownload})");
                         }
                         else
                         {
                             result.Failed++;
-                            _logger.LogWarning($"❌ Failed to download: {scriptName}");
+                            _logger.LogWarning($"❌ Failed to download: {scriptName} (JSON: {jsonSuccess}, DLL: {dllSuccess})");
                         }
                     }
                     else
@@ -655,31 +674,23 @@ namespace TycoonRevitAddin.Services
         }
 
         /// <summary>
-        /// Download individual script (file or directory) from GitHub
+        /// Download script files (JSON + DLL pair) from GitHub
         /// </summary>
         private async Task<bool> DownloadScriptFileAsync(string scriptPath, string localPath)
         {
-            _logger.Log($"📥 Starting script download: {scriptPath} -> {localPath}");
+            _logger.Log($"📥 Starting flat structure script download: {scriptPath} -> {localPath}");
 
-            // Script path already includes the full path (e.g., "github-scripts/GitScript")
-            // Try to download as directory first, then as file
-            var directorySuccess = await DownloadDirectoryFromGitHubAsync(scriptPath, localPath);
-            if (directorySuccess)
+            // For flat structure, scriptPath points directly to the JSON file
+            // Download the JSON file
+            var jsonSuccess = await DownloadFileFromGitHubAsync(scriptPath, localPath);
+            if (!jsonSuccess)
             {
-                _logger.Log($"✅ Directory download successful: {scriptPath}");
-                return true;
+                _logger.Log($"❌ Failed to download JSON file: {scriptPath}");
+                return false;
             }
 
-            _logger.Log($"🔄 Directory download failed, trying file download: {scriptPath}");
-            var fileSuccess = await DownloadFileFromGitHubAsync(scriptPath, localPath);
-            if (fileSuccess)
-            {
-                _logger.Log($"✅ File download successful: {scriptPath}");
-                return true;
-            }
-
-            _logger.Log($"❌ Both directory and file download failed: {scriptPath}");
-            return false;
+            _logger.Log($"✅ JSON file downloaded successfully: {scriptPath}");
+            return true;
         }
 
         /// <summary>
@@ -690,101 +701,7 @@ namespace TycoonRevitAddin.Services
             return await DownloadFileFromGitHubAsync(templatePath, localPath);
         }
 
-        /// <summary>
-        /// Download directory and all its contents from GitHub
-        /// </summary>
-        private async Task<bool> DownloadDirectoryFromGitHubAsync(string githubPath, string localBasePath)
-        {
-            try
-            {
-                _logger.Log($"🔍 Attempting directory download for: {githubPath}");
-                var url = $"https://api.github.com/repos/{_repositoryOwner}/{_repositoryName}/contents/{githubPath}?ref={_branch}";
-                var response = await _httpClient.GetAsync(url);
 
-                if (!response.IsSuccessStatusCode)
-                {
-                    _logger.Log($"❌ Directory download failed - HTTP {response.StatusCode}: {githubPath}");
-                    return false; // Not a directory or doesn't exist
-                }
-
-                var json = await response.Content.ReadAsStringAsync();
-                _logger.Log($"🔍 Directory response length: {json.Length} chars");
-                _logger.Log($"🔍 Directory response starts with: {json.Substring(0, Math.Min(100, json.Length))}");
-
-                // Try to deserialize as directory listing (array)
-                try
-                {
-                    var directoryContents = JsonConvert.DeserializeObject<GitHubFileResponse[]>(json);
-                    if (directoryContents == null || directoryContents.Length == 0)
-                    {
-                        _logger.Log($"❌ Directory is empty or null: {githubPath}");
-                        return false;
-                    }
-
-                    _logger.Log($"✅ Directory contains {directoryContents.Length} items: {githubPath}");
-
-                    // Create local directory
-                    Directory.CreateDirectory(localBasePath);
-
-                    // Download all files in the directory
-                    var downloadTasks = new List<Task<bool>>();
-                    foreach (var item in directoryContents)
-                    {
-                        var itemLocalPath = Path.Combine(localBasePath, item.Name);
-                        _logger.Log($"📁 Processing item: {item.Name} (Type: {item.Type})");
-
-                        if (item.Type == "file" || item.Content != null) // It's a file
-                        {
-                            downloadTasks.Add(DownloadFileContentAsync(item, itemLocalPath));
-                        }
-                        else if (item.Type == "dir") // It's a subdirectory
-                        {
-                            downloadTasks.Add(DownloadDirectoryFromGitHubAsync(item.Path, itemLocalPath));
-                        }
-                    }
-
-                    var results = await Task.WhenAll(downloadTasks);
-                    var successCount = results.Count(r => r);
-                    _logger.Log($"📥 Directory download complete: {successCount}/{results.Length} items successful");
-                    return results.All(r => r); // Return true if all downloads succeeded
-                }
-                catch (JsonException ex)
-                {
-                    _logger.Log($"❌ Not a directory (JSON deserialization failed): {githubPath} - {ex.Message}");
-                    // Not a directory (probably a file), return false to try file download
-                    return false;
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError($"Failed to download directory {githubPath}", ex);
-                return false;
-            }
-        }
-
-        /// <summary>
-        /// Download file content from GitHub file response
-        /// </summary>
-        private Task<bool> DownloadFileContentAsync(GitHubFileResponse githubFile, string localPath)
-        {
-            try
-            {
-                if (githubFile?.Content == null)
-                {
-                    return Task.FromResult(false);
-                }
-
-                // Decode and save file
-                var fileContent = Convert.FromBase64String(githubFile.Content.Replace("\n", ""));
-                File.WriteAllBytes(localPath, fileContent);
-                return Task.FromResult(true);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError($"Failed to save file content to {localPath}", ex);
-                return Task.FromResult(false);
-            }
-        }
 
         /// <summary>
         /// Generic method to download file from GitHub
@@ -942,7 +859,9 @@ namespace TycoonRevitAddin.Services
     public class ScriptInfo
     {
         public string Path { get; set; }
+        public string DllPath { get; set; }
         public string Hash { get; set; }
+        public string DllHash { get; set; }
         public string Version { get; set; }
         public string Description { get; set; }
         public string Category { get; set; }
@@ -950,6 +869,7 @@ namespace TycoonRevitAddin.Services
         public string Author { get; set; }
         public DateTime LastModified { get; set; }
         public long Size { get; set; }
+        public long DllSize { get; set; }
         public List<string> Capabilities { get; set; } = new List<string>();
     }
 

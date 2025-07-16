@@ -3,7 +3,7 @@
   "description": "Simple test script from GitHub repository to verify GitHub script refresh functionality",
   "author": "F.L. Crane & Sons Development Team",
   "version": "1.0.0",
-  "assemblyPath": "bin/Release/GitScript.dll",
+  "assemblyPath": "GitScript.dll",
   "className": "GitScript.GitScript",
   "panel": "SmartTools",
   "tags": ["test", "github", "demo"],

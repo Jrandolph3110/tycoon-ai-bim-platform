@@ -457,7 +457,43 @@ namespace TycoonRevitAddin.Plugins
         }
 
         /// <summary>
-        /// Refresh GitHub scripts cache and update ribbon
+        /// Refresh GitHub scripts cache and update ribbon (synchronous)
+        /// </summary>
+        public void RefreshGitHubScripts()
+        {
+            try
+            {
+                _logger.Log("🔄 Refreshing GitHub scripts cache...");
+
+                // Use Task.Run to avoid blocking but wait for completion
+                var task = System.Threading.Tasks.Task.Run(async () =>
+                {
+                    return await _scriptDiscovery.RefreshGitHubScriptsAsync();
+                });
+
+                var success = task.Result; // Wait for completion synchronously
+
+                if (success)
+                {
+                    // Refresh all scripts after GitHub update
+                    RefreshScripts();
+                    _logger.Log("✅ GitHub scripts cache refreshed successfully");
+                }
+                else
+                {
+                    _logger.Log("❌ Failed to refresh GitHub scripts");
+                    throw new Exception("GitHub scripts refresh failed");
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError("Failed to refresh GitHub scripts", ex);
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// Refresh GitHub scripts cache and update ribbon (async)
         /// </summary>
         public async System.Threading.Tasks.Task RefreshGitHubScriptsAsync()
         {
