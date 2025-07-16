@@ -52,6 +52,7 @@
             <Button Name="ClearButton" Content="🗑️ Clear" ToolTip="Clear console (Ctrl+L)" Click="ClearButton_Click"/>
             <Button Name="CopyButton" Content="📋 Copy" ToolTip="Copy all text (Ctrl+C)" Click="CopyButton_Click"/>
             <Button Name="SaveButton" Content="💾 Save" ToolTip="Save to file" Click="SaveButton_Click"/>
+            <Button Name="RefreshButton" Content="🔄 Refresh" ToolTip="Refresh current log source" Click="RefreshButton_Click"/>
             <Separator/>
             <ToggleButton Name="AutoScrollButton" Content="📜 Auto-scroll" IsChecked="True" ToolTip="Auto-scroll to bottom"/>
             <ToggleButton Name="TopMostButton" Content="📌 Stay on Top" ToolTip="Keep window on top"/>
@@ -93,13 +94,7 @@
                 <RichTextBox.Document>
                     <FlowDocument Name="ConsoleDocument">
                         <Paragraph Name="ConsoleParagraph">
-                            <Run Text="🔥 Tycoon Script Console Ready" Foreground="#44AA44" FontWeight="Bold"/>
-                            <LineBreak/>
-                            <Run Text="💡 Tip: Use Shift+Click on script buttons to show console output" Foreground="#4488CC"/>
-                            <LineBreak/>
-                            <Run Text="⌨️ Shortcuts: Ctrl+L (Clear), Ctrl+C (Copy), Ctrl+S (Save)" Foreground="#888888"/>
-                            <LineBreak/>
-                            <LineBreak/>
+                            <!-- Initial content will be added programmatically -->
                         </Paragraph>
                     </FlowDocument>
                 </RichTextBox.Document>

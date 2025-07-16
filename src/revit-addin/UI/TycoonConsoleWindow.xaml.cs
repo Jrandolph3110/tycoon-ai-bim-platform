@@ -43,17 +43,55 @@ namespace TycoonRevitAddin.UI
             // Set initial state
             StatusText.Text = "Console initialized";
             LastUpdateText.Text = DateTime.Now.ToString("HH:mm:ss");
-            
+
             // Wire up events
             TopMostButton.Checked += (s, e) => Topmost = true;
             TopMostButton.Unchecked += (s, e) => Topmost = false;
-            
+
             FilterComboBox.SelectionChanged += FilterComboBox_SelectionChanged;
             LogSourceComboBox.SelectionChanged += LogSourceComboBox_SelectionChanged;
-            
+
             // Set window properties
             WindowState = WindowState.Normal;
             ShowInTaskbar = true;
+
+            // Add initial welcome content programmatically to avoid character-by-character display
+            AddInitialWelcomeContent();
+        }
+
+        private void AddInitialWelcomeContent()
+        {
+            // Clear any existing content
+            ConsoleParagraph.Inlines.Clear();
+
+            // Add welcome message
+            var welcomeRun = new Run("🔥 Tycoon Script Console Ready")
+            {
+                Foreground = new SolidColorBrush(Color.FromRgb(68, 170, 68)),
+                FontWeight = FontWeights.Bold
+            };
+            ConsoleParagraph.Inlines.Add(welcomeRun);
+            ConsoleParagraph.Inlines.Add(new LineBreak());
+
+            // Add tip message
+            var tipRun = new Run("💡 Tip: Use Shift+Click on script buttons to show console output")
+            {
+                Foreground = new SolidColorBrush(Color.FromRgb(68, 136, 204))
+            };
+            ConsoleParagraph.Inlines.Add(tipRun);
+            ConsoleParagraph.Inlines.Add(new LineBreak());
+
+            // Add shortcuts message
+            var shortcutsRun = new Run("⌨️ Shortcuts: Ctrl+L (Clear), Ctrl+C (Copy), Ctrl+S (Save)")
+            {
+                Foreground = new SolidColorBrush(Color.FromRgb(136, 136, 136))
+            };
+            ConsoleParagraph.Inlines.Add(shortcutsRun);
+            ConsoleParagraph.Inlines.Add(new LineBreak());
+            ConsoleParagraph.Inlines.Add(new LineBreak());
+
+            _lineCount = 3;
+            LineCountText.Text = _lineCount.ToString();
         }
 
         private void SetupKeyboardShortcuts()
@@ -167,6 +205,14 @@ namespace TycoonRevitAddin.UI
         private void ClearButton_Click(object sender, RoutedEventArgs e) => ClearConsole();
         private void CopyButton_Click(object sender, RoutedEventArgs e) => CopyAllText();
         private void SaveButton_Click(object sender, RoutedEventArgs e) => SaveToFile();
+
+        private void RefreshButton_Click(object sender, RoutedEventArgs e)
+        {
+            // Clear console and reload current source
+            ClearConsole();
+            StatusText.Text = $"Refreshing {GetLogSourceDisplayName(_currentLogSource)}...";
+            LoadLogSourceContent(_currentLogSource);
+        }
 
         private void PauseButton_Click(object sender, RoutedEventArgs e)
         {
@@ -339,19 +385,38 @@ namespace TycoonRevitAddin.UI
 
                 if (journalFiles != null)
                 {
-                    var content = File.ReadAllText(journalFiles);
-                    var lines = content.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
-
-                    AppendLogEntry($"📁 Loading latest Revit journal: {Path.GetFileName(journalFiles)}", LogLevel.Info);
-
-                    // Load last 50 lines
-                    var startIndex = Math.Max(0, lines.Length - 50);
-                    for (int i = startIndex; i < lines.Length; i++)
+                    try
                     {
-                        if (!string.IsNullOrWhiteSpace(lines[i]))
+                        // Use FileStream with proper sharing to handle locked files
+                        string content;
+                        using (var fileStream = new FileStream(journalFiles, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+                        using (var reader = new StreamReader(fileStream))
                         {
-                            AppendLogEntry(lines[i], LogLevel.Info);
+                            content = reader.ReadToEnd();
                         }
+
+                        var lines = content.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
+
+                        AppendLogEntry($"📁 Loading latest Revit journal: {Path.GetFileName(journalFiles)}", LogLevel.Info);
+
+                        // Load last 50 lines
+                        var startIndex = Math.Max(0, lines.Length - 50);
+                        for (int i = startIndex; i < lines.Length; i++)
+                        {
+                            if (!string.IsNullOrWhiteSpace(lines[i]))
+                            {
+                                AppendLogEntry(lines[i], LogLevel.Info);
+                            }
+                        }
+                    }
+                    catch (IOException ex)
+                    {
+                        AppendLogEntry($"📁 Cannot access Revit journal file (may be locked by Revit): {ex.Message}", LogLevel.Warning);
+                        AppendLogEntry("💡 Try closing Revit or use the refresh button to retry", LogLevel.Info);
+                    }
+                    catch (Exception ex)
+                    {
+                        AppendLogEntry($"📁 Error reading Revit journal: {ex.Message}", LogLevel.Error);
                     }
                 }
                 else
@@ -370,6 +435,48 @@ namespace TycoonRevitAddin.UI
             AppendLogEntry("🔥 Script Outputs Console Ready", LogLevel.Success);
             AppendLogEntry("💡 This view shows real-time script execution output", LogLevel.Info);
             AppendLogEntry("⚡ Execute scripts to see output here", LogLevel.Info);
+
+            // Load existing script outputs from today
+            LoadExistingScriptOutputs();
+        }
+
+        private void LoadExistingScriptOutputs()
+        {
+            try
+            {
+                var scriptOutputDirectory = Path.Combine(Path.GetTempPath(), "TycoonScriptOutput");
+                var todayLogPattern = $"ScriptOutput_{DateTime.Now:yyyyMMdd}.log";
+                var todayLogPath = Path.Combine(scriptOutputDirectory, todayLogPattern);
+
+                if (File.Exists(todayLogPath))
+                {
+                    using (var fileStream = new FileStream(todayLogPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+                    using (var reader = new StreamReader(fileStream))
+                    {
+                        var content = reader.ReadToEnd();
+                        var lines = content.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
+
+                        if (lines.Length > 0)
+                        {
+                            AppendLogEntry($"📜 Loading existing script outputs ({lines.Length} entries)...", LogLevel.Info);
+
+                            // Load last 30 lines to avoid overwhelming
+                            var startIndex = Math.Max(0, lines.Length - 30);
+                            for (int i = startIndex; i < lines.Length; i++)
+                            {
+                                if (!string.IsNullOrWhiteSpace(lines[i]))
+                                {
+                                    AppendLogEntry(lines[i], LogLevel.Info);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                AppendLogEntry($"❌ Error loading existing script outputs: {ex.Message}", LogLevel.Warning);
+            }
         }
 
         protected override void OnClosed(EventArgs e)

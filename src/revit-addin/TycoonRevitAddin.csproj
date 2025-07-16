@@ -143,6 +143,7 @@
     <Compile Include="UI\PluginSelectorControl.cs" />
     <!-- LayoutConverters.cs removed - part of legacy layout system -->
     <Compile Include="Utils\Logger.cs" />
+    <Compile Include="Utils\ScriptLogger.cs" />
     <!-- ✅ RE-ENABLED: Console functionality for Scripts Control panel -->
     <Compile Include="Utils\TycoonConsoleManager.cs" />
     <!-- ✅ RE-ENABLED: Essential for Communication layer -->
