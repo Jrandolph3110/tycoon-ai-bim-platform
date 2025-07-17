@@ -1,4 +1,4 @@
-﻿{
+{
   "name": "tycoon-ai-bim-server",
   "version": "0.17.0",
   "description": "Tycoon AI-BIM MCP Server - Revolutionary AI-powered construction automation with live Revit integration",
@@ -41,20 +41,20 @@
     "@modelcontextprotocol/sdk": "^0.5.0",
     "@msgpack/msgpack": "^3.0.0",
     "chalk": "^5.4.1",
+    "chokidar": "^3.5.3",
     "chromadb": "^1.10.5",
     "fuse.js": "^7.0.0",
     "simple-git": "^3.25.0",
-    "uuid": "^10.0.0",
-    "ws": "^8.18.0",
-    "chokidar": "^3.5.3",
+    "sqlite": "^5.0.1",
     "sqlite3": "^5.1.6",
-    "sqlite": "^5.0.1"
+    "uuid": "^10.0.0",
+    "ws": "^8.18.3"
   },
   "devDependencies": {
     "@types/node": "^22.15.3",
+    "@types/sqlite3": "^3.1.11",
     "@types/uuid": "^10.0.0",
     "@types/ws": "^8.5.13",
-    "@types/sqlite3": "^3.1.11",
     "shx": "^0.3.4",
     "typescript": "^5.8.3"
   }
